@@ -13,8 +13,13 @@ public class NDD {
     private static NodeTable<Integer> nodeTable;
     private static BDD bddEngine;
     private static int fieldNum;
+    // per field
     private static ArrayList<Integer> maxVariablePerField;
     private static ArrayList<Double> satCountDiv;
+    private static ArrayList<int[]> bddVarsPerField;
+    private static ArrayList<int[]> bddNotVarsPerField;
+    private static ArrayList<NDD[]> nddVarsPerField;
+    private static ArrayList<NDD[]> nddNotVarsPerField;
     // protect temporary NDD nodes during garbage collection
     private static HashSet<NDD> temporarilyProtect;
 
@@ -24,12 +29,16 @@ public class NDD {
     private static OperationCache<NDD> andCache;
     private static OperationCache<NDD> orCache;
 
-    public static void initNDD(int tableSize, int bddTableSize, int bddCacheSize) {
-        nodeTable = new NodeTable<>(tableSize, bddTableSize, bddCacheSize);
+    public static void initNDD(int nddTableSize, int bddTableSize, int bddCacheSize) {
+        nodeTable = new NodeTable<>(nddTableSize, bddTableSize, bddCacheSize);
         bddEngine = nodeTable.getBddEngine();
         fieldNum = -1;
         maxVariablePerField = new ArrayList<>();
         satCountDiv = new ArrayList<>();
+        bddVarsPerField = new ArrayList<>();
+        bddNotVarsPerField = new ArrayList<>();
+        nddVarsPerField = new ArrayList<>();
+        nddNotVarsPerField = new ArrayList<>();
         temporarilyProtect = new HashSet<>();
         notCache = new OperationCache<>(CACHE_SIZE, 2);
         andCache = new OperationCache<>(CACHE_SIZE, 3);
@@ -52,12 +61,42 @@ public class NDD {
             satCountDiv.set(i, satCountDiv.get(i) * factor);
         }
         int totalBitBefore = 0;
-        if (!maxVariablePerField.isEmpty()) {
-            totalBitBefore = maxVariablePerField.get(maxVariablePerField.size() - 1) + 1;
+        if (maxVariablePerField.size() > 1) {
+            totalBitBefore = maxVariablePerField.get(maxVariablePerField.size() - 2) + 1;
         }
         satCountDiv.add(Math.pow(2.0, totalBitBefore));
+        // 4. add node table
+        nodeTable.declareField();
+        // 5. declare vars
+        int[] bddVars = new int[bitNum];
+        int[] bddNotVars = new int[bitNum];
+        NDD[] nddVars = new NDD[bitNum];
+        NDD[] nddNotVars = new NDD[bitNum];
+
+        for (int i = 0;i < bitNum;i++) {
+            bddVars[i] = bddEngine.createVar();
+            bddNotVars[i] = bddEngine.ref(bddEngine.not(bddVars[i]));
+            HashMap<NDD, Integer> edges = new HashMap<>();
+            edges.put(NDD.getTrue(), bddEngine.ref(bddVars[i]));
+            nddVars[i] = NDD.ref(NDD.mk(fieldNum, edges));
+            edges = new HashMap<>();
+            edges.put(NDD.getTrue(), bddEngine.ref(bddNotVars[i]));
+            nddNotVars[i] = NDD.ref(NDD.mk(fieldNum, edges));
+        }
+        bddVarsPerField.add(bddVars);
+        bddNotVarsPerField.add(bddNotVars);
+        nddVarsPerField.add(nddVars);
+        nddNotVarsPerField.add(nddNotVars);
 
         return fieldNum;
+    }
+
+    public static NDD getVar(int field, int index) {
+        return nddVarsPerField.get(field)[index];
+    }
+
+    public static NDD getNotVar(int field, int index) {
+        return nddNotVarsPerField.get(field)[index];
     }
 
     public static void clearCaches() {
@@ -299,8 +338,8 @@ public class NDD {
         temporarilyProtect.clear();
         NDD n = notRec(b);
         temporarilyProtect.add(n);
-        NDD ret = andRec(a, n);
-        return ret;
+        NDD result = andRec(a, n);
+        return result;
     }
 
     public static NDD exist(NDD a, int field) {
@@ -329,6 +368,15 @@ public class NDD {
             result = mk(a.field, edges);
         }
         temporarilyProtect.add(result);
+        return result;
+    }
+
+    // a => b <==> (not a) ∪ b
+    public static NDD imp(NDD a, NDD b) {
+        temporarilyProtect.clear();
+        NDD n = notRec(a);
+        temporarilyProtect.add(n);
+        NDD result = orRec(n, b);
         return result;
     }
 
