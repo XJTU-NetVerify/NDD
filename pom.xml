@@ -13,6 +13,16 @@
         <maven.compiler.target>8</maven.compiler.target>
     </properties>
 
+    <dependencies>
+        <dependency>
+            <groupId>mytool</groupId>
+            <artifactId>jdd</artifactId>
+            <version>111</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/lib/jdd-111.jar</systemPath>
+        </dependency>
+    </dependencies>
+
     <build>
         <plugins>
             <plugin>
@@ -20,15 +30,13 @@
                 <artifactId>maven-assembly-plugin</artifactId>
                 <configuration>
                     <descriptorRefs>
-                        <!--给jar包起的别名-->
                         <descriptorRef>jar-with-dependencies</descriptorRef>
                     </descriptorRefs>
                     <archive>
                         <manifest>
                             <addClasspath>true</addClasspath>
                             <classpathPrefix>lib/</classpathPrefix>
-                            <!--添加项目中主类-->
-                            <mainClass>ndd.NodeTable</mainClass>
+                            <mainClass>application.Main</mainClass>
                         </manifest>
                     </archive>
                 </configuration>
