@@ -1,10 +1,16 @@
-package ndd.diagram;
+package ndd.jdd.diagram;
 
 import jdd.bdd.BDD;
-import ndd.cache.OperationCache;
-import ndd.nodetable.NodeTable;
+import ndd.jdd.cache.OperationCache;
+import ndd.jdd.nodetable.NodeTable;
 
 import java.util.*;
+
+/**
+ * Implement logical operations of NDD.
+ * @author Zechun Li
+ * @version 1.0
+ */
 
 public class NDD {
     private final static int CACHE_SIZE = 100000;

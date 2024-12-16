@@ -1,7 +1,7 @@
-package ndd.nodetable;
+package ndd.jdd.nodetable;
 
 import jdd.bdd.BDD;
-import ndd.diagram.NDD;
+import ndd.jdd.diagram.NDD;
 
 import java.util.*;
 
