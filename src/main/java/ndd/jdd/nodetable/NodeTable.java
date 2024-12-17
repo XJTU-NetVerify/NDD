@@ -5,34 +5,79 @@ import ndd.jdd.diagram.NDD;
 
 import java.util.*;
 
+/**
+ * Node table of NDD and atomized NDD.
+ * @author Zechun Li
+ * @version 0.1
+ */
+
 public class NodeTable <E> {
-    // node table
+    /**
+     * The current size of the node table.
+     */
     long currentSize;
-    long maxSize;
-    ArrayList<HashMap<HashMap<NDD, Integer>, NDD>> nodeTable; // each element is an node table for a field
-    // bdd engine
+
+    /**
+     * The max size of the node table.
+     */
+    long nddTableSize;
+
+    /**
+     * The node table.
+     */
+    ArrayList<HashMap<HashMap<NDD, Integer>, NDD>> nodeTable;
+
+    /**
+     * The internal bdd engine.
+     */
     BDD bddEngine;
-    // garbage collection
+
+    /**
+     * If the number of free nodes is less than this threshold after garbage collection, the ndd engine will grow its node table.
+     */
     final double QUICK_GROW_THRESHOLD = 0.1;
+
+    /**
+     * The reference count of each node.
+     */
     HashMap<NDD, Integer> referenceCount;
 
-    public NodeTable(long maxSize, int bddTableSize, int bddCacheSize) {
+    /**
+     * Construct function.
+     * @param nddTableSize The max size of ndd node table.
+     * @param bddTableSize The max size of bdd node table.
+     * @param bddCacheSize The max size of ndd operation cache.
+     */
+    public NodeTable(long nddTableSize, int bddTableSize, int bddCacheSize) {
         this.currentSize = 0L;
-        this.maxSize = maxSize;
+        this.nddTableSize = nddTableSize;
         this.nodeTable = new ArrayList<>();
         bddEngine = new BDD(bddTableSize, bddCacheSize);
         this.referenceCount = new HashMap<>();
     }
 
+    /**
+     * Get the internal bdd engine.
+     * @return The internal bdd engine.
+     */
     public BDD getBddEngine() {
         return bddEngine;
     }
 
+    /**
+     * Declare a new field.
+     */
     // declare a new node table for a new field
     public void declareField() {
         nodeTable.add(new HashMap<>());
     }
 
+    /**
+     * Create or reuse an ndd node.
+     * @param field The field of the node.
+     * @param edges Edges of the node.
+     * @return The ndd node.
+     */
     // create or reuse a new node
     public NDD mk(int field, HashMap<NDD, Integer> edges) {
         NDD node = nodeTable.get(field).get(edges);
@@ -48,7 +93,7 @@ public class NodeTable <E> {
             }
 
             // 2. check if there should be a gc or grow
-            if (currentSize >= maxSize) {
+            if (currentSize >= nddTableSize) {
                 gcOrGrow();
             }
 
@@ -67,14 +112,20 @@ public class NodeTable <E> {
         }
     }
 
+    /**
+     * Free unused ndd node, first by garbage collection, then by growing the node table.
+     */
     private void gcOrGrow() {
         gc();
-        if (maxSize - currentSize <= maxSize * QUICK_GROW_THRESHOLD) {
+        if (nddTableSize - currentSize <= nddTableSize * QUICK_GROW_THRESHOLD) {
             grow();
         }
         NDD.clearCaches();
     }
 
+    /**
+     * Garbage collection.
+     */
     private void gc() {
         // protect temporary nodes during NDD operations
         for (NDD ndd : NDD.getTemporarilyProtect()) {
@@ -110,17 +161,29 @@ public class NodeTable <E> {
         }
     }
 
+    /**
+     * Grow the node table.
+     */
     private void grow() {
-        maxSize *= 2;
+        nddTableSize *= 2;
     }
 
+    /**
+     * Protect a root node from garbage collection.
+     * @param ndd The root to be protected.
+     * @return The ndd node.
+     */
     public NDD ref(NDD ndd) {
         if (!ndd.isTerminal()) {
             referenceCount.put(ndd, referenceCount.get(ndd) + 1);
         }
         return ndd;
     }
-    
+
+    /**
+     * Unprotect a root node, such that the node can be cleared during garbage collection.
+     * @param ndd The ndd node to be unprotected.
+     */
     public void deref(NDD ndd) {
         if (!ndd.isTerminal()) {
             referenceCount.put(ndd, referenceCount.get(ndd) - 1);

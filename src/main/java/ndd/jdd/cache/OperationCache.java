@@ -5,17 +5,33 @@ import com.sun.istack.internal.NotNull;
 /**
  * Operation cache of NDD.
  * @author Zechun Li
- * @version 1.0
+ * @version 0.1
  */
 
 public class OperationCache<T> {
-    // The max number of entries in the cache.
+    /**
+     * The max number of entries in the cache.
+     */
     int cacheSize;
-    // The length of each entry. 3 for binary operations and 2 for unary operations.
+
+    /**
+     * The length of each entry. 3 for binary operations and 2 for unary operations.
+     */
     int entrySize;
+
+    /**
+     * The cache.
+     */
     Object[] cache;
-    // Store the result of getEntry() temporarily
+
+    /**
+     * Store the result of getEntry() temporarily, if the entry is found.
+     */
     public T result;
+
+    /**
+     * Store the hash value of getEntry() temporarily, if the entry is not found.
+     */
     public int hashValue;
 
     /**

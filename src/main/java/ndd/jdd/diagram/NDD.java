@@ -9,32 +9,84 @@ import java.util.*;
 /**
  * Implement logical operations of NDD.
  * @author Zechun Li
- * @version 1.0
+ * @version 0.1
  */
 
 public class NDD {
+    /**
+     * The size of each operation cache.
+     */
     private final static int CACHE_SIZE = 100000;
 
-    // node table
+    /**
+     * The ndd node table.
+     */
     private static NodeTable<Integer> nodeTable;
+
+    /**
+     * The internal bdd engine.
+     */
     private static BDD bddEngine;
+
+    /**
+     * The number of fields.
+     */
     private static int fieldNum;
-    // per field
+
+    /**
+     * The max id of bits for each field.
+     */
     private static ArrayList<Integer> maxVariablePerField;
+
+    /**
+     * The correction factor of each field, used by operation of satCount.
+     */
     private static ArrayList<Double> satCountDiv;
+
+    /**
+     * All bdd variables.
+     */
     private static ArrayList<int[]> bddVarsPerField;
+
+    /**
+     * The negation of each ndd variable.
+     */
     private static ArrayList<int[]> bddNotVarsPerField;
+
+    /**
+     * All ndd variables.
+     */
     private static ArrayList<NDD[]> nddVarsPerField;
+
+    /**
+     * The negation of each ndd variable.
+     */
     private static ArrayList<NDD[]> nddNotVarsPerField;
-    // protect temporary NDD nodes during garbage collection
+
+    /**
+     * Temporary ndd nodes during a logical operation, which should be protected during garbage collection.
+     */
     private static HashSet<NDD> temporarilyProtect;
 
-    // operation caches
-    // note that: the usage of operation caches must be based on lazy gc
+    /**
+     * The cache of operation NOT.
+     */
     private static OperationCache<NDD> notCache;
+    /**
+     * The cache of operation AND.
+     */
     private static OperationCache<NDD> andCache;
+    /**
+     * The cache of operation OR.
+     */
     private static OperationCache<NDD> orCache;
 
+    /**
+     * Init the NDD engine.
+     * @param nddTableSize The max size of ndd node table.
+     * @param bddTableSize The max size of bdd node table.
+     * @param bddCacheSize The max size of bdd operation cache.
+     */
     public static void initNDD(int nddTableSize, int bddTableSize, int bddCacheSize) {
         nodeTable = new NodeTable<>(nddTableSize, bddTableSize, bddCacheSize);
         bddEngine = nodeTable.getBddEngine();
@@ -52,6 +104,11 @@ public class NDD {
     }
 
     // declare a field of 'bitNum' bits
+    /**
+     * Declare a new field.
+     * @param bitNum The number of bits in the field.
+     * @return The id of the field.
+     */
     public static int declareField(int bitNum) {
         // 1. update the number of fields
         fieldNum++;
@@ -97,44 +154,90 @@ public class NDD {
         return fieldNum;
     }
 
+    /**
+     * Get the ndd variable of a specific bit.
+     * @param field The id of the field.
+     * @param index The id of the bit in the field.
+     * @return The ndd variable.
+     */
     public static NDD getVar(int field, int index) {
         return nddVarsPerField.get(field)[index];
     }
 
+    /**
+     * Get the negation the variable for a specific bit.
+     * @param field The id of the field.
+     * @param index The id of the bit in the field.
+     * @return The negation of the ndd variable.
+     */
     public static NDD getNotVar(int field, int index) {
         return nddNotVarsPerField.get(field)[index];
     }
 
+    /**
+     * Clear all the caches, the api is usually invoked during garbage collection.
+     */
     public static void clearCaches() {
         notCache.clearCache();
         andCache.clearCache();
         orCache.clearCache();
     }
 
+    /**
+     * Protect a root node from garbage collection.
+     * @param ndd The root to be protected.
+     * @return The ndd node.
+     */
     public static NDD ref(NDD ndd) {
         return nodeTable.ref(ndd);
     }
 
+    /**
+     * Unprotect a root node, such that the node can be cleared during garbage collection.
+     * @param ndd The ndd node to be unprotected.
+     */
     public static void deref(NDD ndd) {
         nodeTable.deref(ndd);
     }
 
+    /**
+     * Get all the temporary nodes.
+     * @return All the temporary nodes.
+     */
     public static HashSet<NDD> getTemporarilyProtect() {
         return temporarilyProtect;
     }
 
+    /**
+     * The logical operation AND, which automatically ref the result and deref the first operand.
+     * @param a The first operand.
+     * @param b The second operand.
+     * @return The result of the logical operation.
+     */
     public static NDD andTo(NDD a, NDD b) {
         NDD t = ref(and(a, b));
         deref(a);
         return t;
     }
 
+    /**
+     * The logical operation OR, which automatically ref the result and deref the first operand.
+     * @param a The first operand.
+     * @param b The second operand.
+     * @return The result of the logical operation.
+     */
     public static NDD orTo(NDD a, NDD b) {
         NDD t = ref(or(a, b));
         deref(a);
         return t;
     }
 
+    /**
+     * Add an edge into a set of edges, may merge some edges.
+     * @param edges A set of edges.
+     * @param descendant The descendant of the edge to be inserted.
+     * @param labelBDD The label of the edge to be inserted.
+     */
     private static void addEdge(HashMap<NDD, Integer> edges, NDD descendant, int labelBDD) {
         // omit the edge pointing to terminal node FALSE
         if (descendant.isFalse()) {
@@ -152,11 +255,23 @@ public class NDD {
         edges.put(descendant, newLabel);
     }
 
+    /**
+     * The logical operation AND.
+     * @param a The first operand.
+     * @param b The second operand.
+     * @return The result of the logical operation.
+     */
     public static NDD and(NDD a, NDD b) {
         temporarilyProtect.clear();
         return andRec(a, b);
     }
 
+    /**
+     * The recursive implementation of the logical operation AND.
+     * @param a The first operand.
+     * @param b The second operand.
+     * @return The result of the logical operation.
+     */
     private static NDD andRec(NDD a, NDD b) {
         // terminal condition
         if (a.isFalse() || b.isTrue()) {
@@ -209,11 +324,23 @@ public class NDD {
         return result;
     }
 
+    /**
+     * The logical operation OR.
+     * @param a The first operand.
+     * @param b The second operand.
+     * @return The result of the logical operation.
+     */
     public static NDD or(NDD a, NDD b) {
         temporarilyProtect.clear();
         return orRec(a, b);
     }
 
+    /**
+     * The recursive implementation of the logical operation OR.
+     * @param a The first operand.
+     * @param b The second operand.
+     * @return The result of the logical operation.
+     */
     private static NDD orRec(NDD a, NDD b) {
         // terminal condition
         if (a.isTrue() || b.isFalse()) {
@@ -305,11 +432,21 @@ public class NDD {
         return result;
     }
 
+    /**
+     * The logical operation NOT.
+     * @param a The operand.
+     * @return The result of the logical operation.
+     */
     public static NDD not(NDD a) {
         temporarilyProtect.clear();
         return notRec(a);
     }
 
+    /**
+     * The recursive implementation of the logical operation NOT.
+     * @param a The operand.
+     * @return The result of the logical operation.
+     */
     private static NDD notRec(NDD a) {
         if (a.isTrue()) {
             return FALSE;
@@ -340,6 +477,11 @@ public class NDD {
     }
 
     // a / b <==> a ∩ (not b)
+    /**
+     * The logical operation DIFF, which is equivalent to a AND (NOT b).
+     * @param a The operand.
+     * @return The result of the logical operation.
+     */
     public static NDD diff(NDD a, NDD b) {
         temporarilyProtect.clear();
         NDD n = notRec(b);
@@ -348,13 +490,23 @@ public class NDD {
         return result;
     }
 
+    /**
+     * The existential quantification.
+     * @param a The operand.
+     * @param field The field to run an existential quantification.
+     * @return The result.
+     */
     public static NDD exist(NDD a, int field) {
         temporarilyProtect.clear();
         return existRec(a, field);
     }
 
-    // existential quantification
-    // not updated with lazyGC
+    /**
+     * The recursive implementation of existential quantification.
+     * @param a The operand.
+     * @param field The field to run an existential quantification.
+     * @return The result.
+     */
     private static NDD existRec(NDD a, int field) {
         if (a.isTerminal() || a.field > field) {
             return a;
@@ -378,6 +530,12 @@ public class NDD {
     }
 
     // a => b <==> (not a) ∪ b
+    /**
+     * The logical implication, which is equivalent to (NOT a) OR b.
+     * @param a The first operand.
+     * @param b The second operand.
+     * @return The result of the logical implication.
+     */
     public static NDD imp(NDD a, NDD b) {
         temporarilyProtect.clear();
         NDD n = notRec(a);
@@ -386,11 +544,21 @@ public class NDD {
         return result;
     }
 
-    // calculate the number of solutions of an NDD
+    /**
+     * The number of solutions encoded in the ndd node.
+     * @param ndd The ndd node.
+     * @return The number of solutions.
+     */
     public static double satCount(NDD ndd) {
         return satCountRec(ndd, 0);
     }
 
+    /**
+     * The recursive implementation of satCount.
+     * @param curr Current ndd node.
+     * @param field Current field.
+     * @return The number of solutions.
+     */
     private static double satCountRec(NDD curr, int field) {
         if (curr.isFalse()) {
             return 0;
@@ -427,47 +595,95 @@ public class NDD {
         }
     }
 
-    // per node content
+    /**
+     * The field of the node.
+     */
     private int field;
+
+    /**
+     * All the edges of the node.
+     */
     private HashMap<NDD, Integer> edges;
 
+    /**
+     * Construct function, used for terminal nodes.
+     */
     public NDD() {
 
     }
 
+    /**
+     * Construct function, used for non-terminal nodes.
+     * @param field The field that the node branches on.
+     * @param edges Edges of the node.
+     */
     public NDD(int field, HashMap<NDD, Integer> edges) {
         this.field = field;
         this.edges = edges;
     }
 
+    /**
+     * Get the field of the node.
+     * @return The field of the node.
+     */
     public int getField() {
         return field;
     }
 
+    /**
+     * Get all the edges of the node.
+     * @return All the edges.
+     */
     public HashMap<NDD, Integer> getEdges() {
         return edges;
     }
 
-    // terminal node true and false
+    /**
+     * The terminal node TRUE.
+     */
     private final static NDD TRUE = new NDD();
+
+    /**
+     * The terminal node FALSE.
+     */
     private final static NDD FALSE = new NDD();
 
+    /**
+     * Get the terminal node TRUE.
+     * @return The terminal node TRUE.
+     */
     public static NDD getTrue() {
         return TRUE;
     }
 
+    /**
+     * Get the terminal node FALSE.
+     * @return The terminal node FALSE.
+     */
     public static NDD getFalse() {
         return FALSE;
     }
 
+    /**
+     * Check if the node is the terminal node TRUE.
+     * @return If the node is the terminal node TRUE.
+     */
     public boolean isTrue() {
         return this == getTrue();
     }
 
+    /**
+     * Check if the node is the terminal node FALSE.
+     * @return If the node is the terminal node FALSE.
+     */
     public boolean isFalse() {
         return this == getFalse();
     }
 
+    /**
+     * Check if the node is a terminal node.
+     * @return If the node is a terminal node.
+     */
     public boolean isTerminal() {
         return this == getTrue() || this == getFalse();
     }
@@ -478,6 +694,12 @@ public class NDD {
     }
 
     //create or reuse a new NDD node
+    /**
+     * Create or reuse an NDD node.
+     * @param field The field of the ndd node.
+     * @param edges All the edges of the ndd node.
+     * @return The ndd node.
+     */
     public static NDD mk(int field, HashMap<NDD, Integer> edges) {
         if (edges.size() == 0) {
             // Since NDD omits all edges pointing to FALSE, the empty edge represents FALSE.
