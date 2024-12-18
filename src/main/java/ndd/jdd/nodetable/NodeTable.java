@@ -141,19 +141,21 @@ public class NodeTable <E> {
         }
         while (!deadNodesQueue.isEmpty()) {
             NDD deadNode = deadNodesQueue.poll();
-            if (!deadNode.isTerminal()) {
-                for (NDD descendant : deadNode.getEdges().keySet()) {
-                    int newReferenceCount = referenceCount.get(descendant) - 1;
-                    referenceCount.put(descendant, newReferenceCount);
-                    if (newReferenceCount == 0) {
-                        deadNodesQueue.offer(descendant);
-                    }
+            for (NDD descendant : deadNode.getEdges().keySet()) {
+                if (descendant.isTerminal()) continue;
+                int newReferenceCount = referenceCount.get(descendant) - 1;
+                referenceCount.put(descendant, newReferenceCount);
+                if (newReferenceCount == 0) {
+                    deadNodesQueue.offer(descendant);
                 }
-                // delete current dead node
-                referenceCount.remove(deadNode);
-                nodeTable.get(deadNode.getField()).remove(deadNode.getEdges());
-                currentSize--;
             }
+            // delete current dead node
+            for (int bddLabel : deadNode.getEdges().values()) {
+                bddEngine.deref(bddLabel);
+            }
+            referenceCount.remove(deadNode);
+            nodeTable.get(deadNode.getField()).remove(deadNode.getEdges());
+            currentSize--;
         }
 
         for (NDD ndd : NDD.getTemporarilyProtect()) {

@@ -3,7 +3,7 @@ package application.nqueen;
 import ndd.jdd.diagram.NDD;
 
 public class NDDSolution {
-    public static final int NDD_TABLE_SIZE = 100000;
+    public static final int NDD_TABLE_SIZE = 100000000;
 
     // declare n fields, n bits per field
     private static void declareFields(int n) {
@@ -68,7 +68,7 @@ public class NDDSolution {
     }
 
     // N is the number of queens, fieldNum is the number of fields in NDD library.
-    public static void Solution(int n) {
+    public static String Solution(int n) {
         // init NDD library
         NDD.initNDD(NDD_TABLE_SIZE, 1 + Math.max(1000, (int) (Math.pow(4.4, n - 6)) * 1000), 10000);
 
@@ -100,20 +100,23 @@ public class NDDSolution {
             queen = NDD.andTo(queen, orBatch[i]);
             NDD.deref(orBatch[i]);
         }
-
         for (int i = 0; i < n; i++) {
             for (int j = 0; j < n; j++) {
                 queen = NDD.andTo(queen, impBatch[i][j]);
                 NDD.deref(impBatch[i][j]);
             }
         }
-
         double endTime = System.currentTimeMillis();
-        System.out.println("Time consumption: " + (endTime - startTime) / 1000 + "Seconds");
-        System.out.println("Solution count: " + NDD.satCount(queen));
+        // todo: add a cache for satCount
+        return "\t" + String.format("" + (endTime - startTime) / 1000, ".3f") + "\t" + NDD.satCount(queen);
     }
 
     public static void main(String[] args) {
-        Solution(8);
+        System.out.println(Solution(1));
+        System.out.println(Solution(2));
+        System.out.println(Solution(3));
+        System.out.println(Solution(4));
+        System.out.println(Solution(5));
+        System.out.println(Solution(6));
     }
 }

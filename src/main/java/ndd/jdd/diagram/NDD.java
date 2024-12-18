@@ -137,7 +137,7 @@ public class NDD {
         NDD[] nddNotVars = new NDD[bitNum];
 
         for (int i = 0;i < bitNum;i++) {
-            bddVars[i] = bddEngine.createVar();
+            bddVars[i] = bddEngine.ref(bddEngine.createVar());
             bddNotVars[i] = bddEngine.ref(bddEngine.not(bddVars[i]));
             HashMap<NDD, Integer> edges = new HashMap<>();
             edges.put(NDD.getTrue(), bddEngine.ref(bddVars[i]));
@@ -312,7 +312,7 @@ public class NDD {
                  * with only edge labelled by true and pointing to B
                  */
                 NDD subRet = andRec(entryA.getKey(), b);
-                addEdge(edges, subRet, entryA.getValue());
+                addEdge(edges, subRet, bddEngine.ref(entryA.getValue()));
             }
         }
         // try to create or reuse node
@@ -392,12 +392,12 @@ public class NDD {
              */
             for (Map.Entry<NDD, Integer> entryA : residualA.entrySet()) {
                 if (entryA.getValue() != 0) {
-                    addEdge(edges, entryA.getKey(), entryA.getValue());
+                    addEdge(edges, entryA.getKey(), bddEngine.ref(entryA.getValue()));
                 }
             }
             for (Map.Entry<NDD, Integer> entry_b : residualB.entrySet()) {
                 if (entry_b.getValue() != 0) {
-                    addEdge(edges, entry_b.getKey(), entry_b.getValue());
+                    addEdge(edges, entry_b.getKey(), bddEngine.ref(entry_b.getValue()));
                 }
             }
         } else {
@@ -417,7 +417,7 @@ public class NDD {
                 residualB = bddEngine.andTo(residualB, notIntersect);
                 bddEngine.deref(notIntersect);
                 NDD subResult = orRec(entryA.getKey(), b);
-                addEdge(edges, subResult, entryA.getValue());
+                addEdge(edges, subResult, bddEngine.ref(entryA.getValue()));
             }
             if (residualB != 0) {
                 addEdge(edges, b, residualB);
@@ -465,7 +465,7 @@ public class NDD {
             residual = bddEngine.andTo(residual, notIntersect);
             bddEngine.deref(notIntersect);
             NDD subResult = notRec(entryA.getKey());
-            addEdge(edges, subResult, entryA.getValue());
+            addEdge(edges, subResult, bddEngine.ref(entryA.getValue()));
         }
         if (residual != 0) {
             addEdge(edges, TRUE, residual);
@@ -521,7 +521,7 @@ public class NDD {
             HashMap<NDD, Integer> edges = new HashMap<>();
             for (Map.Entry<NDD, Integer> entryA : a.edges.entrySet()) {
                 NDD subResult = existRec(entryA.getKey(), field);
-                addEdge(edges, subResult, entryA.getValue());
+                addEdge(edges, subResult, bddEngine.ref(entryA.getValue()));
             }
             result = mk(a.field, edges);
         }
@@ -579,6 +579,7 @@ public class NDD {
             if (field == curr.field) {
                 for (Map.Entry<NDD, Integer> entry : curr.edges.entrySet()) {
                     double bddSat = bddEngine.satCount(entry.getValue()) / satCountDiv.get(curr.field);
+//                    System.out.println(bddEngine.satCount(entry.getValue()) + " " + bddSat);
                     double nddSat = satCountRec(entry.getKey(), field + 1);
                     result += bddSat * nddSat;
                 }
