@@ -114,7 +114,7 @@ public class NDDFactory extends BDDFactory {
         NDD[] nddNotVars = new NDD[bitNum];
 
         for (int i = 0; i < bitNum; i++) {
-            bddVars[i] = bddEngine.createVar();
+            bddVars[i] = bddEngine.ref(bddEngine.createVar());
             bddNotVars[i] = bddEngine.ref(bddEngine.not(bddVars[i]));
             HashMap<NDD, Integer> edges = new HashMap<>();
             edges.put(getTrue(), bddEngine.ref(bddVars[i]));
@@ -832,7 +832,7 @@ public class NDDFactory extends BDDFactory {
                      * with only edge labelled by true and pointing to B
                      */
                     NDD subRet = entryA.getKey().andRec(b);
-                    addEdge(edges, subRet, entryA.getValue());
+                    addEdge(edges, subRet, bddEngine.ref(entryA.getValue()));
                 }
             }
             // try to create or reuse node
@@ -900,12 +900,12 @@ public class NDDFactory extends BDDFactory {
                  */
                 for (Map.Entry<NDD, Integer> entryA : residualA.entrySet()) {
                     if (entryA.getValue() != 0) {
-                        addEdge(edges, entryA.getKey(), entryA.getValue());
+                        addEdge(edges, entryA.getKey(), bddEngine.ref(entryA.getValue()));
                     }
                 }
                 for (Map.Entry<NDD, Integer> entry_b : residualB.entrySet()) {
                     if (entry_b.getValue() != 0) {
-                        addEdge(edges, entry_b.getKey(), entry_b.getValue());
+                        addEdge(edges, entry_b.getKey(), bddEngine.ref(entry_b.getValue()));
                     }
                 }
             } else {
@@ -923,7 +923,7 @@ public class NDDFactory extends BDDFactory {
                     residualB = bddEngine.andTo(residualB, notIntersect);
                     bddEngine.deref(notIntersect);
                     NDD subResult = entryA.getKey().orRec(b);
-                    addEdge(edges, subResult, entryA.getValue());
+                    addEdge(edges, subResult, bddEngine.ref(entryA.getValue()));
                 }
                 if (residualB != 0) {
                     addEdge(edges, b, residualB);
@@ -961,7 +961,7 @@ public class NDDFactory extends BDDFactory {
                 residual = bddEngine.andTo(residual, notIntersect);
                 bddEngine.deref(notIntersect);
                 NDD subResult = entryA.getKey().notRec();
-                addEdge(edges, subResult, entryA.getValue());
+                addEdge(edges, subResult, bddEngine.ref(entryA.getValue()));
             }
             if (residual != 0) {
                 addEdge(edges, TRUE, residual);
@@ -1002,7 +1002,7 @@ public class NDDFactory extends BDDFactory {
                 HashMap<NDD, Integer> edges = new HashMap<>();
                 for (Map.Entry<NDD, Integer> entryA : edges.entrySet()) {
                     NDD subResult = entryA.getKey().existRec(field);
-                    addEdge(edges, subResult, entryA.getValue());
+                    addEdge(edges, subResult, bddEngine.ref(entryA.getValue()));
                 }
                 result = mk(field, edges);
             }
@@ -1268,19 +1268,21 @@ public class NDDFactory extends BDDFactory {
             }
             while (!deadNodesQueue.isEmpty()) {
                 NDD deadNode = deadNodesQueue.poll();
-                if (!deadNode.isTerminal()) {
-                    for (NDD descendant : deadNode.getEdges().keySet()) {
-                        int newReferenceCount = referenceCount.get(descendant) - 1;
-                        referenceCount.put(descendant, newReferenceCount);
-                        if (newReferenceCount == 0) {
-                            deadNodesQueue.offer(descendant);
-                        }
+                for (NDD descendant : deadNode.getEdges().keySet()) {
+                    if (descendant.isTerminal()) continue;
+                    int newReferenceCount = referenceCount.get(descendant) - 1;
+                    referenceCount.put(descendant, newReferenceCount);
+                    if (newReferenceCount == 0) {
+                        deadNodesQueue.offer(descendant);
                     }
-                    // delete current dead node
-                    referenceCount.remove(deadNode);
-                    nodeTable.get(deadNode.getField()).remove(deadNode.getEdges());
-                    currentSize--;
                 }
+                // delete current dead node
+                for (int bddLabel : deadNode.getEdges().values()) {
+                    bddEngine.deref(bddLabel);
+                }
+                referenceCount.remove(deadNode);
+                nodeTable.get(deadNode.getField()).remove(deadNode.getEdges());
+                currentSize--;
             }
 
             for (NDD ndd : temporarilyProtect) {
@@ -1309,168 +1311,6 @@ public class NDDFactory extends BDDFactory {
             return currentSize;
         }
     }
-
-//    public class NodeTable {
-//        public ArrayList<HashMap<HashMap<NDD, Integer>, NDD>> NDDs;
-//        public HashMap<NDD, Integer> refCount;
-//
-//        public int maxSize = 100000;
-//        public int tableSize = 0;
-//        // judgement if gc < quickGrowThreshold then grow up table
-//        public double quickGrowThreshold = 0.1;
-//
-//        OPCache andCache;
-//        OPCache orCache;
-//        OPCache notCache;
-//        OPCache existCache;
-//
-//        public void growTable() {
-//            NDDs.add(new HashMap<>());
-//        }
-//
-//        public NodeTable(int size) {
-//            NDDs = new ArrayList<>();
-//            for (int i = 0; i < size; i++)
-//                NDDs.add(new HashMap<>());
-//            refCount = new HashMap<NDD, Integer>();
-//        }
-//
-//        public NodeTable(int size, int maxSize, int cacheSize) {
-//            NDDs = new ArrayList<>();
-//            for (int i = 0; i < size; i++)
-//                NDDs.add(new HashMap<>());
-//            refCount = new HashMap<NDD, Integer>();
-//            setMaxAndCache(maxSize, cacheSize);
-//        }
-//
-//        public void setMaxAndCache(int maxSize, int cacheSize) {
-//            this.maxSize = maxSize;
-//            andCache = new OPCache(cacheSize, 3);
-//            orCache = new OPCache(cacheSize, 3);
-//            notCache = new OPCache(cacheSize, 2);
-//            existCache = new OPCache(cacheSize, 2);
-//        }
-//
-//        public NDD mk(int field, HashMap<NDD, Integer> port_pred) { // ensure that all used node are refed before invoking
-//            if (port_pred.size() == 0)
-//                return NDDFalse;
-//            if (port_pred.size() == 1) { // redundant node
-//                Iterator<Map.Entry<NDD, Integer>> iterator = port_pred.entrySet().iterator();
-//                Map.Entry<NDD, Integer> entry = iterator.next();
-//                if (entry.getValue() == 1)
-//                    return entry.getKey();
-//            }
-//            NDD node = NDDs.get(field).get(port_pred);
-//            if (node == null) { // create new node
-//                if (test)
-//                    mkCount++;
-//                tableSize++;
-//                Iterator<Map.Entry<NDD, Integer>> iterator = port_pred.entrySet().iterator();
-//                while (iterator.hasNext()) {
-//                    Map.Entry<NDD, Integer> entry = iterator.next();
-//                    NDD next = entry.getKey();
-//                    if (next.is_False() || next.is_True())
-//                        continue;
-//                    if (!refCount.containsKey(next))
-//                        System.out.println("in mk " + next);
-//                    refCount.put(next, refCount.get(next) + 1);
-//                }
-//                if (tableSize >= maxSize)
-//                    GCOrGrow();
-//                NDD ret = new NDD(field, port_pred);
-//                NDDs.get(field).put(port_pred, ret);
-//                refCount.put(ret, 0);
-//                return ret;
-//            } else { // find
-//                Iterator<Map.Entry<NDD, Integer>> iterator = port_pred.entrySet().iterator();
-//                while (iterator.hasNext()) {
-//                    Map.Entry<NDD, Integer> entry = iterator.next();
-//                    bdd.deref(entry.getValue());
-//                }
-//                return node;
-//            }
-//        }
-//
-//        private void GCOrGrow() {
-//            System.out.println("GC or Grow");
-//            GC();
-//            if ((maxSize - tableSize) <= maxSize * quickGrowThreshold) {
-//                grow();
-//            }
-//            andCache.clear_cache();
-//            orCache.clear_cache();
-//            notCache.clear_cache();
-//            existCache.clear_cache();
-//        }
-//
-//        private void GC() {
-//            for (NDD ndd : toProtect) {
-//                ref(ndd);
-//            }
-//            Queue<NDD> queue = new LinkedList<NDD>();
-//            Iterator<Map.Entry<NDD, Integer>> iterator = refCount.entrySet().iterator();
-//            while (iterator.hasNext()) {
-//                Map.Entry<NDD, Integer> entry = iterator.next();
-//                if (entry.getValue() == 0) {
-//                    queue.add(entry.getKey());
-//                }
-//            }
-//            while (!queue.isEmpty()) {
-//                NDD ndd = queue.poll();
-//                if (ndd.is_False() || ndd.is_True()) return;
-//                for (Map.Entry<NDD, Integer> entry : ndd.edges.entrySet()) {
-//                    NDD key = entry.getKey();
-//                    if (key.is_False() || key.is_True()) {
-//                        continue;
-//                    }
-//                    refCount.put(key, refCount.get(key) - 1);
-//                    if (refCount.get(key) == 0)
-//                        queue.offer(key);
-//                }
-//                NDDs.get(ndd.field).remove(ndd.edges);
-//                refCount.remove(ndd);
-//            }
-//            for (NDD ndd : toProtect) {
-//                deref(ndd);
-//            }
-//            tableSize = 0;
-//            for (int i = 0; i < fieldNum; i++)
-//                tableSize += NDDs.get(i).size();
-//        }
-//
-//        private void grow() {
-//            maxSize *= 2;
-//        }
-//
-//        public NDD ref(NDD a) {
-//            if (a == null) {
-//                System.out.println("ref a null NDD");
-//            }
-//            if (a == NDDFalse || a == NDDTrue) return a;
-//            refCount.put(a, refCount.get(a) + 1);
-//            return a;
-//        }
-//
-//        public void deref(NDD a) {
-//            if (a == null) {
-//                System.out.println("deref a null NDD");
-//            }
-//            if (a == NDDFalse || a == NDDTrue) return;
-//            int newRef = refCount.get(a) - 1;
-//            if (newRef >= 0) {
-//                refCount.put(a, newRef);
-//            }
-//            /*
-//             * else {  // TODO: will delete else
-//             *     System.out.println("ret count less than 0");
-//             * }
-//             */
-//        }
-//
-//        public int getSize() {
-//            return NDDs.size();
-//        }
-//    }
 
     public class OperationCache<T> {
         // The max number of entries in the cache.
@@ -1638,112 +1478,6 @@ public class NDDFactory extends BDDFactory {
             }
         }
     }
-
-//    public class OPCache {
-//        NDD[] data;
-//        int width;
-//        int size;
-//        public NDD answer;
-//        public int hashValue;
-//
-//        public OPCache(int size, int width) {
-//            data = new NDD[width*size];
-//            this.size = size;
-//            this.width = width;
-//        }
-//
-//        private NDD getOut(int i) {
-//            return data[i * width];
-//        }
-//
-//        private void setOut(int i, NDD v) {
-//            data[i * width] = v;
-//        }
-//
-//        private NDD getIn(int i, int member) {
-//            return data[i * width + member];
-//        }
-//
-//        private void setIn(int i, int member, NDD v) {
-//            data[i * width + member] = v;
-//        }
-//
-//        public void clear_cache() {
-//            for (int i = size; i != 0; )
-//                invalidate(--i);
-//        }
-//
-//        private void invalidate(int number) {
-//            setIn(number, 1, null);
-//        }
-//
-//        private boolean isValid(int number) {
-//            return getIn(number, 1) != null;
-//        }
-//
-//        // (key1 -> value)
-//        public void insert(int hash, NDD key1, NDD value) {
-//            setOut(hash, value);
-//            setIn(hash, 1, key1);
-//        }
-//
-//        // (key1, key2 -> value)
-//        public void insert(int hash, NDD key1, NDD key2, NDD value) {
-//            setOut(hash, value);
-//            setIn(hash, 1, key1);
-//            setIn(hash, 2, key2);
-//        }
-//
-//        /**
-//         * lookup the element associated with (a)
-//         * returns true if element found (stored in SimpleCache.answer)
-//         * returns false if element not found. user should copy the hash value
-//         * from SimpleCache.hash_value before doing any more cache-operations!
-//         */
-//        public boolean lookup(NDD a) {
-//            int hash = good_hash(a);
-//            if(getIn(hash, 1)  == a){
-//                answer = getOut(hash);
-//                return true;
-//            } else {
-//                hashValue = hash;
-//                return false;
-//            }
-//        }
-//
-//        /**
-//         * lookup the element associated with (a,b)
-//         * returns true if element found (stored in SimpleCache.answer)
-//         * returns false if element not found. user should copy the hash value
-//         * from SimpleCache.hash_value before doing any more cache-operations!
-//         */
-//        public boolean lookup(NDD a, NDD b) {
-//            int hash = good_hash(a,b);
-//            if((getIn(hash, 1) == a && getIn(hash, 2) == b) ||
-//                    (getIn(hash, 1) == b && getIn(hash, 2) == a)) {
-//                answer = getOut(hash);
-//                return true;
-//            } else {
-//                hashValue = hash;
-//                return false;
-//            }
-//        }
-//
-//        private int good_hash(NDD i) {
-//            // return HashFunctions.mix(i) & cache_mask;
-//            // NEW: cache size is prime
-//            return Math.abs(i.hashCode()) % size;
-//        }
-//
-//        private int good_hash(NDD i, NDD j) {
-//            // return HashFunctions.mix(HashFunctions.hash_prime(i,j)) & cache_mask;
-//            // NEW: cache size is prime
-//            return (
-//                Math.abs(i.hashCode()) % size
-//                 + Math.abs(j.hashCode()) % size
-//            ) % size;
-//        }
-//    }
 
     /*
      * dynamically set var num
