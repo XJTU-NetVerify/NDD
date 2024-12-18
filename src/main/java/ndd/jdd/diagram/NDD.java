@@ -123,11 +123,11 @@ public class NDD {
         for (int i=0; i < satCountDiv.size(); i++) {
             satCountDiv.set(i, satCountDiv.get(i) * factor);
         }
-        int totalBitBefore = 0;
+        int totalBitsBefore = 0;
         if (maxVariablePerField.size() > 1) {
-            totalBitBefore = maxVariablePerField.get(maxVariablePerField.size() - 2) + 1;
+            totalBitsBefore = maxVariablePerField.get(maxVariablePerField.size() - 2) + 1;
         }
-        satCountDiv.add(Math.pow(2.0, totalBitBefore));
+        satCountDiv.add(Math.pow(2.0, totalBitsBefore));
         // 4. add node table
         nodeTable.declareField();
         // 5. declare vars
@@ -150,7 +150,6 @@ public class NDD {
         bddNotVarsPerField.add(bddNotVars);
         nddVarsPerField.add(nddVars);
         nddNotVarsPerField.add(nddNotVars);
-
         return fieldNum;
     }
 
@@ -697,6 +696,7 @@ public class NDD {
     //create or reuse a new NDD node
     /**
      * Create or reuse an NDD node.
+     * Note that, one should ref all bdd labels in edges before invoking mk.
      * @param field The field of the ndd node.
      * @param edges All the edges of the ndd node.
      * @return The ndd node.
