@@ -24,8 +24,11 @@ public class NDDFactory extends BDDFactory {
         nodeTable = null;
     }
 
-    private final int CACHE_SIZE;
-    private int CACHE_RADIO = 8;
+    private int BDD_TABLE_SIZE;
+    private int BDD_CACHE_SIZE;
+    private int NDD_TABLE_SIZE;
+    private int CACHE_SIZE;
+    private int CACHE_RATIO = 8;    // default 8
 
     // node table
     private jdd.bdd.BDD bddEngine;
@@ -60,8 +63,13 @@ public class NDDFactory extends BDDFactory {
 //    public int max;
 
     private NDDFactory(int nddTableSize, int bddTableSize, int bddCacheSize) {
-        nodeTable = new NodeTable<>(nddTableSize, bddTableSize, bddCacheSize);
+        NDD_TABLE_SIZE = nddTableSize;
+        CACHE_SIZE = NDD_TABLE_SIZE / CACHE_RATIO;
+        BDD_TABLE_SIZE = bddTableSize;
+        BDD_CACHE_SIZE = bddCacheSize;
+        nodeTable = new NodeTable<>(NDD_TABLE_SIZE, BDD_TABLE_SIZE, BDD_CACHE_SIZE);
         bddEngine = nodeTable.getBddEngine();
+
         fieldNum = -1;
         maxVariablePerField = new ArrayList<>();
         satCountDiv = new ArrayList<>();
@@ -70,7 +78,7 @@ public class NDDFactory extends BDDFactory {
         nddVarsPerField = new ArrayList<>();
         nddNotVarsPerField = new ArrayList<>();
         temporarilyProtect = new HashSet<>();
-        CACHE_SIZE = nddTableSize / CACHE_RADIO;
+
         notCache = new OperationCache<>(CACHE_SIZE, 2);
         andCache = new OperationCache<>(CACHE_SIZE, 3);
         orCache = new OperationCache<>(CACHE_SIZE, 3);
@@ -1202,6 +1210,10 @@ public class NDDFactory extends BDDFactory {
             this.referenceCount = new HashMap<>();
         }
 
+        public void setMaxSize(long maxSize) {
+            this.maxSize = maxSize;
+        }
+
         public jdd.bdd.BDD getBddEngine() {
             return bddEngine;
         }
@@ -1332,6 +1344,17 @@ public class NDDFactory extends BDDFactory {
             this.entrySize = entrySize;
             cache = new Object [cacheSize * entrySize];
             result = null;
+        }
+
+        /**
+         * Grow up function of operation cache.
+         * @param new_cache_size assert larger than old_cache_size
+         */
+        public void growUpSize(int new_cache_size) {
+            cacheSize = new_cache_size;
+            Object[] old_cache = cache;
+            cache = new Object [cacheSize * entrySize];
+            System.arraycopy(old_cache, 0, cache, 0, old_cache.length);
         }
 
         /**
@@ -1748,10 +1771,22 @@ public class NDDFactory extends BDDFactory {
      */
     @Override
     public int setCacheRatio(int x) {
-        if (x > 0) {
-            CACHE_RADIO = x;
+        int old_cache_ratio = CACHE_RATIO;
+        if (x <= 0) {
+            return old_cache_ratio;
         }
-        return 0;
+        int new_cache_size = NDD_TABLE_SIZE / x;
+        // cache only grow up
+        if (new_cache_size <= CACHE_SIZE) {
+            return old_cache_ratio;
+        }
+        CACHE_RATIO = x;
+        CACHE_SIZE = new_cache_size;
+        // grow operation cache
+        andCache.growUpSize(CACHE_SIZE);
+        notCache.growUpSize(CACHE_SIZE);
+        orCache.growUpSize(CACHE_SIZE);
+        return old_cache_ratio;
     }
 
     /**
@@ -1894,10 +1929,43 @@ public class NDDFactory extends BDDFactory {
     }
 
     @Override
-    public int setNodeTableSize(int n) { return 0; }
+    public int setNodeTableSize(int n) {
+        // ndd node table only grow up
+        if (n <= NDD_TABLE_SIZE) {
+            return NDD_TABLE_SIZE;
+        }
+        // node table grow up
+        int oldNDDTableSize = NDD_TABLE_SIZE;
+        NDD_TABLE_SIZE = n;
+        nodeTable.setMaxSize(NDD_TABLE_SIZE);
+        // cache grow up
+        int oldCacheSize = CACHE_SIZE;
+        CACHE_SIZE = NDD_TABLE_SIZE / CACHE_RATIO;
+        andCache.growUpSize(CACHE_SIZE);
+        notCache.growUpSize(CACHE_SIZE);
+        orCache.growUpSize(CACHE_SIZE);
+        return oldNDDTableSize;
+    }
 
     @Override
-    public int setCacheSize(int n) { return 0; }
+    public int setCacheSize(int n) {
+        // only grow up
+        if (n <= CACHE_SIZE) {
+            return CACHE_SIZE;
+        }
+        int oldCacheSize = CACHE_SIZE;
+        // make sure the lower cache ratio for larger cache size
+        int new_cache_ratio = NDD_TABLE_SIZE / n;
+        if (new_cache_ratio >= CACHE_RATIO) {
+            return oldCacheSize;
+        }
+        CACHE_RATIO = new_cache_ratio;
+        CACHE_SIZE = NDD_TABLE_SIZE / CACHE_RATIO;
+        andCache.growUpSize(CACHE_SIZE);
+        notCache.growUpSize(CACHE_SIZE);
+        orCache.growUpSize(CACHE_SIZE);
+        return oldCacheSize;
+    }
 
     @Override
     public void printAll() {}
