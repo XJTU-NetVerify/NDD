@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Set;
 
 import jdd.bdd.BDD;
+import jdd.bdd.Permutation;
 
 // todo: recheck the logic of ref and deref
 public class BDDVectors {
@@ -27,9 +28,11 @@ public class BDDVectors {
     public static int fieldNum;
 
     // used for reuse variables
+    private static int totalVarNum;
     private static int maxFieldLength;
-    private static int[] bddVarReuse;
-    private static int[] bddNotVarReuse;
+    private static int[] bddVarsReuse;
+    private static int[] bddNotVarsReuse;
+    private static ArrayList<Integer> backupBDDVars; // used by toBDDReuse
 
     private static ArrayList<Integer> maxVariablePerField;
     private static ArrayList<Double> satCountDiv;
@@ -50,6 +53,8 @@ public class BDDVectors {
         reuseBDDVar = reuse;
         if (reuseBDDVar) {
             maxFieldLength = maxLen;
+            totalVarNum = 0;
+            backupBDDVars = new ArrayList<>();
             declareVarsToReuse();
         }
         fieldNum = -1;
@@ -60,32 +65,43 @@ public class BDDVectors {
     }
 
     private static void declareVarsToReuse() {
-        bddVarReuse = new int[maxFieldLength];
-        bddNotVarReuse = new int[maxFieldLength];
+        bddVarsReuse = new int[maxFieldLength];
+        bddNotVarsReuse = new int[maxFieldLength];
         for (int i = 0; i < maxFieldLength; i++) {
-            bddVarReuse[i] = bddEngine.ref(bddEngine.createVar());
-            bddNotVarReuse[i] = bddEngine.ref(bddEngine.not(bddNotVarReuse[i]));
+            bddVarsReuse[i] = bddEngine.ref(bddEngine.createVar());
+            bddNotVarsReuse[i] = bddEngine.ref(bddEngine.not(bddNotVarsReuse[i]));
         }
     }
 
     public static int declareField(int bitNum) {
         fieldNum++;
+        if (maxVariablePerField.isEmpty()) {
+            maxVariablePerField.add(bitNum - 1);
+        } else {
+            maxVariablePerField.add(maxVariablePerField.get(maxVariablePerField.size() - 1) + bitNum);
+        }
         if (reuseBDDVar) {
             // todo: should maintain maxVariablePerField?
             satCountDiv.add(Math.pow(2.0, maxFieldLength - bitNum));
             int[] bddVars = new int[bitNum];
             int[] bddNotVars = new int[bitNum];
             for (int i = 0; i < bitNum; i++) {
-                bddVars[i] = bddVarReuse[maxFieldLength - bitNum + i];
-                bddNotVars[i] = bddNotVarReuse[maxFieldLength - bitNum + i];
+                bddVars[i] = bddVarsReuse[maxFieldLength - bitNum + i];
+                bddNotVars[i] = bddNotVarsReuse[maxFieldLength - bitNum + i];
+            }
+            bddVarsPerField.add(bddVars);
+            bddNotVarsPerField.add(bddNotVars);
+
+            totalVarNum += bitNum;
+
+            for (int i = 0; i < bitNum; i++) {
+                if (backupBDDVars.size() < bddVarsReuse.length) {
+                    backupBDDVars.add(bddVarsReuse[backupBDDVars.size()]);
+                } else {
+                    backupBDDVars.add(bddEngine.ref(bddEngine.createVar()));
+                }
             }
         } else {
-            if (maxVariablePerField.isEmpty()) {
-                maxVariablePerField.add(bitNum - 1);
-            } else {
-                maxVariablePerField.add(maxVariablePerField.get(maxVariablePerField.size() - 1) + bitNum);
-            }
-
             double factor = Math.pow(2.0, bitNum);
             for (int i = 0; i < satCountDiv.size(); i++) {
                 satCountDiv.set(i, satCountDiv.get(i) * factor);
@@ -202,6 +218,10 @@ public class BDDVectors {
         return true;
     }
 
+    public boolean isTerminal() {
+        return this.isTrue() || this.isFalse();
+    }
+
     public static BDDVectors ref(BDDVectors bddVectors) {
         for (ArrayList<Integer> bddVector : bddVectors.bddVectors) {
             for (int i = 0; i < bddVector.size(); i++) {
@@ -307,8 +327,7 @@ public class BDDVectors {
             case 2:
                 return notRecDirectly(a);
             default:
-                System.err.println("Illegal NEGATION_METHOD");
-                return null;
+                return notBackToBDD(a);
         }
     }
 
@@ -420,6 +439,15 @@ public class BDDVectors {
         return result;
     }
 
+    private static BDDVectors notBackToBDD(BDDVectors a) {
+        int equivalentBDD = bddEngine.ref(toBDD(a));
+        int equivalentNotBDD = bddEngine.ref(bddEngine.not(equivalentBDD));
+        BDDVectors result = toBDDVectors(equivalentNotBDD);
+        bddEngine.deref(equivalentBDD);
+        bddEngine.deref(equivalentNotBDD);
+        return result;
+    }
+
     public static BDDVectors diff(BDDVectors a, BDDVectors b) {
         BDDVectors temp = not(b);
         BDDVectors result = and(a, temp);
@@ -444,573 +472,372 @@ public class BDDVectors {
         return ref(result);
     }
 
-//    public static double satCount(BDDVectors curr) {
-//        int idx = bdd.ref(toBDD(curr));
-//        double ret = bdd.satCount(idx);
-//        if (reuse)
-//            ret = ret / Math.pow(2.0, maxVarsLength);
-//        bdd.deref(idx);
-//        return ret;
-//        // return satCountRec(curr);
-//    }
+    // convert bdd vectors to equivalent bdd
+    public static int toBDD(BDDVectors a) {
+        if (reuseBDDVar) {
+            return toBDDReuse(a);
+        } else {
+            return toBDDNotReuse(a);
+        }
+    }
 
-    // can not deal with [[3, 1, 1], [1, 1, 2]] which has overlay
-    // private static double satCountRec(BDDArray curr) {
-    // double ret = 0.0;
-    // for (ArrayList<Integer> vector : curr.vectors) {
-    // double subRet = 1.0;
-    // for (int i = fieldNum - 1; i >= 0; i--) {
-    // subRet = subRet * (bdd.satCount(vector.get(i)) / div[i]);
-    // }
-    // ret += subRet;
-    // }
-    // return ret;
-    // }
+    private static int toBDDNotReuse(BDDVectors a) {
+        // convert each vector to equivalent bdd
+        ArrayList<Integer> bdds = new ArrayList<>();
+        for (ArrayList<Integer> bddVector : a.bddVectors) {
+            int bddForVector = BDD_TRUE;
+            for (int i = bddVector.size() - 1; i >= 0; i--) {
+                int bddForField = bddVector.get(i);
+                bddForVector = bddEngine.andTo(bddForVector, bddForField);
+            }
+            bdds.add(bddForVector);
+        }
 
-    // todo: should we use this method?
-//    private static BDDVectors notRecBackBDD(BDDVectors a) {
-//        ref(a);
-//        int bddidx = bdd.ref(toBDD(a));
-//        int idx = bdd.ref(bdd.not(bddidx));
-//        try {
-//            BDDVectors ret = toBDDArray(idx);
-//            bdd.deref(bddidx);
-//            bdd.deref(idx);
-//            deref(a);
-//            return ref(ret);
-//        } catch (Exception e) { // random bug but cannot catch now
-//            System.out.println("====== catch ======");
-//            System.out.println(a.vectors.toString());
-//            boolean flag = false;
-//            for (ArrayList<Integer> vector : a.vectors) {
-//                for (int i = 0; i < fieldNum; i++) {
-//                    if (bdd.getVar(vector.get(i)) == -1) {
-//                        flag = true;
-//                    }
-//                }
-//            }
-//            if (flag) {
-//                System.out.println("-1 vectors");
-//            }
-//        }
-//        return VectorTrue;
-//    }
+        // merge bdd for each vector
+        int result = BDD_FALSE;
+        for (int i = 0; i < bdds.size(); i++) {
+            int bddForVector = bdds.get(i);
+            result = bddEngine.orTo(result, bddForVector);
+            bddEngine.deref(bddForVector);
+        }
+        return result;
+    }
 
-//    public static int[] createVar(int maxNum) {
-//        maxVarsLength = maxNum;
-//
-//        // bdd reuse so use max field num
-//        vars = new int[maxNum];
-//        if (reuse) {
-//            otherVars = new int[varNumTotal];
-//
-//            // first <- last for reuse
-//            for (int i = maxNum - 1; i >= 0; i--) {
-//                vars[i] = bdd.createVar();
-//            }
-//            // create maxVarsLength + varNumTotal bdd vars
-//            for (int i = 0; i < varNumTotal; i++) {
-//                otherVars[i] = bdd.createVar();
-//            }
-//        } else {
-//            for (int i = 0; i < maxNum; i++) {
-//                vars[i] = bdd.createVar();
-//            }
-//        }
-//        return vars;
-//    }
-//
-//    public static void SetFieldNum(int num) {
-//        fieldNum = num;
-//
-//        // lazy init for NDD True [1, 1, 1] and False [0, 0, 0]
-//        for (ArrayList<Integer> vector : VectorTrue.vectors) {
-//            for (int i = 0; i < fieldNum; i++) {
-//                vector.add(1);
-//            }
-//        }
-//        for (ArrayList<Integer> vector : VectorFalse.vectors) {
-//            for (int i = 0; i < fieldNum; i++) {
-//                vector.add(0);
-//            }
-//        }
-//    }
-//
-//    public static void SetUpperBound(int[] upper) {
-//        upperBound = upper;
-//
-//        varNumTotal = upper[upper.length - 1] + 1;
-//
-//        varNumList = new int[fieldNum];
-//        varNumList[0] = upper[0] + 1;
-//        for (int i = 1; i < fieldNum; i++) {
-//            varNumList[i] = upper[i] - upper[i - 1];
-//        }
-//    }
+    private static int toBDDReuse(BDDVectors a) {
+        if (a.isTrue()) {
+            return BDD_TRUE;
+        } else if (a.isFalse()){
+            return BDD_FALSE;
+        }
 
-//    private static int bdd_getField(int a) {
-//        if (reuse)
-//            return bdd_getField_reuse(a);
-//        return bdd_getField_not_reuse(a);
-//    }
-//
-//    // not reuse
-//    private static int bdd_getField_not_reuse(int a) {
-//        int va = bdd.getVar(a);
-//        if (a == 1 || a == 0)
-//            return fieldNum;
-//        int curr = 0;
-//        while (curr < fieldNum) {
-//            if (va <= upperBound[curr]) {
-//                break;
-//            }
-//            curr++;
-//        }
-//        return curr;
-//    }
-//
-//    // reuse
-//    private static int bdd_getField_reuse(int a) {
-//        int va = bdd.getVar(a);
-//        if (a == 1 || a == 0)
-//            return fieldNum;
-//        int curr = 0;
-//        while (curr < fieldNum) {
-//            if (va - maxVarsLength <= upperBound[curr]) {
-//                break;
-//            }
-//            curr++;
-//        }
-//        return curr;
-//    }
-//
-//    public static int toBDD(BDDVectors n) {
-//        if (reuse)
-//            return toBDDReuse(n);
-//        return toBDDNotReuse(n);
-//    }
-//
-//    // bdd not reuse
-//    public static int toBDDNotReuse(BDDVectors n) {
-//        ArrayList<Integer> bdds = new ArrayList<>();
-//        for (ArrayList<Integer> vector : n.vectors) {
-//            int lastIdx = 1;
-//            for (int i = vector.size() - 1; i >= 0; i--) {
-//                int idx = vector.get(i);
-//                int temp = lastIdx;
-//                lastIdx = bdd.and(idx, lastIdx);
-//                bdd.ref(lastIdx);
-//                bdd.deref(temp);
-//                bdd.deref(idx);
-//            }
-//            bdds.add(lastIdx);
-//        }
-//
-//        int ret = 0;
-//        for (int i = 0; i < bdds.size(); i++) {
-//            int temp = ret;
-//            int idx = bdds.get(i);
-//            ret = bdd.ref(bdd.or(ret, idx));
-//            bdd.deref(idx);
-//            bdd.deref(temp);
-//        }
-//        return ret;
-//    }
-//
-//    // bdd reuse
-//    public static int toBDDReuse(BDDVectors n) {
-//        if (n.is_True())
-//            return 1;
-//
-//        ArrayList<Integer> bdds = new ArrayList<>();
-//        for (ArrayList<Integer> vector : n.vectors) {
-//            int lastIdx = 1;
-//            for (int i = 0; i < vector.size(); i++) {
-//                int idx = vector.get(i);
-//                if (idx == 1)
-//                    continue;
-//
-//                int length = varNumList[i];
-//                int[] from = Arrays.copyOfRange(vars, 0, length);
-//                // reverse from for its initialize from last to first
-//                for (int j = 0; j < length / 2; j++) {
-//                    int temp = from[j];
-//                    from[j] = from[length - j - 1];
-//                    from[length - j - 1] = temp;
-//                }
-//                int[] to = Arrays.copyOfRange(otherVars, upperBound[i] + 1 - length, upperBound[i] + 1);
-//
-//                jdd.bdd.Permutation perm = bdd.createPermutation(from, to);
-//                idx = bdd.ref(bdd.replace(idx, perm));
-//
-//                int temp = lastIdx;
-//                lastIdx = bdd.ref(bdd.and(idx, lastIdx));
-//                bdd.deref(temp);
-//                // bdd.deref(idx);
-//            }
-//            bdds.add(lastIdx);
-//        }
-//
-//        int ret = 0;
-//        for (int i = 0; i < bdds.size(); i++) {
-//            int temp = ret;
-//            int idx = bdds.get(i);
-//            ret = bdd.ref(bdd.or(ret, idx));
-//            bdd.deref(idx);
-//            bdd.deref(temp);
-//        }
-//        return ret;
-//    }
-//
-//    public static BDDVectors toBDDArray(int a) {
-//        try {
-//            BDDVectors ret = toBDDArrayRec(a);
-//            return ret;
-//        } catch (Exception e) {
-//            throw e;
-//        }
-//        // return toBDDArrayRec(a);
-//    }
-//
-//    private static BDDVectors toBDDArrayRec(int a) {
-//        // decomposed: from idx -> {to idx -> bdd}
-//        HashMap<Integer, HashMap<Integer, Integer>> decomposed = decompose(a);
-//
-//        ArrayList<Integer> temp = new ArrayList<>();
-//        Set<ArrayList<Integer>> vectors = new HashSet<>();
-//
-//        for (int i = 0; i < bdd_getField(a); i++) {
-//            temp.add(1);
-//        }
-//
-//        toBDDvectorDFS(vectors, decomposed, a, temp);
-//
-//        // replace
-//        if (reuse) {
-//            for (ArrayList<Integer> vector : vectors) {
-//                for (int field = 0; field < fieldNum; field++) {
-//                    if (vector.get(field) == 1 || vector.get(field) == 0) {
-//                        continue;
-//                    }
-//
-//                    int length = varNumList[field];
-//                    int[] from = Arrays.copyOfRange(otherVars, upperBound[field] + 1 - length,
-//                            upperBound[field] + 1);
-//                    // reverse from for its initialize from last to first
-//                    for (int j = 0; j < length / 2; j++) {
-//                        int t = from[j];
-//                        from[j] = from[length - j - 1];
-//                        from[length - j - 1] = t;
-//                    }
-//                    int[] to = Arrays.copyOfRange(vars, 0, length);
-//
-//                    jdd.bdd.Permutation perm = bdd.createPermutation(from, to);
-//                    int idx = 0;
-//                    try {
-//                        idx = bdd.ref(bdd.replace(vector.get(field), perm));
-//                    } catch (Exception e) { // random bug but cannot catch now
-//                        System.out.println();
-//                        System.out.println("field num " + fieldNum);
-//                        System.out.println("wrong at " + field + " bdd " + vector.get(field) + " var "
-//                                + bdd.getVar(vector.get(field)));
-//                        System.out.print("whole vector field ");
-//                        for (int i = 0; i < fieldNum; i++) {
-//                            System.out.print(bdd.getVar(vector.get(i)) + " ");
-//                        }
-//                        System.out.println();
-//                        System.out.println("vectors " + vectors.toString());
-//                        System.out.println("vector " + vector.toString());
-//                        System.out.print("from ");
-//                        for (int i = 0; i < length; i++) {
-//                            System.out.print(from[i] + " ");
-//                        }
-//                        System.out.println();
-//                        System.out.print("to ");
-//                        for (int i = 0; i < length; i++) {
-//                            System.out.print(to[i] + " ");
-//                        }
-//                        System.out.println();
-//                        throw new IndexOutOfBoundsException();
-//                    }
-//                    // bdd.deref(vector.get(field));
-//
-//                    vector.set(field, idx);
-//                }
-//            }
-//        }
-//
-//        // deref idx in decompose
-//        for (Map.Entry<Integer, HashMap<Integer, Integer>> en : decomposed.entrySet()) {
-//            for (Map.Entry<Integer, Integer> entry : en.getValue().entrySet()) {
-//                int idx = entry.getValue();
-//                bdd.deref(idx);
-//            }
-//        }
-//
-//        return BDDVectors.ref(new BDDVectors(vectors));
-//    }
-//
-//    private static void toBDDvectorDFS(Set<ArrayList<Integer>> vectors,
-//                                       HashMap<Integer, HashMap<Integer, Integer>> data, int root, ArrayList<Integer> vector) {
-//        // in case of root == 1 in the first iterator
-//        if (root == 1) {
-//            ArrayList<Integer> vectorRet = new ArrayList<>(vector);
-//            vectors.add(vectorRet);
-//            return;
-//        }
-//        HashMap<Integer, Integer> map = data.get(root);
-//        for (Map.Entry<Integer, Integer> entry : map.entrySet()) {
-//            int end = entry.getKey();
-//
-//            int idx = entry.getValue();
-//            int fieldDiff = bdd_getField(end) - bdd_getField(root) - 1;
-//
-//            // iterator end here
-//            if (end == 1) {
-//                ArrayList<Integer> vectorRet = new ArrayList<>(vector);
-//                vectorRet.add(idx);
-//                for (int i = 0; i < fieldDiff; i++) {
-//                    vectorRet.add(1);
-//                }
-//                vectors.add(vectorRet);
-//                continue;
-//            }
-//
-//            vector.add(idx);
-//
-//            for (int i = 0; i < fieldDiff; i++) {
-//                vector.add(1);
-//            }
-//
-//            toBDDvectorDFS(vectors, data, end, vector);
-//
-//            for (int i = 0; i <= fieldDiff; i++) {
-//                vector.remove(vector.size() - 1);
-//            }
-//        }
-//    }
-//
-//    private static HashMap<Integer, HashMap<Integer, Integer>> decompose(int a) {
-//        HashMap<Integer, HashMap<Integer, Integer>> decomposed_bdd = new HashMap<Integer, HashMap<Integer, Integer>>();
-//        if (a == 0)
-//            return decomposed_bdd;
-//        if (a == 1) {
-//            HashMap<Integer, Integer> map = new HashMap<>();
-//            map.put(1, 1);
-//            decomposed_bdd.put(1, map);
-//            return decomposed_bdd;
-//        }
-//        HashMap<Integer, HashSet<Integer>> boundary_tree = new HashMap<Integer, HashSet<Integer>>();
-//        ArrayList<HashSet<Integer>> boundary_points = new ArrayList<HashSet<Integer>>();
-//
-//        // boundary points: field -> idx list
-//        // boundary tree: idx -> child idx list
-//        get_boundary_tree(a, boundary_tree, boundary_points);
-//
-//        for (int curr_level = 0; curr_level < fieldNum - 1; curr_level++) {
-//            for (int root : boundary_points.get(curr_level)) {
-//                for (int end_point : boundary_tree.get(root)) {
-//                    int res = bdd.ref(construct_decomposed_bdd(root, end_point, root));
-//                    if (!decomposed_bdd.containsKey(root)) {
-//                        decomposed_bdd.put(root, new HashMap<Integer, Integer>());
-//                    }
-//                    decomposed_bdd.get(root).put(end_point, res);
-//                }
-//            }
-//        }
-//
-//        for (int abdd : boundary_points.get(fieldNum - 1)) {
-//            if (!decomposed_bdd.containsKey(abdd)) {
-//                decomposed_bdd.put(abdd, new HashMap<Integer, Integer>());
-//            }
-//            decomposed_bdd.get(abdd).put(1, bdd.ref(abdd));
-//        }
-//
-//        return decomposed_bdd;
-//    }
-//
-//    private static void get_boundary_tree(int a, HashMap<Integer, HashSet<Integer>> boundary_tree,
-//                                          ArrayList<HashSet<Integer>> boundary_points) {
-//        int start_level = bdd_getField(a);
-//        for (int curr = 0; curr < fieldNum; curr++) {
-//            boundary_points.add(new HashSet<Integer>());
-//        }
-//        boundary_points.get(start_level).add(a);
-//        if (start_level == fieldNum - 1) {
-//            boundary_tree.put(a, new HashSet<Integer>());
-//            boundary_tree.get(a).add(1);
-//            return;
-//        }
-//
-//        for (int curr_level = start_level; curr_level < fieldNum; curr_level++) {
-//            for (int abdd : boundary_points.get(curr_level)) {
-//                detect_boundary_point(abdd, abdd, boundary_tree, boundary_points);
-//            }
-//        }
-//    }
-//
-//    private static void detect_boundary_point(int root, int curr, HashMap<Integer, HashSet<Integer>> boundary_tree,
-//                                              ArrayList<HashSet<Integer>> boundary_points) {
-//        if (curr == 0)
-//            return;
-//        if (curr == 1) {
-//            if (!boundary_tree.containsKey(root)) {
-//                boundary_tree.put(root, new HashSet<Integer>());
-//            }
-//            boundary_tree.get(root).add(1);
-//            return;
-//        }
-//
-//        if (bdd_getField(root) != bdd_getField(curr)) {
-//            if (!boundary_tree.containsKey(root)) {
-//                boundary_tree.put(root, new HashSet<Integer>());
-//            }
-//            boundary_tree.get(root).add(curr);
-//            boundary_points.get(bdd_getField(curr)).add(curr);
-//            return;
-//        }
-//
-//        detect_boundary_point(root, bdd.getLow(curr), boundary_tree, boundary_points);
-//        detect_boundary_point(root, bdd.getHigh(curr), boundary_tree, boundary_points);
-//    }
-//
-//    private static int construct_decomposed_bdd(int root, int end_point, int curr) {
-//        if (curr == 0) {
-//            return curr;
-//        } else if (curr == 1) {
-//            if (end_point == 1)
-//                return 1;
-//            else
-//                return 0;
-//        } else if (bdd_getField(root) != bdd_getField(curr)) {
-//            if (end_point == curr)
-//                return 1;
-//            else
-//                return 0;
-//        }
-//
-//        int new_low = bdd.ref(construct_decomposed_bdd(root, end_point, bdd.getLow(curr)));
-//        int new_high = bdd.ref(construct_decomposed_bdd(root, end_point, bdd.getHigh(curr)));
-//
-//        // int field = bdd_getField(curr);
-//        // int result = 0;
-//        // if (field == 0) {
-//        // result = bdd.mk(bdd.getVar(curr), new_low, new_high);
-//        // } else {
-//        // result = bdd.mk(bdd.getVar(curr) - upperBound[field - 1] - 1, new_low,
-//        // new_high);
-//        // }
-//        int result = bdd.mk(bdd.getVar(curr), new_low, new_high);
-//        bdd.deref(new_low);
-//        bdd.deref(new_high);
-//        return result;
-//    }
+        ArrayList<Integer> bdds = new ArrayList<>();
+        for (ArrayList<Integer> bddVector : a.bddVectors) {
+            int bddForVector = BDD_TRUE;
+            for (int i = 0; i < bddVector.size(); i++) {
+                int bddForField = bddVector.get(i);
+                if (bddForField == BDD_TRUE) continue;
+                int[] from = bddVarsPerField.get(i);
+                int bitNum = maxVariablePerField.get(0) + 1;
+                int startBit = 0;
+                if (i > 0) {
+                    bitNum = maxVariablePerField.get(i) - maxVariablePerField.get(i - 1);
+                    startBit = maxVariablePerField.get(i - 1) + 1;
+                }
+                int[] to = new int[bitNum];
+                for (int j = 0; j < bitNum; j++) {
+                    to[j] = backupBDDVars.get(startBit + j);
+                }
+                Permutation perm = bddEngine.createPermutation(from, to);
+                bddForField = bddEngine.ref(bddEngine.replace(bddForField, perm));
 
-//    public static int toZero(BDDVectors n) {
-//        ref(n);
-//        int idx = bdd.ref(toBDD(n));
-//        int ret = bdd.toZero(idx);
-//        bdd.deref(idx);
-//        deref(n);
-//        return ret;
-//    }
-//
-//    public static BDDVectors encodeAtMostKFailureVarsSorted(BDD bdd, int[] vars, int startField, int endField, int k) {
-//        return encodeAtMostKFailureVarsSortedRec(bdd, vars, endField, startField, k);
-//    }
-//
-//    private static BDDVectors encodeAtMostKFailureVarsSortedRec(BDD bdd, int[] vars, int endField, int currField, int k) {
-//        if (currField > endField)
-//            return VectorTrue;
-//        int fieldSize = upperBound[0] + 1;
-//        if (currField > 0)
-//            fieldSize = upperBound[currField] - upperBound[currField - 1];
-//        HashMap<BDDVectors, Integer> map = new HashMap<BDDVectors, Integer>();
-//        for (int i = 0; i <= k; i++) {
-//            // bdd with k and only k failures
-//            int pred = bdd.ref(encodeBDD(bdd, vars, fieldSize - 1, 0, i));
-//            BDDVectors next = encodeAtMostKFailureVarsSortedRec(bdd, vars, endField, currField + 1, k - i);
-//            int nextPred = 0;
-//            if (map.containsKey(next))
-//                nextPred = map.get(next);
-//            bdd.ref(pred);
-//            int t = bdd.ref(bdd.or(pred, nextPred));
-//            bdd.deref(pred);
-//            bdd.deref(nextPred);
-//            nextPred = t;
-//            map.put(next, nextPred);
-//        }
-//        return BDDVectors.addAtField(currField, map);
-//        // return BDDArray.table.mk(currField, map);
-//    }
+                bddForVector = bddEngine.andTo(bddForVector, bddForField);
+                bddEngine.deref(bddForVector);
+            }
+            bdds.add(bddForVector);
+        }
 
-//    // replacement of BDDArray.table.mk(currField, map)
-//    public static BDDVectors addAtField(int field, HashMap<NDD, Integer> map) {
-//        BDDVectors ret = new BDDVectors();
-//        for (Map.Entry<BDDVectors, Integer> entry : map.entrySet()) {
-//            BDDVectors n = entry.getKey();
-//            int b = entry.getValue();
-//            for (ArrayList<Integer> vector : n.vectors) {
-//                ArrayList<Integer> temp = new ArrayList<>(vector);
-//                temp.set(field, b);
-//                ret.vectors.add(temp);
-//            }
-//        }
-//        return ret;
-//    }
+        int result = BDD_FALSE;
+        for (int i = 0; i < bdds.size(); i++) {
+            int bddForVector = bdds.get(i);
+            result = bddEngine.orTo(result, bddForVector);
+            bddEngine.deref(bddForVector);
+        }
+        return result;
+    }
 
-//    private static int encodeBDD(BDD bdd, int[] vars, int endVar, int currVar, int k) {
-//        // cache? link num, k -> bdd
-//        if (k < 0)
-//            return 0;
-//        if (currVar > endVar) {
-//            if (k > 0)
-//                return 0;
-//            else
-//                return 1;
-//        }
-//        int low = encodeBDD(bdd, vars, endVar, currVar + 1, k - 1);
-//        int high = encodeBDD(bdd, vars, endVar, currVar + 1, k);
-//
-//        // return bdd.mk(currVar, low, high);
-//        return bdd.mk(bdd.getVar(vars[endVar - currVar]), low, high);
-//    }
+    public static double satCount(BDDVectors a) {
+        int equivalentBDD = toBDD(a);
+        double satCount = bddEngine.satCount(equivalentBDD);
+        bddEngine.deref(equivalentBDD);
+        return satCount;
+    }
 
-//    public static void printDot(String path, BDDVectors curr) {
-//        for (ArrayList<Integer> vector : curr.vectors) {
-//            for (int i = 0; i < fieldNum; i++) {
-//                int idx = vector.get(i);
-//                if (idx != 1 && idx != 0) {
-//                    bdd.printDot(path + "/" + idx, idx);
-//                }
-//            }
-//        }
-//    }
-//
-//    public static void nodeCount(BDDVectors node) {
-//        HashSet<Integer> BDDRootSet = new HashSet<Integer>();
-//        HashSet<Integer> BDDSet = new HashSet<Integer>();
-//        for (ArrayList<Integer> vector : node.vectors) {
-//            for (int i = 0; i < vector.size(); i++) {
-//                BDDRootSet.add(vector.get(i));
-//            }
-//        }
-//        for (int BDDRoot : BDDRootSet) {
-//            detectBDD(BDDRoot, BDDSet);
-//        }
-//        System.out.println("NDD node:" + node.vectors.size() + " BDD node:" +
-//                BDDSet.size());
-//    }
-//
-//    private static void detectBDD(int node, HashSet<Integer> BDDSet) {
-//        if (node == 1 || node == 0)
-//            return;
-//        else {
-//            if (!BDDSet.contains(node)) {
-//                BDDSet.add(node);
-//                detectBDD(bdd.getHigh(node), BDDSet);
-//                detectBDD(bdd.getLow(node), BDDSet);
-//            }
-//        }
-//    }
+    // convert a bdd to equivalent bdd vectors
+    public static BDDVectors toBDDVectors(int a) {
+        BDDVectors result = toBDDVectorsRec(a);
+        return result;
+    }
+
+    private static int bddGetField(int a) {
+        if (a == BDD_FALSE || a == BDD_TRUE) {
+            return fieldNum;
+        }
+        int varA = bddEngine.getVar(a);
+        int currentField = 0;
+        while (currentField < fieldNum) {
+            if (varA <= maxVariablePerField.get(currentField)) {
+                break;
+            }
+            currentField++;
+        }
+        return currentField;
+    }
+
+    private static BDDVectors toBDDVectorsRec(int a) {
+        // decomposed: from -> {to -> bdd}
+        HashMap<Integer, HashMap<Integer, Integer>> decomposed = decompose(a);
+
+        ArrayList<Integer> tempBDDVector = new ArrayList<>();
+        Set<ArrayList<Integer>> bddVectors = new HashSet<>();
+
+        for (int i = 0; i < bddGetField(a); i++) {
+            tempBDDVector.add(BDD_TRUE);
+        }
+
+        toBDDVectorsDFS(bddVectors, decomposed, a, tempBDDVector);
+
+        if (reuseBDDVar) {
+            for (ArrayList<Integer> bddVector : bddVectors) {
+                for (int currentField = 0; currentField < fieldNum; currentField++) {
+                    if (bddVector.get(currentField) == BDD_TRUE || bddVector.get(currentField) == BDD_FALSE) {
+                        continue;
+                    }
+
+                    int bitNum = maxVariablePerField.get(0) + 1;
+                    int startBit = 0;
+                    if (currentField > 0) {
+                        bitNum = maxVariablePerField.get(currentField) - maxVariablePerField.get(currentField - 1);
+                        startBit = maxVariablePerField.get(currentField - 1) + 1;
+                    }
+                    int[] from = new int[bitNum];
+                    for (int j = 0; j < bitNum; j++) {
+                        from[j] = backupBDDVars.get(startBit + j);
+                    }
+
+                    int[] to = bddVarsPerField.get(currentField);
+
+                    Permutation perm = bddEngine.createPermutation(from, to);
+                    int newBDD = bddEngine.ref(bddEngine.replace(bddVector.get(currentField), perm));
+                    bddEngine.deref(bddVector.get(currentField));
+                    bddVector.set(currentField, newBDD);
+                }
+            }
+        }
+
+        for (HashMap<Integer, Integer> map : decomposed.values()) {
+            for (Map.Entry<Integer, Integer> entry : map.entrySet()) {
+                bddEngine.deref(entry.getValue());
+            }
+        }
+
+        return BDDVectors.ref(new BDDVectors(bddVectors));
+    }
+
+    private static void toBDDVectorsDFS(Set<ArrayList<Integer>> bddVectors,
+                                       HashMap<Integer, HashMap<Integer, Integer>> decomposed, int from, ArrayList<Integer> bddVector) {
+        if (from == BDD_TRUE) {
+            ArrayList<Integer> newVector = new ArrayList<>(bddVector);
+            bddVectors.add(newVector);
+            return;
+        }
+        HashMap<Integer, Integer> map = decomposed.get(from);
+        for (Map.Entry<Integer, Integer> entry : map.entrySet()) {
+            int to = entry.getKey();
+            int perFieldBDD = entry.getValue();
+            int middleFieldNum = bddGetField(to) - bddGetField(from) - 1;
+            bddVector.add(bddEngine.ref(perFieldBDD));
+            for (int i = 0; i < middleFieldNum; i++) {
+                bddVector.add(BDD_TRUE);
+            }
+
+            toBDDVectorsDFS(bddVectors, decomposed, to, bddVector);
+
+            for (int i = 0; i <= middleFieldNum; i++) {
+                bddVector.remove(bddVector.size() - 1);
+            }
+        }
+    }
+
+    private static HashMap<Integer, HashMap<Integer, Integer>> decompose(int a) {
+        HashMap<Integer, HashMap<Integer, Integer>> decomposedBDD = new HashMap<Integer, HashMap<Integer, Integer>>();
+        if (a == BDD_FALSE) {
+        } else if (a == BDD_TRUE) {
+            HashMap<Integer, Integer> map = new HashMap<>();
+            map.put(BDD_TRUE, BDD_TRUE);
+            decomposedBDD.put(BDD_TRUE, map);
+        } else {
+            HashMap<Integer, HashSet<Integer>> boundaryTree = new HashMap<>();
+            ArrayList<HashSet<Integer>> boundaryPoints = new ArrayList<>();
+            getBoundaryTree(a, boundaryTree, boundaryPoints);
+
+            for (int currentField = 0; currentField < fieldNum - 1; currentField++) {
+                for (int from : boundaryPoints.get(currentField)) {
+                    decomposedBDD.put(from, new HashMap<>());
+                    for (int to : boundaryTree.get(from)) {
+                        int perFieldBDD = bddEngine.ref(constructPerFieldBDD(from, to, from));
+                        decomposedBDD.get(from).put(to, perFieldBDD);
+                    }
+                }
+            }
+
+            for (int from : boundaryPoints.get(fieldNum - 1)) {
+                decomposedBDD.put(from, new HashMap<Integer, Integer>());
+                decomposedBDD.get(from).put(BDD_TRUE, bddEngine.ref(from));
+            }
+        }
+        return decomposedBDD;
+    }
+
+    private static void getBoundaryTree(int a, HashMap<Integer, HashSet<Integer>> boundaryTree,
+                                          ArrayList<HashSet<Integer>> boundaryPoints) {
+        int startField = bddGetField(a);
+        for (int i = 0; i < fieldNum; i++) {
+            boundaryPoints.add(new HashSet<Integer>());
+        }
+        boundaryPoints.get(startField).add(a);
+        if (startField == fieldNum - 1) {
+            boundaryTree.put(a, new HashSet<Integer>());
+            boundaryTree.get(a).add(BDD_TRUE);
+        } else {
+            for (int currentField = startField; currentField < fieldNum; currentField++) {
+                for (int from : boundaryPoints.get(currentField)) {
+                    detectBoundaryPoints(from, from, boundaryTree, boundaryPoints);
+                }
+            }
+        }
+    }
+
+    private static void detectBoundaryPoints(int from, int current, HashMap<Integer, HashSet<Integer>> boundaryTree,
+                                              ArrayList<HashSet<Integer>> boundaryPoints) {
+        if (current == BDD_FALSE) {
+            return;
+        }
+
+        if (bddGetField(from) != bddGetField(current)) {
+            if (!boundaryTree.containsKey(from)) {
+                boundaryTree.put(from, new HashSet<Integer>());
+            }
+            boundaryTree.get(from).add(current);
+            if (current != BDD_TRUE) {
+                boundaryPoints.get(bddGetField(current)).add(current);
+            }
+            return;
+        }
+
+        detectBoundaryPoints(from, bddEngine.getLow(current), boundaryTree, boundaryPoints);
+        detectBoundaryPoints(from, bddEngine.getHigh(current), boundaryTree, boundaryPoints);
+    }
+
+    // return per field bdd without ref
+    private static int constructPerFieldBDD(int from, int to, int current) {
+        if (bddGetField(from) != bddGetField(current)) {
+            if (to == current)
+                return BDD_TRUE;
+            else
+                return BDD_FALSE;
+        }
+
+        int new_low = bddEngine.ref(constructPerFieldBDD(from, to, bddEngine.getLow(current)));
+        int new_high = bddEngine.ref(constructPerFieldBDD(from, to, bddEngine.getHigh(current)));
+        int result = bddEngine.mk(bddEngine.getVar(current), new_low, new_high);
+        bddEngine.deref(new_low);
+        bddEngine.deref(new_high);
+        return result;
+    }
+
+    public static int toZero(BDDVectors n) {
+        int equivalentBDD = bddEngine.ref(toBDD(n));
+        int result = bddEngine.toZero(equivalentBDD);
+        bddEngine.deref(equivalentBDD);
+        return result;
+    }
+
+    public static BDDVectors encodeAtMostKFailureVarsSorted(int[] vars, int startField, int endField, int k) {
+        return encodeAtMostKFailureVarsSortedRec(vars, startField, endField, k);
+    }
+
+    private static BDDVectors encodeAtMostKFailureVarsSortedRec(int[] vars, int currentField, int endField, int k) {
+        if (currentField > endField) {
+            return TRUE;
+        }
+
+        int bitNum = maxVariablePerField.get(0) + 1;
+        if (currentField > 0) {
+            bitNum = maxVariablePerField.get(currentField) - maxVariablePerField.get(currentField - 1);
+        }
+
+        HashMap<BDDVectors, Integer> map = new HashMap<>();
+        for (int i = 0; i <= k; i++) {
+            // bdd with k and only k failures
+            int toAddBDD = bddEngine.ref(encodeBDD(bddEngine, vars, 0, bitNum - 1, i));
+            BDDVectors bddVectors = encodeAtMostKFailureVarsSortedRec(vars, endField, currentField + 1, k - i);
+            int nextFieldBDD = BDD_FALSE;
+            if (map.containsKey(bddVectors)) {
+                nextFieldBDD = map.get(bddVectors);
+            }
+            nextFieldBDD = bddEngine.orTo(nextFieldBDD, toAddBDD);
+            bddEngine.deref(toAddBDD);
+            map.put(bddVectors, nextFieldBDD);
+        }
+        return BDDVectors.addAtField(currentField, map);
+    }
+
+    private static BDDVectors addAtField(int field, HashMap<BDDVectors, Integer> map) {
+        BDDVectors result = new BDDVectors();
+        for (Map.Entry<BDDVectors, Integer> entry : map.entrySet()) {
+            BDDVectors bddVectors = entry.getKey();
+            int oneBDD = entry.getValue();
+            for (ArrayList<Integer> bddVector : bddVectors.bddVectors) {
+                ArrayList<Integer> temp = new ArrayList<>(bddVector);
+                temp.set(field, bddEngine.ref(oneBDD));
+                result.bddVectors.add(temp);
+                bddEngine.deref(bddVector.get(field));
+            }
+            bddEngine.deref(oneBDD);
+        }
+        return result;
+    }
+
+    private static int encodeBDD(BDD bdd, int[] vars, int currentVar, int endVar, int k) {
+        // cache? link num, k -> bdd
+        if (k < 0) {
+            return BDD_FALSE;
+        } else if (currentVar > endVar) {
+            if (k > 0) {
+                return BDD_FALSE;
+            } else {
+                return BDD_TRUE;
+            }
+        }
+        int low = encodeBDD(bdd, vars, currentVar + 1, endVar, k - 1);
+        int high = encodeBDD(bdd, vars, currentVar + 1, endVar, k);
+
+        return bdd.mk(bdd.getVar(vars[endVar - currentVar]), low, high);
+    }
+
+    public static void printDot(String path, BDDVectors bddVectors) {
+        for (ArrayList<Integer> bddVector : bddVectors.bddVectors) {
+            for (int i = 0; i < fieldNum; i++) {
+                int oneBDD = bddVector.get(i);
+                if (oneBDD != BDD_TRUE && oneBDD != BDD_FALSE) {
+                    bddEngine.printDot(path + "/" + oneBDD, oneBDD);
+                }
+            }
+        }
+    }
+
+    public static void nodeCount(BDDVectors bddVectors) {
+        HashSet<Integer> bddRootSet = new HashSet<>();
+        for (ArrayList<Integer> bddVector : bddVectors.bddVectors) {
+            for (int i = 0; i < bddVector.size(); i++) {
+                bddRootSet.add(bddVector.get(i));
+            }
+        }
+
+        HashSet<Integer> bddNodeSet = new HashSet<>();
+        for (int BDDRoot : bddRootSet) {
+            detectBDD(BDDRoot, bddNodeSet);
+        }
+
+        System.out.println("NDD node:" + bddVectors.bddVectors.size() + " BDD node:" + bddNodeSet.size());
+    }
+
+    private static void detectBDD(int node, HashSet<Integer> BDDSet) {
+        if (node == BDD_TRUE || node == BDD_FALSE) {
+        } else {
+            BDDSet.add(node);
+            detectBDD(bddEngine.getHigh(node), BDDSet);
+            detectBDD(bddEngine.getLow(node), BDDSet);
+        }
+    }
 }
