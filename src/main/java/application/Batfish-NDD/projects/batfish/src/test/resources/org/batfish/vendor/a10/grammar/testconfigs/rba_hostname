@@ -1,0 +1,13 @@
+!BATFISH_FORMAT: a10_acos
+hostname rba_hostname
+!
+! intentionally using trailing whitespace on these lines 
+rba role ROLENAME 
+  access-list write 
+  admin oper 
+  hostname read
+  hostname oper
+  hostname partition-only
+  hostname write
+  banner no-access
+!

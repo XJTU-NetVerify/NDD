@@ -1,0 +1,38 @@
+config system global
+    set hostname "bgp_warnings"
+end
+config router bgp
+    set as 4294967296
+    set as hello
+    set router-id 0.0.0.0
+    config neighbor
+        # Invalid neighbor ip
+        edit "0.0.0.0"
+            set remote-as 1
+        next
+        # Invalid remote ASes, resulting in neighbor block missing AS
+        edit "1.1.1.1"
+            set remote-as 0
+            set remote-as 4294967296
+            set remote-as hello
+        next
+    end
+    config network
+        edit 4294967296
+        next
+        edit 1
+            # ok
+            set prefix 1.1.1.0 255.255.255.0
+        next
+        edit 2
+            # can't use 0.0.0.0/0
+            set prefix 0.0.0.0 0.0.0.0
+            # can't reuse another network's prefix
+            set prefix 1.1.1.0 255.255.255.0
+            # can't have edit block with no prefix
+        next
+    end
+    config redistribute "connected"
+        set status enable
+    end
+end

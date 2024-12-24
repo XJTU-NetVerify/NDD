@@ -1,0 +1,3701 @@
+[
+  {
+    "class" : "org.batfish.question.OutliersQuestionPlugin$OutliersAnswerElement",
+    "namedStructureOutliers" : [
+      {
+        "conformers" : [
+          "as1border1",
+          "as1border2",
+          "as1core1",
+          "as2border1",
+          "as2border2",
+          "as2core1",
+          "as2core2",
+          "as2dept1",
+          "as2dist1",
+          "as2dist2",
+          "as3border1",
+          "as3border2",
+          "as3core1"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "Ethernet0/0",
+        "structDefinition" : {
+          "name" : "Ethernet0/0",
+          "active" : false,
+          "additionalArpIps" : {
+            "class" : "org.batfish.datamodel.EmptyIpSpace"
+          },
+          "adminUp" : false,
+          "autostate" : true,
+          "bandwidth" : 1.0E7,
+          "blacklisted" : false,
+          "declaredNames" : [
+            "Ethernet0/0"
+          ],
+          "hmm" : false,
+          "inactiveReason" : "ADMIN_DOWN",
+          "lineUp" : true,
+          "mtu" : 1500,
+          "proxyArp" : true,
+          "ripEnabled" : false,
+          "ripPassive" : false,
+          "spanningTreePortfast" : false,
+          "speed" : 1.0E7,
+          "switchport" : false,
+          "switchportMode" : "NONE",
+          "switchportTrunkEncapsulation" : "DOT1Q",
+          "type" : "PHYSICAL",
+          "vrf" : "default"
+        },
+        "structType" : "Interface"
+      },
+      {
+        "conformers" : [
+          "as1border1",
+          "as1border2",
+          "as2border1",
+          "as2border2",
+          "as2dept1",
+          "as3border1",
+          "as3border2"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "as2_community",
+        "structDefinition" : {
+          "expr" : {
+            "class" : "org.batfish.datamodel.routing_policy.communities.CommunityMatchRegex",
+            "communityRendering" : {
+              "class" : "org.batfish.datamodel.routing_policy.communities.ColonSeparatedRendering"
+            },
+            "regex" : "(,|\\{|\\}|^|$| )2:"
+          }
+        },
+        "structType" : "CommunitySetMatchExpr"
+      },
+      {
+        "conformers" : [
+          "as1border1",
+          "as1border2",
+          "as2border1",
+          "as2border2",
+          "as3border1",
+          "as3border2"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "as1_community",
+        "structDefinition" : {
+          "expr" : {
+            "class" : "org.batfish.datamodel.routing_policy.communities.CommunityMatchRegex",
+            "communityRendering" : {
+              "class" : "org.batfish.datamodel.routing_policy.communities.ColonSeparatedRendering"
+            },
+            "regex" : "(,|\\{|\\}|^|$| )1:"
+          }
+        },
+        "structType" : "CommunitySetMatchExpr"
+      },
+      {
+        "conformers" : [
+          "as1border1",
+          "as1border2",
+          "as2border1",
+          "as2border2",
+          "as3border1",
+          "as3border2"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "as3_community",
+        "structDefinition" : {
+          "expr" : {
+            "class" : "org.batfish.datamodel.routing_policy.communities.CommunityMatchRegex",
+            "communityRendering" : {
+              "class" : "org.batfish.datamodel.routing_policy.communities.ColonSeparatedRendering"
+            },
+            "regex" : "(,|\\{|\\}|^|$| )3:"
+          }
+        },
+        "structType" : "CommunitySetMatchExpr"
+      },
+      {
+        "conformers" : [
+          "as1border1",
+          "as1border2",
+          "as2border1",
+          "as2border2",
+          "as3border1",
+          "as3border2"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "101",
+        "structDefinition" : {
+          "lines" : [
+            {
+              "action" : "PERMIT",
+              "ipWildcard" : "1.0.1.0/24",
+              "lengthRange" : "24-24"
+            },
+            {
+              "action" : "PERMIT",
+              "ipWildcard" : "1.0.2.0/24",
+              "lengthRange" : "24-24"
+            }
+          ],
+          "name" : "101",
+          "vendorStructureId" : {
+            "filename" : "configs/as1border1.cfg",
+            "structureName" : "101",
+            "structureType" : "extended ipv4 access-list"
+          }
+        },
+        "structType" : "RouteFilterList"
+      },
+      {
+        "conformers" : [
+          "as2dist1",
+          "as2dist2"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "dept_community",
+        "structDefinition" : {
+          "expr" : {
+            "class" : "org.batfish.datamodel.routing_policy.communities.CommunityMatchRegex",
+            "communityRendering" : {
+              "class" : "org.batfish.datamodel.routing_policy.communities.ColonSeparatedRendering"
+            },
+            "regex" : "(,|\\{|\\}|^|$| )65001:"
+          }
+        },
+        "structType" : "CommunitySetMatchExpr"
+      },
+      {
+        "conformers" : [
+          "host1",
+          "host2"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "filter::FORWARD",
+        "structDefinition" : {
+          "lines" : [
+            {
+              "class" : "org.batfish.datamodel.ExprAclLine",
+              "action" : "PERMIT",
+              "matchCondition" : {
+                "class" : "org.batfish.datamodel.acl.TrueExpr"
+              },
+              "name" : "default",
+              "traceElement" : {
+                "fragments" : [
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                    "text" : "Matched line default"
+                  }
+                ]
+              }
+            }
+          ],
+          "name" : "filter::FORWARD"
+        },
+        "structType" : "IpAccessList"
+      },
+      {
+        "conformers" : [
+          "host1",
+          "host2"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "mangle::FORWARD",
+        "structDefinition" : {
+          "lines" : [
+            {
+              "class" : "org.batfish.datamodel.ExprAclLine",
+              "action" : "PERMIT",
+              "matchCondition" : {
+                "class" : "org.batfish.datamodel.acl.TrueExpr"
+              },
+              "name" : "default",
+              "traceElement" : {
+                "fragments" : [
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                    "text" : "Matched line default"
+                  }
+                ]
+              }
+            }
+          ],
+          "name" : "mangle::FORWARD"
+        },
+        "structType" : "IpAccessList"
+      },
+      {
+        "conformers" : [
+          "host1",
+          "host2"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "mangle::INPUT",
+        "structDefinition" : {
+          "lines" : [
+            {
+              "class" : "org.batfish.datamodel.ExprAclLine",
+              "action" : "PERMIT",
+              "matchCondition" : {
+                "class" : "org.batfish.datamodel.acl.TrueExpr"
+              },
+              "name" : "default",
+              "traceElement" : {
+                "fragments" : [
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                    "text" : "Matched line default"
+                  }
+                ]
+              }
+            }
+          ],
+          "name" : "mangle::INPUT"
+        },
+        "structType" : "IpAccessList"
+      },
+      {
+        "conformers" : [
+          "host1",
+          "host2"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "mangle::OUTPUT",
+        "structDefinition" : {
+          "lines" : [
+            {
+              "class" : "org.batfish.datamodel.ExprAclLine",
+              "action" : "PERMIT",
+              "matchCondition" : {
+                "class" : "org.batfish.datamodel.acl.TrueExpr"
+              },
+              "name" : "default",
+              "traceElement" : {
+                "fragments" : [
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                    "text" : "Matched line default"
+                  }
+                ]
+              }
+            }
+          ],
+          "name" : "mangle::OUTPUT"
+        },
+        "structType" : "IpAccessList"
+      },
+      {
+        "conformers" : [
+          "host1",
+          "host2"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "mangle::POSTROUTING",
+        "structDefinition" : {
+          "lines" : [
+            {
+              "class" : "org.batfish.datamodel.ExprAclLine",
+              "action" : "PERMIT",
+              "matchCondition" : {
+                "class" : "org.batfish.datamodel.acl.TrueExpr"
+              },
+              "name" : "default",
+              "traceElement" : {
+                "fragments" : [
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                    "text" : "Matched line default"
+                  }
+                ]
+              }
+            }
+          ],
+          "name" : "mangle::POSTROUTING"
+        },
+        "structType" : "IpAccessList"
+      },
+      {
+        "conformers" : [
+          "host1",
+          "host2"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "mangle::PREROUTING",
+        "structDefinition" : {
+          "lines" : [
+            {
+              "class" : "org.batfish.datamodel.ExprAclLine",
+              "action" : "PERMIT",
+              "matchCondition" : {
+                "class" : "org.batfish.datamodel.acl.TrueExpr"
+              },
+              "name" : "default",
+              "traceElement" : {
+                "fragments" : [
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                    "text" : "Matched line default"
+                  }
+                ]
+              }
+            }
+          ],
+          "name" : "mangle::PREROUTING"
+        },
+        "structType" : "IpAccessList"
+      },
+      {
+        "conformers" : [
+          "host1",
+          "host2"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "nat::OUTPUT",
+        "structDefinition" : {
+          "lines" : [
+            {
+              "class" : "org.batfish.datamodel.ExprAclLine",
+              "action" : "PERMIT",
+              "matchCondition" : {
+                "class" : "org.batfish.datamodel.acl.TrueExpr"
+              },
+              "name" : "default",
+              "traceElement" : {
+                "fragments" : [
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                    "text" : "Matched line default"
+                  }
+                ]
+              }
+            }
+          ],
+          "name" : "nat::OUTPUT"
+        },
+        "structType" : "IpAccessList"
+      },
+      {
+        "conformers" : [
+          "host1",
+          "host2"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "nat::POSTROUTING",
+        "structDefinition" : {
+          "lines" : [
+            {
+              "class" : "org.batfish.datamodel.ExprAclLine",
+              "action" : "PERMIT",
+              "matchCondition" : {
+                "class" : "org.batfish.datamodel.acl.TrueExpr"
+              },
+              "name" : "default",
+              "traceElement" : {
+                "fragments" : [
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                    "text" : "Matched line default"
+                  }
+                ]
+              }
+            }
+          ],
+          "name" : "nat::POSTROUTING"
+        },
+        "structType" : "IpAccessList"
+      },
+      {
+        "conformers" : [
+          "host1",
+          "host2"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "nat::PREROUTING",
+        "structDefinition" : {
+          "lines" : [
+            {
+              "class" : "org.batfish.datamodel.ExprAclLine",
+              "action" : "PERMIT",
+              "matchCondition" : {
+                "class" : "org.batfish.datamodel.acl.TrueExpr"
+              },
+              "name" : "default",
+              "traceElement" : {
+                "fragments" : [
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                    "text" : "Matched line default"
+                  }
+                ]
+              }
+            }
+          ],
+          "name" : "nat::PREROUTING"
+        },
+        "structType" : "IpAccessList"
+      },
+      {
+        "conformers" : [
+          "as2dist1",
+          "as2dist2"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "105",
+        "structDefinition" : {
+          "lines" : [
+            {
+              "action" : "PERMIT",
+              "ipWildcard" : "1.0.1.0/24",
+              "lengthRange" : "24-24"
+            },
+            {
+              "action" : "PERMIT",
+              "ipWildcard" : "1.0.2.0/24",
+              "lengthRange" : "24-24"
+            },
+            {
+              "action" : "PERMIT",
+              "ipWildcard" : "3.0.1.0/24",
+              "lengthRange" : "24-24"
+            },
+            {
+              "action" : "PERMIT",
+              "ipWildcard" : "3.0.2.0/24",
+              "lengthRange" : "24-24"
+            }
+          ],
+          "name" : "105",
+          "vendorStructureId" : {
+            "filename" : "configs/as2dist1.cfg",
+            "structureName" : "105",
+            "structureType" : "extended ipv4 access-list"
+          }
+        },
+        "structType" : "RouteFilterList"
+      },
+      {
+        "conformers" : [
+          "as1border1",
+          "as3border1"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "default_list",
+        "structDefinition" : {
+          "lines" : [
+            {
+              "action" : "PERMIT",
+              "ipWildcard" : "0.0.0.0/0",
+              "lengthRange" : "0-0"
+            }
+          ],
+          "name" : "default_list",
+          "vendorStructureId" : {
+            "filename" : "configs/as1border1.cfg",
+            "structureName" : "default_list",
+            "structureType" : "ipv4 prefix-list"
+          }
+        },
+        "structType" : "RouteFilterList"
+      },
+      {
+        "conformers" : [
+          "as2border1",
+          "as2border2"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "outbound_routes",
+        "structDefinition" : {
+          "lines" : [
+            {
+              "action" : "PERMIT",
+              "ipWildcard" : "2.128.0.0/9",
+              "lengthRange" : "16-32"
+            }
+          ],
+          "name" : "outbound_routes",
+          "vendorStructureId" : {
+            "filename" : "configs/as2border1.cfg",
+            "structureName" : "outbound_routes",
+            "structureType" : "ipv4 prefix-list"
+          }
+        },
+        "structType" : "RouteFilterList"
+      },
+      {
+        "conformers" : [
+          "as2dist1",
+          "as2dist2"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "as2dist_to_dept",
+        "structDefinition" : {
+          "name" : "as2dist_to_dept",
+          "statements" : [
+            {
+              "class" : "org.batfish.datamodel.routing_policy.statement.If",
+              "comment" : "~RMCLAUSE~as2dist_to_dept~100~",
+              "falseStatements" : [
+                {
+                  "class" : "org.batfish.datamodel.routing_policy.statement.Statements$StaticStatement",
+                  "type" : "ReturnLocalDefaultAction"
+                }
+              ],
+              "guard" : {
+                "class" : "org.batfish.datamodel.routing_policy.expr.MatchPrefixSet",
+                "prefix" : {
+                  "class" : "org.batfish.datamodel.routing_policy.expr.DestinationNetwork"
+                },
+                "prefixSet" : {
+                  "class" : "org.batfish.datamodel.routing_policy.expr.NamedPrefixSet",
+                  "name" : "105"
+                }
+              },
+              "trueStatements" : [
+                {
+                  "class" : "org.batfish.datamodel.routing_policy.statement.TraceableStatement",
+                  "innerStatements" : [
+                    {
+                      "class" : "org.batfish.datamodel.routing_policy.statement.SetMetric",
+                      "metric" : {
+                        "class" : "org.batfish.datamodel.routing_policy.expr.LiteralLong",
+                        "value" : 50
+                      }
+                    },
+                    {
+                      "class" : "org.batfish.datamodel.routing_policy.communities.SetCommunities",
+                      "communitySetExpr" : {
+                        "class" : "org.batfish.datamodel.routing_policy.communities.CommunitySetUnion",
+                        "exprs" : [
+                          {
+                            "class" : "org.batfish.datamodel.routing_policy.communities.InputCommunities"
+                          },
+                          {
+                            "class" : "org.batfish.datamodel.routing_policy.communities.LiteralCommunitySet",
+                            "communitySet" : [
+                              "2:65001"
+                            ]
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "class" : "org.batfish.datamodel.routing_policy.statement.Statements$StaticStatement",
+                      "type" : "ReturnTrue"
+                    }
+                  ],
+                  "traceElement" : {
+                    "fragments" : [
+                      {
+                        "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                        "text" : "Matched "
+                      },
+                      {
+                        "class" : "org.batfish.datamodel.TraceElement$LinkFragment",
+                        "text" : "route-map as2dist_to_dept clause 100",
+                        "vendorStructureId" : {
+                          "filename" : "configs/as2dist1.cfg",
+                          "structureName" : "as2dist_to_dept 100",
+                          "structureType" : "route-map-clause"
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "structType" : "RoutingPolicy"
+      },
+      {
+        "conformers" : [
+          "as2dist1",
+          "as2dist2"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "dept_to_as2dist",
+        "structDefinition" : {
+          "name" : "dept_to_as2dist",
+          "statements" : [
+            {
+              "class" : "org.batfish.datamodel.routing_policy.statement.If",
+              "comment" : "~RMCLAUSE~dept_to_as2dist~100~",
+              "falseStatements" : [
+                {
+                  "class" : "org.batfish.datamodel.routing_policy.statement.Statements$StaticStatement",
+                  "type" : "ReturnLocalDefaultAction"
+                }
+              ],
+              "guard" : {
+                "class" : "org.batfish.datamodel.routing_policy.communities.MatchCommunities",
+                "communitySetExpr" : {
+                  "class" : "org.batfish.datamodel.routing_policy.communities.InputCommunities"
+                },
+                "communitySetMatchExpr" : {
+                  "class" : "org.batfish.datamodel.routing_policy.communities.CommunitySetMatchExprReference",
+                  "name" : "dept_community"
+                }
+              },
+              "trueStatements" : [
+                {
+                  "class" : "org.batfish.datamodel.routing_policy.statement.TraceableStatement",
+                  "innerStatements" : [
+                    {
+                      "class" : "org.batfish.datamodel.routing_policy.statement.SetLocalPreference",
+                      "localPreference" : {
+                        "class" : "org.batfish.datamodel.routing_policy.expr.LiteralLong",
+                        "value" : 350
+                      }
+                    },
+                    {
+                      "class" : "org.batfish.datamodel.routing_policy.statement.Statements$StaticStatement",
+                      "type" : "ReturnTrue"
+                    }
+                  ],
+                  "traceElement" : {
+                    "fragments" : [
+                      {
+                        "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                        "text" : "Matched "
+                      },
+                      {
+                        "class" : "org.batfish.datamodel.TraceElement$LinkFragment",
+                        "text" : "route-map dept_to_as2dist clause 100",
+                        "vendorStructureId" : {
+                          "filename" : "configs/as2dist1.cfg",
+                          "structureName" : "dept_to_as2dist 100",
+                          "structureType" : "route-map-clause"
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "structType" : "RoutingPolicy"
+      },
+      {
+        "conformers" : [
+          "as1border1",
+          "as2border1",
+          "as2border2",
+          "as3border1",
+          "as3border2"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "103",
+        "outliers" : [
+          "as1border2"
+        ],
+        "structDefinition" : {
+          "lines" : [
+            {
+              "action" : "PERMIT",
+              "ipWildcard" : "3.0.1.0/24",
+              "lengthRange" : "24-24"
+            },
+            {
+              "action" : "PERMIT",
+              "ipWildcard" : "3.0.2.0/24",
+              "lengthRange" : "24-24"
+            }
+          ],
+          "name" : "103",
+          "vendorStructureId" : {
+            "filename" : "configs/as1border1.cfg",
+            "structureName" : "103",
+            "structureType" : "extended ipv4 access-list"
+          }
+        },
+        "structType" : "RouteFilterList"
+      },
+      {
+        "conformers" : [
+          "as1border2"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "as4_community",
+        "structDefinition" : {
+          "expr" : {
+            "class" : "org.batfish.datamodel.routing_policy.communities.CommunityMatchRegex",
+            "communityRendering" : {
+              "class" : "org.batfish.datamodel.routing_policy.communities.ColonSeparatedRendering"
+            },
+            "regex" : "(,|\\{|\\}|^|$| )4:"
+          }
+        },
+        "structType" : "CommunitySetMatchExpr"
+      },
+      {
+        "conformers" : [
+          "as2border1"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "INSIDE_TO_AS1",
+        "structDefinition" : {
+          "lines" : [
+            {
+              "class" : "org.batfish.datamodel.ExprAclLine",
+              "action" : "PERMIT",
+              "matchCondition" : {
+                "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                "headerSpace" : {
+                  "dstIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "1.0.0.0/8"
+                  },
+                  "negate" : false,
+                  "srcIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "2.0.0.0/8"
+                  }
+                }
+              },
+              "name" : "permit ip 2.0.0.0 0.255.255.255 1.0.0.0 0.255.255.255",
+              "traceElement" : {
+                "fragments" : [
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                    "text" : "Matched line "
+                  },
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$LinkFragment",
+                    "text" : "permit ip 2.0.0.0 0.255.255.255 1.0.0.0 0.255.255.255",
+                    "vendorStructureId" : {
+                      "filename" : "configs/as2border1.cfg",
+                      "structureName" : "INSIDE_TO_AS1: permit ip 2.0.0.0 0.255.255.255 1.0.0.0 0.255.255.255",
+                      "structureType" : "extended ipv4 access-list line"
+                    }
+                  }
+                ]
+              },
+              "vendorStructureId" : {
+                "filename" : "configs/as2border1.cfg",
+                "structureName" : "INSIDE_TO_AS1: permit ip 2.0.0.0 0.255.255.255 1.0.0.0 0.255.255.255",
+                "structureType" : "extended ipv4 access-list line"
+              }
+            },
+            {
+              "class" : "org.batfish.datamodel.ExprAclLine",
+              "action" : "PERMIT",
+              "matchCondition" : {
+                "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                "headerSpace" : {
+                  "dstIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "10.12.11.1"
+                  },
+                  "negate" : false,
+                  "srcIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "10.12.11.2"
+                  }
+                }
+              },
+              "name" : "permit ip 10.12.11.2 0.0.0.0 10.12.11.1 0.0.0.0",
+              "traceElement" : {
+                "fragments" : [
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                    "text" : "Matched line "
+                  },
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$LinkFragment",
+                    "text" : "permit ip 10.12.11.2 0.0.0.0 10.12.11.1 0.0.0.0",
+                    "vendorStructureId" : {
+                      "filename" : "configs/as2border1.cfg",
+                      "structureName" : "INSIDE_TO_AS1: permit ip 10.12.11.2 0.0.0.0 10.12.11.1 0.0.0.0",
+                      "structureType" : "extended ipv4 access-list line"
+                    }
+                  }
+                ]
+              },
+              "vendorStructureId" : {
+                "filename" : "configs/as2border1.cfg",
+                "structureName" : "INSIDE_TO_AS1: permit ip 10.12.11.2 0.0.0.0 10.12.11.1 0.0.0.0",
+                "structureType" : "extended ipv4 access-list line"
+              }
+            },
+            {
+              "class" : "org.batfish.datamodel.ExprAclLine",
+              "action" : "DENY",
+              "matchCondition" : {
+                "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                "headerSpace" : {
+                  "dstIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "0.0.0.0/0"
+                  },
+                  "negate" : false,
+                  "srcIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "0.0.0.0/0"
+                  }
+                }
+              },
+              "name" : "deny   ip any any",
+              "traceElement" : {
+                "fragments" : [
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                    "text" : "Matched line "
+                  },
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$LinkFragment",
+                    "text" : "deny   ip any any",
+                    "vendorStructureId" : {
+                      "filename" : "configs/as2border1.cfg",
+                      "structureName" : "INSIDE_TO_AS1: deny   ip any any",
+                      "structureType" : "extended ipv4 access-list line"
+                    }
+                  }
+                ]
+              },
+              "vendorStructureId" : {
+                "filename" : "configs/as2border1.cfg",
+                "structureName" : "INSIDE_TO_AS1: deny   ip any any",
+                "structureType" : "extended ipv4 access-list line"
+              }
+            }
+          ],
+          "name" : "INSIDE_TO_AS1",
+          "sourceName" : "INSIDE_TO_AS1",
+          "sourceType" : "extended ipv4 access-list"
+        },
+        "structType" : "IpAccessList"
+      },
+      {
+        "conformers" : [
+          "as2border2"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "INSIDE_TO_AS3",
+        "structDefinition" : {
+          "lines" : [
+            {
+              "class" : "org.batfish.datamodel.ExprAclLine",
+              "action" : "PERMIT",
+              "matchCondition" : {
+                "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                "headerSpace" : {
+                  "dstIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "3.0.0.0/8"
+                  },
+                  "negate" : false,
+                  "srcIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "2.0.0.0/8"
+                  }
+                }
+              },
+              "name" : "permit ip 2.0.0.0 0.255.255.255 3.0.0.0 0.255.255.255",
+              "traceElement" : {
+                "fragments" : [
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                    "text" : "Matched line "
+                  },
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$LinkFragment",
+                    "text" : "permit ip 2.0.0.0 0.255.255.255 3.0.0.0 0.255.255.255",
+                    "vendorStructureId" : {
+                      "filename" : "configs/as2border2.cfg",
+                      "structureName" : "INSIDE_TO_AS3: permit ip 2.0.0.0 0.255.255.255 3.0.0.0 0.255.255.255",
+                      "structureType" : "extended ipv4 access-list line"
+                    }
+                  }
+                ]
+              },
+              "vendorStructureId" : {
+                "filename" : "configs/as2border2.cfg",
+                "structureName" : "INSIDE_TO_AS3: permit ip 2.0.0.0 0.255.255.255 3.0.0.0 0.255.255.255",
+                "structureType" : "extended ipv4 access-list line"
+              }
+            },
+            {
+              "class" : "org.batfish.datamodel.ExprAclLine",
+              "action" : "PERMIT",
+              "matchCondition" : {
+                "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                "headerSpace" : {
+                  "dstIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "10.23.21.3"
+                  },
+                  "negate" : false,
+                  "srcIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "10.23.21.2"
+                  }
+                }
+              },
+              "name" : "permit ip 10.23.21.2 0.0.0.0 10.23.21.3 0.0.0.0",
+              "traceElement" : {
+                "fragments" : [
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                    "text" : "Matched line "
+                  },
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$LinkFragment",
+                    "text" : "permit ip 10.23.21.2 0.0.0.0 10.23.21.3 0.0.0.0",
+                    "vendorStructureId" : {
+                      "filename" : "configs/as2border2.cfg",
+                      "structureName" : "INSIDE_TO_AS3: permit ip 10.23.21.2 0.0.0.0 10.23.21.3 0.0.0.0",
+                      "structureType" : "extended ipv4 access-list line"
+                    }
+                  }
+                ]
+              },
+              "vendorStructureId" : {
+                "filename" : "configs/as2border2.cfg",
+                "structureName" : "INSIDE_TO_AS3: permit ip 10.23.21.2 0.0.0.0 10.23.21.3 0.0.0.0",
+                "structureType" : "extended ipv4 access-list line"
+              }
+            },
+            {
+              "class" : "org.batfish.datamodel.ExprAclLine",
+              "action" : "DENY",
+              "matchCondition" : {
+                "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                "headerSpace" : {
+                  "dstIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "0.0.0.0/0"
+                  },
+                  "negate" : false,
+                  "srcIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "0.0.0.0/0"
+                  }
+                }
+              },
+              "name" : "deny   ip any any",
+              "traceElement" : {
+                "fragments" : [
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                    "text" : "Matched line "
+                  },
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$LinkFragment",
+                    "text" : "deny   ip any any",
+                    "vendorStructureId" : {
+                      "filename" : "configs/as2border2.cfg",
+                      "structureName" : "INSIDE_TO_AS3: deny   ip any any",
+                      "structureType" : "extended ipv4 access-list line"
+                    }
+                  }
+                ]
+              },
+              "vendorStructureId" : {
+                "filename" : "configs/as2border2.cfg",
+                "structureName" : "INSIDE_TO_AS3: deny   ip any any",
+                "structureType" : "extended ipv4 access-list line"
+              }
+            }
+          ],
+          "name" : "INSIDE_TO_AS3",
+          "sourceName" : "INSIDE_TO_AS3",
+          "sourceType" : "extended ipv4 access-list"
+        },
+        "structType" : "IpAccessList"
+      },
+      {
+        "conformers" : [
+          "as2dept1"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "RESTRICT_HOST_TRAFFIC_IN",
+        "structDefinition" : {
+          "lines" : [
+            {
+              "class" : "org.batfish.datamodel.ExprAclLine",
+              "action" : "PERMIT",
+              "matchCondition" : {
+                "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                "headerSpace" : {
+                  "dstIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "0.0.0.0/0"
+                  },
+                  "negate" : false,
+                  "srcIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "2.128.0.0/16"
+                  }
+                }
+              },
+              "name" : "permit ip 2.128.0.0 0.0.255.255 any",
+              "traceElement" : {
+                "fragments" : [
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                    "text" : "Matched line "
+                  },
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$LinkFragment",
+                    "text" : "permit ip 2.128.0.0 0.0.255.255 any",
+                    "vendorStructureId" : {
+                      "filename" : "configs/as2dept1.cfg",
+                      "structureName" : "RESTRICT_HOST_TRAFFIC_IN: permit ip 2.128.0.0 0.0.255.255 any",
+                      "structureType" : "extended ipv4 access-list line"
+                    }
+                  }
+                ]
+              },
+              "vendorStructureId" : {
+                "filename" : "configs/as2dept1.cfg",
+                "structureName" : "RESTRICT_HOST_TRAFFIC_IN: permit ip 2.128.0.0 0.0.255.255 any",
+                "structureType" : "extended ipv4 access-list line"
+              }
+            },
+            {
+              "class" : "org.batfish.datamodel.ExprAclLine",
+              "action" : "DENY",
+              "matchCondition" : {
+                "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                "headerSpace" : {
+                  "dstIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "0.0.0.0/0"
+                  },
+                  "negate" : false,
+                  "srcIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "0.0.0.0/0"
+                  }
+                }
+              },
+              "name" : "deny   ip any any",
+              "traceElement" : {
+                "fragments" : [
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                    "text" : "Matched line "
+                  },
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$LinkFragment",
+                    "text" : "deny   ip any any",
+                    "vendorStructureId" : {
+                      "filename" : "configs/as2dept1.cfg",
+                      "structureName" : "RESTRICT_HOST_TRAFFIC_IN: deny   ip any any",
+                      "structureType" : "extended ipv4 access-list line"
+                    }
+                  }
+                ]
+              },
+              "vendorStructureId" : {
+                "filename" : "configs/as2dept1.cfg",
+                "structureName" : "RESTRICT_HOST_TRAFFIC_IN: deny   ip any any",
+                "structureType" : "extended ipv4 access-list line"
+              }
+            },
+            {
+              "class" : "org.batfish.datamodel.ExprAclLine",
+              "action" : "PERMIT",
+              "matchCondition" : {
+                "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                "headerSpace" : {
+                  "dstIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "0.0.0.0/0"
+                  },
+                  "ipProtocols" : [
+                    "ICMP"
+                  ],
+                  "negate" : false,
+                  "srcIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "0.0.0.0/0"
+                  }
+                }
+              },
+              "name" : "permit icmp any any",
+              "traceElement" : {
+                "fragments" : [
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                    "text" : "Matched line "
+                  },
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$LinkFragment",
+                    "text" : "permit icmp any any",
+                    "vendorStructureId" : {
+                      "filename" : "configs/as2dept1.cfg",
+                      "structureName" : "RESTRICT_HOST_TRAFFIC_IN: permit icmp any any",
+                      "structureType" : "extended ipv4 access-list line"
+                    }
+                  }
+                ]
+              },
+              "vendorStructureId" : {
+                "filename" : "configs/as2dept1.cfg",
+                "structureName" : "RESTRICT_HOST_TRAFFIC_IN: permit icmp any any",
+                "structureType" : "extended ipv4 access-list line"
+              }
+            }
+          ],
+          "name" : "RESTRICT_HOST_TRAFFIC_IN",
+          "sourceName" : "RESTRICT_HOST_TRAFFIC_IN",
+          "sourceType" : "extended ipv4 access-list"
+        },
+        "structType" : "IpAccessList"
+      },
+      {
+        "conformers" : [
+          "as2dept1"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "RESTRICT_HOST_TRAFFIC_OUT",
+        "structDefinition" : {
+          "lines" : [
+            {
+              "class" : "org.batfish.datamodel.ExprAclLine",
+              "action" : "PERMIT",
+              "matchCondition" : {
+                "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                "headerSpace" : {
+                  "dstIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "2.128.0.0/16"
+                  },
+                  "negate" : false,
+                  "srcIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "0.0.0.0/0"
+                  }
+                }
+              },
+              "name" : "permit ip any 2.128.0.0 0.0.255.255",
+              "traceElement" : {
+                "fragments" : [
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                    "text" : "Matched line "
+                  },
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$LinkFragment",
+                    "text" : "permit ip any 2.128.0.0 0.0.255.255",
+                    "vendorStructureId" : {
+                      "filename" : "configs/as2dept1.cfg",
+                      "structureName" : "RESTRICT_HOST_TRAFFIC_OUT: permit ip any 2.128.0.0 0.0.255.255",
+                      "structureType" : "extended ipv4 access-list line"
+                    }
+                  }
+                ]
+              },
+              "vendorStructureId" : {
+                "filename" : "configs/as2dept1.cfg",
+                "structureName" : "RESTRICT_HOST_TRAFFIC_OUT: permit ip any 2.128.0.0 0.0.255.255",
+                "structureType" : "extended ipv4 access-list line"
+              }
+            },
+            {
+              "class" : "org.batfish.datamodel.ExprAclLine",
+              "action" : "DENY",
+              "matchCondition" : {
+                "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                "headerSpace" : {
+                  "dstIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "2.128.0.0/16"
+                  },
+                  "negate" : false,
+                  "srcIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "1.128.0.0/16"
+                  }
+                }
+              },
+              "name" : "deny   ip 1.128.0.0 0.0.255.255 2.128.0.0 0.0.255.255",
+              "traceElement" : {
+                "fragments" : [
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                    "text" : "Matched line "
+                  },
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$LinkFragment",
+                    "text" : "deny   ip 1.128.0.0 0.0.255.255 2.128.0.0 0.0.255.255",
+                    "vendorStructureId" : {
+                      "filename" : "configs/as2dept1.cfg",
+                      "structureName" : "RESTRICT_HOST_TRAFFIC_OUT: deny   ip 1.128.0.0 0.0.255.255 2.128.0.0 0.0.255.255",
+                      "structureType" : "extended ipv4 access-list line"
+                    }
+                  }
+                ]
+              },
+              "vendorStructureId" : {
+                "filename" : "configs/as2dept1.cfg",
+                "structureName" : "RESTRICT_HOST_TRAFFIC_OUT: deny   ip 1.128.0.0 0.0.255.255 2.128.0.0 0.0.255.255",
+                "structureType" : "extended ipv4 access-list line"
+              }
+            },
+            {
+              "class" : "org.batfish.datamodel.ExprAclLine",
+              "action" : "DENY",
+              "matchCondition" : {
+                "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                "headerSpace" : {
+                  "dstIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "0.0.0.0/0"
+                  },
+                  "negate" : false,
+                  "srcIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "0.0.0.0/0"
+                  }
+                }
+              },
+              "name" : "deny   ip any any",
+              "traceElement" : {
+                "fragments" : [
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                    "text" : "Matched line "
+                  },
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$LinkFragment",
+                    "text" : "deny   ip any any",
+                    "vendorStructureId" : {
+                      "filename" : "configs/as2dept1.cfg",
+                      "structureName" : "RESTRICT_HOST_TRAFFIC_OUT: deny   ip any any",
+                      "structureType" : "extended ipv4 access-list line"
+                    }
+                  }
+                ]
+              },
+              "vendorStructureId" : {
+                "filename" : "configs/as2dept1.cfg",
+                "structureName" : "RESTRICT_HOST_TRAFFIC_OUT: deny   ip any any",
+                "structureType" : "extended ipv4 access-list line"
+              }
+            }
+          ],
+          "name" : "RESTRICT_HOST_TRAFFIC_OUT",
+          "sourceName" : "RESTRICT_HOST_TRAFFIC_OUT",
+          "sourceType" : "extended ipv4 access-list"
+        },
+        "structType" : "IpAccessList"
+      },
+      {
+        "conformers" : [
+          "as2core1"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "blocktelnet",
+        "structDefinition" : {
+          "lines" : [
+            {
+              "class" : "org.batfish.datamodel.ExprAclLine",
+              "action" : "DENY",
+              "matchCondition" : {
+                "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                "headerSpace" : {
+                  "dstIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "0.0.0.0/0"
+                  },
+                  "dstPorts" : [
+                    "23-23"
+                  ],
+                  "ipProtocols" : [
+                    "TCP"
+                  ],
+                  "negate" : false,
+                  "srcIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "0.0.0.0/0"
+                  }
+                }
+              },
+              "name" : "deny   tcp any any eq telnet",
+              "traceElement" : {
+                "fragments" : [
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                    "text" : "Matched line "
+                  },
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$LinkFragment",
+                    "text" : "deny   tcp any any eq telnet",
+                    "vendorStructureId" : {
+                      "filename" : "configs/as2core1.cfg",
+                      "structureName" : "blocktelnet: deny   tcp any any eq telnet",
+                      "structureType" : "extended ipv4 access-list line"
+                    }
+                  }
+                ]
+              },
+              "vendorStructureId" : {
+                "filename" : "configs/as2core1.cfg",
+                "structureName" : "blocktelnet: deny   tcp any any eq telnet",
+                "structureType" : "extended ipv4 access-list line"
+              }
+            },
+            {
+              "class" : "org.batfish.datamodel.ExprAclLine",
+              "action" : "PERMIT",
+              "matchCondition" : {
+                "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                "headerSpace" : {
+                  "dstIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "0.0.0.0/0"
+                  },
+                  "negate" : false,
+                  "srcIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "0.0.0.0/0"
+                  }
+                }
+              },
+              "name" : "permit ip any any",
+              "traceElement" : {
+                "fragments" : [
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                    "text" : "Matched line "
+                  },
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$LinkFragment",
+                    "text" : "permit ip any any",
+                    "vendorStructureId" : {
+                      "filename" : "configs/as2core1.cfg",
+                      "structureName" : "blocktelnet: permit ip any any",
+                      "structureType" : "extended ipv4 access-list line"
+                    }
+                  }
+                ]
+              },
+              "vendorStructureId" : {
+                "filename" : "configs/as2core1.cfg",
+                "structureName" : "blocktelnet: permit ip any any",
+                "structureType" : "extended ipv4 access-list line"
+              }
+            }
+          ],
+          "name" : "blocktelnet",
+          "sourceName" : "blocktelnet",
+          "sourceType" : "extended ipv4 access-list"
+        },
+        "structType" : "IpAccessList"
+      },
+      {
+        "conformers" : [
+          "as1border2"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "as4-prefixes",
+        "structDefinition" : {
+          "lines" : [
+            {
+              "action" : "PERMIT",
+              "ipWildcard" : "4.0.0.0/8",
+              "lengthRange" : "8-32"
+            }
+          ],
+          "name" : "as4-prefixes",
+          "vendorStructureId" : {
+            "filename" : "configs/as1border2.cfg",
+            "structureName" : "as4-prefixes",
+            "structureType" : "ipv4 prefix-list"
+          }
+        },
+        "structType" : "RouteFilterList"
+      },
+      {
+        "conformers" : [
+          "as1border2"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "as1_to_as4",
+        "structDefinition" : {
+          "name" : "as1_to_as4",
+          "statements" : [
+            {
+              "class" : "org.batfish.datamodel.routing_policy.statement.TraceableStatement",
+              "innerStatements" : [
+                {
+                  "class" : "org.batfish.datamodel.routing_policy.statement.SetMetric",
+                  "metric" : {
+                    "class" : "org.batfish.datamodel.routing_policy.expr.LiteralLong",
+                    "value" : 50
+                  }
+                },
+                {
+                  "class" : "org.batfish.datamodel.routing_policy.communities.SetCommunities",
+                  "communitySetExpr" : {
+                    "class" : "org.batfish.datamodel.routing_policy.communities.CommunitySetUnion",
+                    "exprs" : [
+                      {
+                        "class" : "org.batfish.datamodel.routing_policy.communities.InputCommunities"
+                      },
+                      {
+                        "class" : "org.batfish.datamodel.routing_policy.communities.LiteralCommunitySet",
+                        "communitySet" : [
+                          "1:4"
+                        ]
+                      }
+                    ]
+                  }
+                },
+                {
+                  "class" : "org.batfish.datamodel.routing_policy.statement.Statements$StaticStatement",
+                  "type" : "ReturnTrue"
+                }
+              ],
+              "traceElement" : {
+                "fragments" : [
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                    "text" : "Matched "
+                  },
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$LinkFragment",
+                    "text" : "route-map as1_to_as4 clause 2",
+                    "vendorStructureId" : {
+                      "filename" : "configs/as1border2.cfg",
+                      "structureName" : "as1_to_as4 2",
+                      "structureType" : "route-map-clause"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "structType" : "RoutingPolicy"
+      },
+      {
+        "conformers" : [
+          "as2dept1"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "as2_to_dept",
+        "structDefinition" : {
+          "name" : "as2_to_dept",
+          "statements" : [
+            {
+              "class" : "org.batfish.datamodel.routing_policy.statement.If",
+              "comment" : "~RMCLAUSE~as2_to_dept~100~",
+              "falseStatements" : [
+                {
+                  "class" : "org.batfish.datamodel.routing_policy.statement.Statements$StaticStatement",
+                  "type" : "ReturnLocalDefaultAction"
+                }
+              ],
+              "guard" : {
+                "class" : "org.batfish.datamodel.routing_policy.communities.MatchCommunities",
+                "communitySetExpr" : {
+                  "class" : "org.batfish.datamodel.routing_policy.communities.InputCommunities"
+                },
+                "communitySetMatchExpr" : {
+                  "class" : "org.batfish.datamodel.routing_policy.communities.CommunitySetMatchExprReference",
+                  "name" : "as2_community"
+                }
+              },
+              "trueStatements" : [
+                {
+                  "class" : "org.batfish.datamodel.routing_policy.statement.TraceableStatement",
+                  "innerStatements" : [
+                    {
+                      "class" : "org.batfish.datamodel.routing_policy.statement.SetLocalPreference",
+                      "localPreference" : {
+                        "class" : "org.batfish.datamodel.routing_policy.expr.LiteralLong",
+                        "value" : 350
+                      }
+                    },
+                    {
+                      "class" : "org.batfish.datamodel.routing_policy.statement.Statements$StaticStatement",
+                      "type" : "ReturnTrue"
+                    }
+                  ],
+                  "traceElement" : {
+                    "fragments" : [
+                      {
+                        "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                        "text" : "Matched "
+                      },
+                      {
+                        "class" : "org.batfish.datamodel.TraceElement$LinkFragment",
+                        "text" : "route-map as2_to_dept clause 100",
+                        "vendorStructureId" : {
+                          "filename" : "configs/as2dept1.cfg",
+                          "structureName" : "as2_to_dept 100",
+                          "structureType" : "route-map-clause"
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "structType" : "RoutingPolicy"
+      },
+      {
+        "conformers" : [
+          "as1border2"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "as4_to_as1",
+        "structDefinition" : {
+          "name" : "as4_to_as1",
+          "statements" : [
+            {
+              "class" : "org.batfish.datamodel.routing_policy.statement.If",
+              "comment" : "~RMCLAUSE~as4_to_as1~100~",
+              "falseStatements" : [
+                {
+                  "class" : "org.batfish.datamodel.routing_policy.statement.Statements$StaticStatement",
+                  "type" : "ReturnLocalDefaultAction"
+                }
+              ],
+              "guard" : {
+                "class" : "org.batfish.datamodel.routing_policy.expr.Conjunction",
+                "conjuncts" : [
+                  {
+                    "class" : "org.batfish.datamodel.routing_policy.communities.MatchCommunities",
+                    "communitySetExpr" : {
+                      "class" : "org.batfish.datamodel.routing_policy.communities.InputCommunities"
+                    },
+                    "communitySetMatchExpr" : {
+                      "class" : "org.batfish.datamodel.routing_policy.communities.CommunitySetMatchExprReference",
+                      "name" : "as4_community"
+                    }
+                  },
+                  {
+                    "class" : "org.batfish.datamodel.routing_policy.expr.MatchPrefixSet",
+                    "prefix" : {
+                      "class" : "org.batfish.datamodel.routing_policy.expr.DestinationNetwork"
+                    },
+                    "prefixSet" : {
+                      "class" : "org.batfish.datamodel.routing_policy.expr.NamedPrefixSet",
+                      "name" : "as4-prefixes"
+                    }
+                  }
+                ]
+              },
+              "trueStatements" : [
+                {
+                  "class" : "org.batfish.datamodel.routing_policy.statement.TraceableStatement",
+                  "innerStatements" : [
+                    {
+                      "class" : "org.batfish.datamodel.routing_policy.statement.SetLocalPreference",
+                      "localPreference" : {
+                        "class" : "org.batfish.datamodel.routing_policy.expr.LiteralLong",
+                        "value" : 350
+                      }
+                    },
+                    {
+                      "class" : "org.batfish.datamodel.routing_policy.statement.Statements$StaticStatement",
+                      "type" : "ReturnTrue"
+                    }
+                  ],
+                  "traceElement" : {
+                    "fragments" : [
+                      {
+                        "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                        "text" : "Matched "
+                      },
+                      {
+                        "class" : "org.batfish.datamodel.TraceElement$LinkFragment",
+                        "text" : "route-map as4_to_as1 clause 100",
+                        "vendorStructureId" : {
+                          "filename" : "configs/as1border2.cfg",
+                          "structureName" : "as4_to_as1 100",
+                          "structureType" : "route-map-clause"
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "structType" : "RoutingPolicy"
+      },
+      {
+        "conformers" : [
+          "as2dept1"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "dept_to_as2",
+        "structDefinition" : {
+          "name" : "dept_to_as2",
+          "statements" : [
+            {
+              "class" : "org.batfish.datamodel.routing_policy.statement.If",
+              "comment" : "~RMCLAUSE~dept_to_as2~100~",
+              "falseStatements" : [
+                {
+                  "class" : "org.batfish.datamodel.routing_policy.statement.Statements$StaticStatement",
+                  "type" : "ReturnLocalDefaultAction"
+                }
+              ],
+              "guard" : {
+                "class" : "org.batfish.datamodel.routing_policy.expr.MatchPrefixSet",
+                "prefix" : {
+                  "class" : "org.batfish.datamodel.routing_policy.expr.DestinationNetwork"
+                },
+                "prefixSet" : {
+                  "class" : "org.batfish.datamodel.routing_policy.expr.NamedPrefixSet",
+                  "name" : "102"
+                }
+              },
+              "trueStatements" : [
+                {
+                  "class" : "org.batfish.datamodel.routing_policy.statement.TraceableStatement",
+                  "innerStatements" : [
+                    {
+                      "class" : "org.batfish.datamodel.routing_policy.statement.SetMetric",
+                      "metric" : {
+                        "class" : "org.batfish.datamodel.routing_policy.expr.LiteralLong",
+                        "value" : 50
+                      }
+                    },
+                    {
+                      "class" : "org.batfish.datamodel.routing_policy.communities.SetCommunities",
+                      "communitySetExpr" : {
+                        "class" : "org.batfish.datamodel.routing_policy.communities.CommunitySetUnion",
+                        "exprs" : [
+                          {
+                            "class" : "org.batfish.datamodel.routing_policy.communities.InputCommunities"
+                          },
+                          {
+                            "class" : "org.batfish.datamodel.routing_policy.communities.LiteralCommunitySet",
+                            "communitySet" : [
+                              "65001:2"
+                            ]
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "class" : "org.batfish.datamodel.routing_policy.statement.Statements$StaticStatement",
+                      "type" : "ReturnTrue"
+                    }
+                  ],
+                  "traceElement" : {
+                    "fragments" : [
+                      {
+                        "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                        "text" : "Matched "
+                      },
+                      {
+                        "class" : "org.batfish.datamodel.TraceElement$LinkFragment",
+                        "text" : "route-map dept_to_as2 clause 100",
+                        "vendorStructureId" : {
+                          "filename" : "configs/as2dept1.cfg",
+                          "structureName" : "dept_to_as2 100",
+                          "structureType" : "route-map-clause"
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "structType" : "RoutingPolicy"
+      },
+      {
+        "conformers" : [
+          "as1border1",
+          "as1border2",
+          "as3border1",
+          "as3border2"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "102",
+        "outliers" : [
+          "as2dept1"
+        ],
+        "structDefinition" : {
+          "lines" : [
+            {
+              "action" : "PERMIT",
+              "ipWildcard" : "2.0.0.0/8",
+              "lengthRange" : "8-8"
+            },
+            {
+              "action" : "PERMIT",
+              "ipWildcard" : "2.128.0.0/16",
+              "lengthRange" : "16-16"
+            }
+          ],
+          "name" : "102",
+          "vendorStructureId" : {
+            "filename" : "configs/as1border1.cfg",
+            "structureName" : "102",
+            "structureType" : "extended ipv4 access-list"
+          }
+        },
+        "structType" : "RouteFilterList"
+      },
+      {
+        "conformers" : [
+          "host1"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "eth0",
+        "outliers" : [
+          "host2"
+        ],
+        "structDefinition" : {
+          "name" : "eth0",
+          "active" : true,
+          "additionalArpIps" : {
+            "class" : "org.batfish.datamodel.EmptyIpSpace"
+          },
+          "adminUp" : true,
+          "allPrefixes" : [
+            "2.128.0.101/24"
+          ],
+          "autostate" : true,
+          "bandwidth" : 1.0E9,
+          "blacklisted" : false,
+          "declaredNames" : [
+            "eth0"
+          ],
+          "hmm" : false,
+          "incomingFilter" : "filter::INPUT",
+          "lineUp" : true,
+          "mtu" : 1500,
+          "outgoingFilter" : "filter::OUTPUT",
+          "prefix" : "2.128.0.101/24",
+          "proxyArp" : false,
+          "ripEnabled" : false,
+          "ripPassive" : false,
+          "spanningTreePortfast" : false,
+          "switchport" : false,
+          "switchportMode" : "NONE",
+          "switchportTrunkEncapsulation" : "DOT1Q",
+          "type" : "PHYSICAL",
+          "vrf" : "default"
+        },
+        "structType" : "Interface"
+      },
+      {
+        "conformers" : [
+          "as2border1"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "OUTSIDE_TO_INSIDE",
+        "outliers" : [
+          "as2border2"
+        ],
+        "structDefinition" : {
+          "lines" : [
+            {
+              "class" : "org.batfish.datamodel.ExprAclLine",
+              "action" : "DENY",
+              "matchCondition" : {
+                "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                "headerSpace" : {
+                  "dstIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "0.0.0.0/0"
+                  },
+                  "negate" : false,
+                  "srcIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "2.0.0.0/8"
+                  }
+                }
+              },
+              "name" : "deny   ip 2.0.0.0 0.255.255.255 any",
+              "traceElement" : {
+                "fragments" : [
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                    "text" : "Matched line "
+                  },
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$LinkFragment",
+                    "text" : "deny   ip 2.0.0.0 0.255.255.255 any",
+                    "vendorStructureId" : {
+                      "filename" : "configs/as2border1.cfg",
+                      "structureName" : "OUTSIDE_TO_INSIDE: deny   ip 2.0.0.0 0.255.255.255 any",
+                      "structureType" : "extended ipv4 access-list line"
+                    }
+                  }
+                ]
+              },
+              "vendorStructureId" : {
+                "filename" : "configs/as2border1.cfg",
+                "structureName" : "OUTSIDE_TO_INSIDE: deny   ip 2.0.0.0 0.255.255.255 any",
+                "structureType" : "extended ipv4 access-list line"
+              }
+            },
+            {
+              "class" : "org.batfish.datamodel.ExprAclLine",
+              "action" : "DENY",
+              "matchCondition" : {
+                "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                "headerSpace" : {
+                  "dstIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "2.128.1.101"
+                  },
+                  "negate" : false,
+                  "srcIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "0.0.0.0/0"
+                  }
+                }
+              },
+              "name" : "deny   ip any host 2.128.1.101",
+              "traceElement" : {
+                "fragments" : [
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                    "text" : "Matched line "
+                  },
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$LinkFragment",
+                    "text" : "deny   ip any host 2.128.1.101",
+                    "vendorStructureId" : {
+                      "filename" : "configs/as2border1.cfg",
+                      "structureName" : "OUTSIDE_TO_INSIDE: deny   ip any host 2.128.1.101",
+                      "structureType" : "extended ipv4 access-list line"
+                    }
+                  }
+                ]
+              },
+              "vendorStructureId" : {
+                "filename" : "configs/as2border1.cfg",
+                "structureName" : "OUTSIDE_TO_INSIDE: deny   ip any host 2.128.1.101",
+                "structureType" : "extended ipv4 access-list line"
+              }
+            },
+            {
+              "class" : "org.batfish.datamodel.ExprAclLine",
+              "action" : "PERMIT",
+              "matchCondition" : {
+                "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                "headerSpace" : {
+                  "dstIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "0.0.0.0/0"
+                  },
+                  "negate" : false,
+                  "srcIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "0.0.0.0/0"
+                  }
+                }
+              },
+              "name" : "permit ip any any",
+              "traceElement" : {
+                "fragments" : [
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                    "text" : "Matched line "
+                  },
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$LinkFragment",
+                    "text" : "permit ip any any",
+                    "vendorStructureId" : {
+                      "filename" : "configs/as2border1.cfg",
+                      "structureName" : "OUTSIDE_TO_INSIDE: permit ip any any",
+                      "structureType" : "extended ipv4 access-list line"
+                    }
+                  }
+                ]
+              },
+              "vendorStructureId" : {
+                "filename" : "configs/as2border1.cfg",
+                "structureName" : "OUTSIDE_TO_INSIDE: permit ip any any",
+                "structureType" : "extended ipv4 access-list line"
+              }
+            }
+          ],
+          "name" : "OUTSIDE_TO_INSIDE",
+          "sourceName" : "OUTSIDE_TO_INSIDE",
+          "sourceType" : "extended ipv4 access-list"
+        },
+        "structType" : "IpAccessList"
+      },
+      {
+        "conformers" : [
+          "host1"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "filter::INPUT",
+        "outliers" : [
+          "host2"
+        ],
+        "structDefinition" : {
+          "lines" : [
+            {
+              "class" : "org.batfish.datamodel.ExprAclLine",
+              "action" : "PERMIT",
+              "matchCondition" : {
+                "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                "headerSpace" : {
+                  "dstPorts" : [
+                    "53-53"
+                  ],
+                  "ipProtocols" : [
+                    "UDP"
+                  ],
+                  "negate" : false
+                }
+              },
+              "name" : "-p udp --dport 53 -j ACCEPT",
+              "traceElement" : {
+                "fragments" : [
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                    "text" : "Matched line -p udp --dport 53 -j ACCEPT"
+                  }
+                ]
+              }
+            },
+            {
+              "class" : "org.batfish.datamodel.ExprAclLine",
+              "action" : "PERMIT",
+              "matchCondition" : {
+                "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                "headerSpace" : {
+                  "dstPorts" : [
+                    "22-22"
+                  ],
+                  "ipProtocols" : [
+                    "TCP"
+                  ],
+                  "negate" : false
+                }
+              },
+              "name" : "-p tcp --dport 22 -j ACCEPT",
+              "traceElement" : {
+                "fragments" : [
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                    "text" : "Matched line -p tcp --dport 22 -j ACCEPT"
+                  }
+                ]
+              }
+            },
+            {
+              "class" : "org.batfish.datamodel.ExprAclLine",
+              "action" : "DENY",
+              "matchCondition" : {
+                "class" : "org.batfish.datamodel.acl.TrueExpr"
+              },
+              "name" : "default",
+              "traceElement" : {
+                "fragments" : [
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                    "text" : "Matched line default"
+                  }
+                ]
+              }
+            }
+          ],
+          "name" : "filter::INPUT"
+        },
+        "structType" : "IpAccessList"
+      },
+      {
+        "conformers" : [
+          "host1"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "filter::OUTPUT",
+        "outliers" : [
+          "host2"
+        ],
+        "structDefinition" : {
+          "lines" : [
+            {
+              "class" : "org.batfish.datamodel.ExprAclLine",
+              "action" : "PERMIT",
+              "matchCondition" : {
+                "class" : "org.batfish.datamodel.acl.TrueExpr"
+              },
+              "name" : "default",
+              "traceElement" : {
+                "fragments" : [
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                    "text" : "Matched line default"
+                  }
+                ]
+              }
+            }
+          ],
+          "name" : "filter::OUTPUT"
+        },
+        "structType" : "IpAccessList"
+      },
+      {
+        "conformers" : [
+          "as2border1",
+          "as2border2"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "as1_to_as2",
+        "outliers" : [
+          "as1border1",
+          "as1border2"
+        ],
+        "structDefinition" : {
+          "name" : "as1_to_as2",
+          "statements" : [
+            {
+              "class" : "org.batfish.datamodel.routing_policy.statement.If",
+              "comment" : "~RMCLAUSE~as1_to_as2~100~",
+              "falseStatements" : [
+                {
+                  "class" : "org.batfish.datamodel.routing_policy.statement.Statements$StaticStatement",
+                  "type" : "ReturnLocalDefaultAction"
+                }
+              ],
+              "guard" : {
+                "class" : "org.batfish.datamodel.routing_policy.communities.MatchCommunities",
+                "communitySetExpr" : {
+                  "class" : "org.batfish.datamodel.routing_policy.communities.InputCommunities"
+                },
+                "communitySetMatchExpr" : {
+                  "class" : "org.batfish.datamodel.routing_policy.communities.CommunitySetMatchExprReference",
+                  "name" : "as1_community"
+                }
+              },
+              "trueStatements" : [
+                {
+                  "class" : "org.batfish.datamodel.routing_policy.statement.TraceableStatement",
+                  "innerStatements" : [
+                    {
+                      "class" : "org.batfish.datamodel.routing_policy.statement.SetLocalPreference",
+                      "localPreference" : {
+                        "class" : "org.batfish.datamodel.routing_policy.expr.LiteralLong",
+                        "value" : 350
+                      }
+                    },
+                    {
+                      "class" : "org.batfish.datamodel.routing_policy.communities.SetCommunities",
+                      "communitySetExpr" : {
+                        "class" : "org.batfish.datamodel.routing_policy.communities.CommunitySetUnion",
+                        "exprs" : [
+                          {
+                            "class" : "org.batfish.datamodel.routing_policy.communities.InputCommunities"
+                          },
+                          {
+                            "class" : "org.batfish.datamodel.routing_policy.communities.LiteralCommunitySet",
+                            "communitySet" : [
+                              "1:2"
+                            ]
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "class" : "org.batfish.datamodel.routing_policy.statement.Statements$StaticStatement",
+                      "type" : "ReturnTrue"
+                    }
+                  ],
+                  "traceElement" : {
+                    "fragments" : [
+                      {
+                        "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                        "text" : "Matched "
+                      },
+                      {
+                        "class" : "org.batfish.datamodel.TraceElement$LinkFragment",
+                        "text" : "route-map as1_to_as2 clause 100",
+                        "vendorStructureId" : {
+                          "filename" : "configs/as2border1.cfg",
+                          "structureName" : "as1_to_as2 100",
+                          "structureType" : "route-map-clause"
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "structType" : "RoutingPolicy"
+      },
+      {
+        "conformers" : [
+          "as1border1",
+          "as1border2"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "as1_to_as3",
+        "outliers" : [
+          "as3border1",
+          "as3border2"
+        ],
+        "structDefinition" : {
+          "name" : "as1_to_as3",
+          "statements" : [
+            {
+              "class" : "org.batfish.datamodel.routing_policy.statement.If",
+              "comment" : "~RMCLAUSE~as1_to_as3~1~",
+              "falseStatements" : [
+                {
+                  "class" : "org.batfish.datamodel.routing_policy.statement.If",
+                  "comment" : "~RMCLAUSE~as1_to_as3~2~",
+                  "falseStatements" : [
+                    {
+                      "class" : "org.batfish.datamodel.routing_policy.statement.Statements$StaticStatement",
+                      "type" : "ReturnLocalDefaultAction"
+                    }
+                  ],
+                  "guard" : {
+                    "class" : "org.batfish.datamodel.routing_policy.expr.MatchPrefixSet",
+                    "prefix" : {
+                      "class" : "org.batfish.datamodel.routing_policy.expr.DestinationNetwork"
+                    },
+                    "prefixSet" : {
+                      "class" : "org.batfish.datamodel.routing_policy.expr.NamedPrefixSet",
+                      "name" : "102"
+                    }
+                  },
+                  "trueStatements" : [
+                    {
+                      "class" : "org.batfish.datamodel.routing_policy.statement.TraceableStatement",
+                      "innerStatements" : [
+                        {
+                          "class" : "org.batfish.datamodel.routing_policy.statement.SetMetric",
+                          "metric" : {
+                            "class" : "org.batfish.datamodel.routing_policy.expr.LiteralLong",
+                            "value" : 50
+                          }
+                        },
+                        {
+                          "class" : "org.batfish.datamodel.routing_policy.communities.SetCommunities",
+                          "communitySetExpr" : {
+                            "class" : "org.batfish.datamodel.routing_policy.communities.CommunitySetUnion",
+                            "exprs" : [
+                              {
+                                "class" : "org.batfish.datamodel.routing_policy.communities.InputCommunities"
+                              },
+                              {
+                                "class" : "org.batfish.datamodel.routing_policy.communities.LiteralCommunitySet",
+                                "communitySet" : [
+                                  "1:3"
+                                ]
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "class" : "org.batfish.datamodel.routing_policy.statement.Statements$StaticStatement",
+                          "type" : "ReturnTrue"
+                        }
+                      ],
+                      "traceElement" : {
+                        "fragments" : [
+                          {
+                            "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                            "text" : "Matched "
+                          },
+                          {
+                            "class" : "org.batfish.datamodel.TraceElement$LinkFragment",
+                            "text" : "route-map as1_to_as3 clause 2",
+                            "vendorStructureId" : {
+                              "filename" : "configs/as1border1.cfg",
+                              "structureName" : "as1_to_as3 2",
+                              "structureType" : "route-map-clause"
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ],
+              "guard" : {
+                "class" : "org.batfish.datamodel.routing_policy.expr.MatchPrefixSet",
+                "prefix" : {
+                  "class" : "org.batfish.datamodel.routing_policy.expr.DestinationNetwork"
+                },
+                "prefixSet" : {
+                  "class" : "org.batfish.datamodel.routing_policy.expr.NamedPrefixSet",
+                  "name" : "101"
+                }
+              },
+              "trueStatements" : [
+                {
+                  "class" : "org.batfish.datamodel.routing_policy.statement.TraceableStatement",
+                  "innerStatements" : [
+                    {
+                      "class" : "org.batfish.datamodel.routing_policy.statement.SetMetric",
+                      "metric" : {
+                        "class" : "org.batfish.datamodel.routing_policy.expr.LiteralLong",
+                        "value" : 50
+                      }
+                    },
+                    {
+                      "class" : "org.batfish.datamodel.routing_policy.communities.SetCommunities",
+                      "communitySetExpr" : {
+                        "class" : "org.batfish.datamodel.routing_policy.communities.CommunitySetUnion",
+                        "exprs" : [
+                          {
+                            "class" : "org.batfish.datamodel.routing_policy.communities.InputCommunities"
+                          },
+                          {
+                            "class" : "org.batfish.datamodel.routing_policy.communities.LiteralCommunitySet",
+                            "communitySet" : [
+                              "1:3"
+                            ]
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "class" : "org.batfish.datamodel.routing_policy.statement.Statements$StaticStatement",
+                      "type" : "ReturnTrue"
+                    }
+                  ],
+                  "traceElement" : {
+                    "fragments" : [
+                      {
+                        "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                        "text" : "Matched "
+                      },
+                      {
+                        "class" : "org.batfish.datamodel.TraceElement$LinkFragment",
+                        "text" : "route-map as1_to_as3 clause 1",
+                        "vendorStructureId" : {
+                          "filename" : "configs/as1border1.cfg",
+                          "structureName" : "as1_to_as3 1",
+                          "structureType" : "route-map-clause"
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "structType" : "RoutingPolicy"
+      },
+      {
+        "conformers" : [
+          "as1border1",
+          "as1border2"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "as2_to_as1",
+        "outliers" : [
+          "as2border1",
+          "as2border2"
+        ],
+        "structDefinition" : {
+          "name" : "as2_to_as1",
+          "statements" : [
+            {
+              "class" : "org.batfish.datamodel.routing_policy.statement.If",
+              "comment" : "~RMCLAUSE~as2_to_as1~100~",
+              "falseStatements" : [
+                {
+                  "class" : "org.batfish.datamodel.routing_policy.statement.Statements$StaticStatement",
+                  "type" : "ReturnLocalDefaultAction"
+                }
+              ],
+              "guard" : {
+                "class" : "org.batfish.datamodel.routing_policy.communities.MatchCommunities",
+                "communitySetExpr" : {
+                  "class" : "org.batfish.datamodel.routing_policy.communities.InputCommunities"
+                },
+                "communitySetMatchExpr" : {
+                  "class" : "org.batfish.datamodel.routing_policy.communities.CommunitySetMatchExprReference",
+                  "name" : "as2_community"
+                }
+              },
+              "trueStatements" : [
+                {
+                  "class" : "org.batfish.datamodel.routing_policy.statement.TraceableStatement",
+                  "innerStatements" : [
+                    {
+                      "class" : "org.batfish.datamodel.routing_policy.statement.SetLocalPreference",
+                      "localPreference" : {
+                        "class" : "org.batfish.datamodel.routing_policy.expr.LiteralLong",
+                        "value" : 350
+                      }
+                    },
+                    {
+                      "class" : "org.batfish.datamodel.routing_policy.statement.Statements$StaticStatement",
+                      "type" : "ReturnTrue"
+                    }
+                  ],
+                  "traceElement" : {
+                    "fragments" : [
+                      {
+                        "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                        "text" : "Matched "
+                      },
+                      {
+                        "class" : "org.batfish.datamodel.TraceElement$LinkFragment",
+                        "text" : "route-map as2_to_as1 clause 100",
+                        "vendorStructureId" : {
+                          "filename" : "configs/as1border1.cfg",
+                          "structureName" : "as2_to_as1 100",
+                          "structureType" : "route-map-clause"
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "structType" : "RoutingPolicy"
+      },
+      {
+        "conformers" : [
+          "as2border1",
+          "as2border2"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "as2_to_as3",
+        "outliers" : [
+          "as3border1",
+          "as3border2"
+        ],
+        "structDefinition" : {
+          "name" : "as2_to_as3",
+          "statements" : [
+            {
+              "class" : "org.batfish.datamodel.routing_policy.statement.If",
+              "comment" : "~RMCLAUSE~as2_to_as3~1~",
+              "falseStatements" : [
+                {
+                  "class" : "org.batfish.datamodel.routing_policy.statement.If",
+                  "comment" : "~RMCLAUSE~as2_to_as3~2~",
+                  "falseStatements" : [
+                    {
+                      "class" : "org.batfish.datamodel.routing_policy.statement.Statements$StaticStatement",
+                      "type" : "ReturnLocalDefaultAction"
+                    }
+                  ],
+                  "guard" : {
+                    "class" : "org.batfish.datamodel.routing_policy.expr.MatchPrefixSet",
+                    "prefix" : {
+                      "class" : "org.batfish.datamodel.routing_policy.expr.DestinationNetwork"
+                    },
+                    "prefixSet" : {
+                      "class" : "org.batfish.datamodel.routing_policy.expr.NamedPrefixSet",
+                      "name" : "outbound_routes"
+                    }
+                  },
+                  "trueStatements" : [
+                    {
+                      "class" : "org.batfish.datamodel.routing_policy.statement.TraceableStatement",
+                      "innerStatements" : [
+                        {
+                          "class" : "org.batfish.datamodel.routing_policy.statement.SetMetric",
+                          "metric" : {
+                            "class" : "org.batfish.datamodel.routing_policy.expr.LiteralLong",
+                            "value" : 50
+                          }
+                        },
+                        {
+                          "class" : "org.batfish.datamodel.routing_policy.communities.SetCommunities",
+                          "communitySetExpr" : {
+                            "class" : "org.batfish.datamodel.routing_policy.communities.CommunitySetUnion",
+                            "exprs" : [
+                              {
+                                "class" : "org.batfish.datamodel.routing_policy.communities.InputCommunities"
+                              },
+                              {
+                                "class" : "org.batfish.datamodel.routing_policy.communities.LiteralCommunitySet",
+                                "communitySet" : [
+                                  "2:3"
+                                ]
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "class" : "org.batfish.datamodel.routing_policy.statement.Statements$StaticStatement",
+                          "type" : "ReturnTrue"
+                        }
+                      ],
+                      "traceElement" : {
+                        "fragments" : [
+                          {
+                            "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                            "text" : "Matched "
+                          },
+                          {
+                            "class" : "org.batfish.datamodel.TraceElement$LinkFragment",
+                            "text" : "route-map as2_to_as3 clause 2",
+                            "vendorStructureId" : {
+                              "filename" : "configs/as2border1.cfg",
+                              "structureName" : "as2_to_as3 2",
+                              "structureType" : "route-map-clause"
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ],
+              "guard" : {
+                "class" : "org.batfish.datamodel.routing_policy.expr.MatchPrefixSet",
+                "prefix" : {
+                  "class" : "org.batfish.datamodel.routing_policy.expr.DestinationNetwork"
+                },
+                "prefixSet" : {
+                  "class" : "org.batfish.datamodel.routing_policy.expr.NamedPrefixSet",
+                  "name" : "101"
+                }
+              },
+              "trueStatements" : [
+                {
+                  "class" : "org.batfish.datamodel.routing_policy.statement.TraceableStatement",
+                  "innerStatements" : [
+                    {
+                      "class" : "org.batfish.datamodel.routing_policy.statement.SetMetric",
+                      "metric" : {
+                        "class" : "org.batfish.datamodel.routing_policy.expr.LiteralLong",
+                        "value" : 50
+                      }
+                    },
+                    {
+                      "class" : "org.batfish.datamodel.routing_policy.communities.SetCommunities",
+                      "communitySetExpr" : {
+                        "class" : "org.batfish.datamodel.routing_policy.communities.CommunitySetUnion",
+                        "exprs" : [
+                          {
+                            "class" : "org.batfish.datamodel.routing_policy.communities.InputCommunities"
+                          },
+                          {
+                            "class" : "org.batfish.datamodel.routing_policy.communities.LiteralCommunitySet",
+                            "communitySet" : [
+                              "2:3"
+                            ]
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "class" : "org.batfish.datamodel.routing_policy.statement.Statements$StaticStatement",
+                      "type" : "ReturnTrue"
+                    }
+                  ],
+                  "traceElement" : {
+                    "fragments" : [
+                      {
+                        "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                        "text" : "Matched "
+                      },
+                      {
+                        "class" : "org.batfish.datamodel.TraceElement$LinkFragment",
+                        "text" : "route-map as2_to_as3 clause 1",
+                        "vendorStructureId" : {
+                          "filename" : "configs/as2border1.cfg",
+                          "structureName" : "as2_to_as3 1",
+                          "structureType" : "route-map-clause"
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "structType" : "RoutingPolicy"
+      },
+      {
+        "conformers" : [
+          "as1border1",
+          "as1border2"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "as3_to_as1",
+        "outliers" : [
+          "as3border1",
+          "as3border2"
+        ],
+        "structDefinition" : {
+          "name" : "as3_to_as1",
+          "statements" : [
+            {
+              "class" : "org.batfish.datamodel.routing_policy.statement.If",
+              "comment" : "~RMCLAUSE~as3_to_as1~100~",
+              "falseStatements" : [
+                {
+                  "class" : "org.batfish.datamodel.routing_policy.statement.Statements$StaticStatement",
+                  "type" : "ReturnLocalDefaultAction"
+                }
+              ],
+              "guard" : {
+                "class" : "org.batfish.datamodel.routing_policy.communities.MatchCommunities",
+                "communitySetExpr" : {
+                  "class" : "org.batfish.datamodel.routing_policy.communities.InputCommunities"
+                },
+                "communitySetMatchExpr" : {
+                  "class" : "org.batfish.datamodel.routing_policy.communities.CommunitySetMatchExprReference",
+                  "name" : "as3_community"
+                }
+              },
+              "trueStatements" : [
+                {
+                  "class" : "org.batfish.datamodel.routing_policy.statement.TraceableStatement",
+                  "innerStatements" : [
+                    {
+                      "class" : "org.batfish.datamodel.routing_policy.statement.SetLocalPreference",
+                      "localPreference" : {
+                        "class" : "org.batfish.datamodel.routing_policy.expr.LiteralLong",
+                        "value" : 350
+                      }
+                    },
+                    {
+                      "class" : "org.batfish.datamodel.routing_policy.statement.Statements$StaticStatement",
+                      "type" : "ReturnTrue"
+                    }
+                  ],
+                  "traceElement" : {
+                    "fragments" : [
+                      {
+                        "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                        "text" : "Matched "
+                      },
+                      {
+                        "class" : "org.batfish.datamodel.TraceElement$LinkFragment",
+                        "text" : "route-map as3_to_as1 clause 100",
+                        "vendorStructureId" : {
+                          "filename" : "configs/as1border1.cfg",
+                          "structureName" : "as3_to_as1 100",
+                          "structureType" : "route-map-clause"
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "structType" : "RoutingPolicy"
+      },
+      {
+        "conformers" : [
+          "as2border1",
+          "as2border2"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "as3_to_as2",
+        "outliers" : [
+          "as3border1",
+          "as3border2"
+        ],
+        "structDefinition" : {
+          "name" : "as3_to_as2",
+          "statements" : [
+            {
+              "class" : "org.batfish.datamodel.routing_policy.statement.If",
+              "comment" : "~RMCLAUSE~as3_to_as2~100~",
+              "falseStatements" : [
+                {
+                  "class" : "org.batfish.datamodel.routing_policy.statement.Statements$StaticStatement",
+                  "type" : "ReturnLocalDefaultAction"
+                }
+              ],
+              "guard" : {
+                "class" : "org.batfish.datamodel.routing_policy.communities.MatchCommunities",
+                "communitySetExpr" : {
+                  "class" : "org.batfish.datamodel.routing_policy.communities.InputCommunities"
+                },
+                "communitySetMatchExpr" : {
+                  "class" : "org.batfish.datamodel.routing_policy.communities.CommunitySetMatchExprReference",
+                  "name" : "as3_community"
+                }
+              },
+              "trueStatements" : [
+                {
+                  "class" : "org.batfish.datamodel.routing_policy.statement.TraceableStatement",
+                  "innerStatements" : [
+                    {
+                      "class" : "org.batfish.datamodel.routing_policy.statement.SetLocalPreference",
+                      "localPreference" : {
+                        "class" : "org.batfish.datamodel.routing_policy.expr.LiteralLong",
+                        "value" : 350
+                      }
+                    },
+                    {
+                      "class" : "org.batfish.datamodel.routing_policy.communities.SetCommunities",
+                      "communitySetExpr" : {
+                        "class" : "org.batfish.datamodel.routing_policy.communities.CommunitySetUnion",
+                        "exprs" : [
+                          {
+                            "class" : "org.batfish.datamodel.routing_policy.communities.InputCommunities"
+                          },
+                          {
+                            "class" : "org.batfish.datamodel.routing_policy.communities.LiteralCommunitySet",
+                            "communitySet" : [
+                              "3:2"
+                            ]
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "class" : "org.batfish.datamodel.routing_policy.statement.Statements$StaticStatement",
+                      "type" : "ReturnTrue"
+                    }
+                  ],
+                  "traceElement" : {
+                    "fragments" : [
+                      {
+                        "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                        "text" : "Matched "
+                      },
+                      {
+                        "class" : "org.batfish.datamodel.TraceElement$LinkFragment",
+                        "text" : "route-map as3_to_as2 clause 100",
+                        "vendorStructureId" : {
+                          "filename" : "configs/as2border1.cfg",
+                          "structureName" : "as3_to_as2 100",
+                          "structureType" : "route-map-clause"
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "structType" : "RoutingPolicy"
+      },
+      {
+        "conformers" : [
+          "as2dept1"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "105",
+        "outliers" : [
+          "as2dist1",
+          "as2dist2"
+        ],
+        "structDefinition" : {
+          "lines" : [
+            {
+              "class" : "org.batfish.datamodel.ExprAclLine",
+              "action" : "PERMIT",
+              "matchCondition" : {
+                "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                "headerSpace" : {
+                  "dstIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "255.255.255.0"
+                  },
+                  "negate" : false,
+                  "srcIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "1.0.1.0"
+                  }
+                }
+              },
+              "name" : "permit ip host 1.0.1.0 host 255.255.255.0",
+              "traceElement" : {
+                "fragments" : [
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                    "text" : "Matched line "
+                  },
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$LinkFragment",
+                    "text" : "permit ip host 1.0.1.0 host 255.255.255.0",
+                    "vendorStructureId" : {
+                      "filename" : "configs/as2dept1.cfg",
+                      "structureName" : "105: permit ip host 1.0.1.0 host 255.255.255.0",
+                      "structureType" : "extended ipv4 access-list line"
+                    }
+                  }
+                ]
+              },
+              "vendorStructureId" : {
+                "filename" : "configs/as2dept1.cfg",
+                "structureName" : "105: permit ip host 1.0.1.0 host 255.255.255.0",
+                "structureType" : "extended ipv4 access-list line"
+              }
+            },
+            {
+              "class" : "org.batfish.datamodel.ExprAclLine",
+              "action" : "PERMIT",
+              "matchCondition" : {
+                "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                "headerSpace" : {
+                  "dstIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "255.255.255.0"
+                  },
+                  "negate" : false,
+                  "srcIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "1.0.2.0"
+                  }
+                }
+              },
+              "name" : "permit ip host 1.0.2.0 host 255.255.255.0",
+              "traceElement" : {
+                "fragments" : [
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                    "text" : "Matched line "
+                  },
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$LinkFragment",
+                    "text" : "permit ip host 1.0.2.0 host 255.255.255.0",
+                    "vendorStructureId" : {
+                      "filename" : "configs/as2dept1.cfg",
+                      "structureName" : "105: permit ip host 1.0.2.0 host 255.255.255.0",
+                      "structureType" : "extended ipv4 access-list line"
+                    }
+                  }
+                ]
+              },
+              "vendorStructureId" : {
+                "filename" : "configs/as2dept1.cfg",
+                "structureName" : "105: permit ip host 1.0.2.0 host 255.255.255.0",
+                "structureType" : "extended ipv4 access-list line"
+              }
+            },
+            {
+              "class" : "org.batfish.datamodel.ExprAclLine",
+              "action" : "PERMIT",
+              "matchCondition" : {
+                "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                "headerSpace" : {
+                  "dstIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "255.255.255.0"
+                  },
+                  "negate" : false,
+                  "srcIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "3.0.1.0"
+                  }
+                }
+              },
+              "name" : "permit ip host 3.0.1.0 host 255.255.255.0",
+              "traceElement" : {
+                "fragments" : [
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                    "text" : "Matched line "
+                  },
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$LinkFragment",
+                    "text" : "permit ip host 3.0.1.0 host 255.255.255.0",
+                    "vendorStructureId" : {
+                      "filename" : "configs/as2dept1.cfg",
+                      "structureName" : "105: permit ip host 3.0.1.0 host 255.255.255.0",
+                      "structureType" : "extended ipv4 access-list line"
+                    }
+                  }
+                ]
+              },
+              "vendorStructureId" : {
+                "filename" : "configs/as2dept1.cfg",
+                "structureName" : "105: permit ip host 3.0.1.0 host 255.255.255.0",
+                "structureType" : "extended ipv4 access-list line"
+              }
+            },
+            {
+              "class" : "org.batfish.datamodel.ExprAclLine",
+              "action" : "PERMIT",
+              "matchCondition" : {
+                "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                "headerSpace" : {
+                  "dstIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "255.255.255.0"
+                  },
+                  "negate" : false,
+                  "srcIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "3.0.2.0"
+                  }
+                }
+              },
+              "name" : "permit ip host 3.0.2.0 host 255.255.255.0",
+              "traceElement" : {
+                "fragments" : [
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                    "text" : "Matched line "
+                  },
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$LinkFragment",
+                    "text" : "permit ip host 3.0.2.0 host 255.255.255.0",
+                    "vendorStructureId" : {
+                      "filename" : "configs/as2dept1.cfg",
+                      "structureName" : "105: permit ip host 3.0.2.0 host 255.255.255.0",
+                      "structureType" : "extended ipv4 access-list line"
+                    }
+                  }
+                ]
+              },
+              "vendorStructureId" : {
+                "filename" : "configs/as2dept1.cfg",
+                "structureName" : "105: permit ip host 3.0.2.0 host 255.255.255.0",
+                "structureType" : "extended ipv4 access-list line"
+              }
+            }
+          ],
+          "name" : "105",
+          "sourceName" : "105",
+          "sourceType" : "extended ipv4 access-list"
+        },
+        "structType" : "IpAccessList"
+      },
+      {
+        "conformers" : [
+          "as1border1",
+          "as1border2"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "inbound_route_filter",
+        "outliers" : [
+          "as2border1",
+          "as2border2",
+          "as3border1",
+          "as3border2"
+        ],
+        "structDefinition" : {
+          "lines" : [
+            {
+              "action" : "DENY",
+              "ipWildcard" : "1.0.0.0/8",
+              "lengthRange" : "8-32"
+            },
+            {
+              "action" : "PERMIT",
+              "ipWildcard" : "0.0.0.0/0",
+              "lengthRange" : "0-32"
+            }
+          ],
+          "name" : "inbound_route_filter",
+          "vendorStructureId" : {
+            "filename" : "configs/as1border1.cfg",
+            "structureName" : "inbound_route_filter",
+            "structureType" : "ipv4 prefix-list"
+          }
+        },
+        "structType" : "RouteFilterList"
+      },
+      {
+        "conformers" : [
+          "as2core1"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "GigabitEthernet3/0",
+        "outliers" : [
+          "as2core2",
+          "as2dept1",
+          "as3core1"
+        ],
+        "structDefinition" : {
+          "name" : "GigabitEthernet3/0",
+          "active" : true,
+          "additionalArpIps" : {
+            "class" : "org.batfish.datamodel.EmptyIpSpace"
+          },
+          "adminUp" : true,
+          "allPrefixes" : [
+            "2.23.12.2/24"
+          ],
+          "autostate" : true,
+          "bandwidth" : 1.0E9,
+          "blacklisted" : false,
+          "declaredNames" : [
+            "GigabitEthernet3/0"
+          ],
+          "hmm" : false,
+          "incomingFilter" : "blocktelnet",
+          "lineUp" : true,
+          "mtu" : 1500,
+          "ospfSettings" : {
+            "area" : 1,
+            "cost" : 1,
+            "deadInterval" : 40,
+            "enabled" : true,
+            "helloInterval" : 10,
+            "helloMultiplier" : 0,
+            "networkType" : "BROADCAST",
+            "passive" : false,
+            "process" : "1"
+          },
+          "prefix" : "2.23.12.2/24",
+          "proxyArp" : true,
+          "ripEnabled" : false,
+          "ripPassive" : false,
+          "spanningTreePortfast" : false,
+          "speed" : 1.0E9,
+          "switchport" : false,
+          "switchportMode" : "NONE",
+          "switchportTrunkEncapsulation" : "DOT1Q",
+          "type" : "PHYSICAL",
+          "vrf" : "default"
+        },
+        "structType" : "Interface"
+      },
+      {
+        "conformers" : [
+          "as1border1"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "101",
+        "outliers" : [
+          "as1border2",
+          "as2border1",
+          "as2border2",
+          "as3border1",
+          "as3border2"
+        ],
+        "structDefinition" : {
+          "lines" : [
+            {
+              "class" : "org.batfish.datamodel.ExprAclLine",
+              "action" : "PERMIT",
+              "matchCondition" : {
+                "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                "headerSpace" : {
+                  "dstIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "255.255.255.0"
+                  },
+                  "negate" : false,
+                  "srcIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "1.0.1.0"
+                  }
+                }
+              },
+              "name" : "permit ip host 1.0.1.0 host 255.255.255.0",
+              "traceElement" : {
+                "fragments" : [
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                    "text" : "Matched line "
+                  },
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$LinkFragment",
+                    "text" : "permit ip host 1.0.1.0 host 255.255.255.0",
+                    "vendorStructureId" : {
+                      "filename" : "configs/as1border1.cfg",
+                      "structureName" : "101: permit ip host 1.0.1.0 host 255.255.255.0",
+                      "structureType" : "extended ipv4 access-list line"
+                    }
+                  }
+                ]
+              },
+              "vendorStructureId" : {
+                "filename" : "configs/as1border1.cfg",
+                "structureName" : "101: permit ip host 1.0.1.0 host 255.255.255.0",
+                "structureType" : "extended ipv4 access-list line"
+              }
+            },
+            {
+              "class" : "org.batfish.datamodel.ExprAclLine",
+              "action" : "PERMIT",
+              "matchCondition" : {
+                "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                "headerSpace" : {
+                  "dstIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "255.255.255.0"
+                  },
+                  "negate" : false,
+                  "srcIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "1.0.2.0"
+                  }
+                }
+              },
+              "name" : "permit ip host 1.0.2.0 host 255.255.255.0",
+              "traceElement" : {
+                "fragments" : [
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                    "text" : "Matched line "
+                  },
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$LinkFragment",
+                    "text" : "permit ip host 1.0.2.0 host 255.255.255.0",
+                    "vendorStructureId" : {
+                      "filename" : "configs/as1border1.cfg",
+                      "structureName" : "101: permit ip host 1.0.2.0 host 255.255.255.0",
+                      "structureType" : "extended ipv4 access-list line"
+                    }
+                  }
+                ]
+              },
+              "vendorStructureId" : {
+                "filename" : "configs/as1border1.cfg",
+                "structureName" : "101: permit ip host 1.0.2.0 host 255.255.255.0",
+                "structureType" : "extended ipv4 access-list line"
+              }
+            }
+          ],
+          "name" : "101",
+          "sourceName" : "101",
+          "sourceType" : "extended ipv4 access-list"
+        },
+        "structType" : "IpAccessList"
+      },
+      {
+        "conformers" : [
+          "as1border1"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "103",
+        "outliers" : [
+          "as1border2",
+          "as2border1",
+          "as2border2",
+          "as3border1",
+          "as3border2"
+        ],
+        "structDefinition" : {
+          "lines" : [
+            {
+              "class" : "org.batfish.datamodel.ExprAclLine",
+              "action" : "PERMIT",
+              "matchCondition" : {
+                "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                "headerSpace" : {
+                  "dstIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "255.255.255.0"
+                  },
+                  "negate" : false,
+                  "srcIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "3.0.1.0"
+                  }
+                }
+              },
+              "name" : "permit ip host 3.0.1.0 host 255.255.255.0",
+              "traceElement" : {
+                "fragments" : [
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                    "text" : "Matched line "
+                  },
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$LinkFragment",
+                    "text" : "permit ip host 3.0.1.0 host 255.255.255.0",
+                    "vendorStructureId" : {
+                      "filename" : "configs/as1border1.cfg",
+                      "structureName" : "103: permit ip host 3.0.1.0 host 255.255.255.0",
+                      "structureType" : "extended ipv4 access-list line"
+                    }
+                  }
+                ]
+              },
+              "vendorStructureId" : {
+                "filename" : "configs/as1border1.cfg",
+                "structureName" : "103: permit ip host 3.0.1.0 host 255.255.255.0",
+                "structureType" : "extended ipv4 access-list line"
+              }
+            },
+            {
+              "class" : "org.batfish.datamodel.ExprAclLine",
+              "action" : "PERMIT",
+              "matchCondition" : {
+                "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                "headerSpace" : {
+                  "dstIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "255.255.255.0"
+                  },
+                  "negate" : false,
+                  "srcIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "3.0.2.0"
+                  }
+                }
+              },
+              "name" : "permit ip host 3.0.2.0 host 255.255.255.0",
+              "traceElement" : {
+                "fragments" : [
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                    "text" : "Matched line "
+                  },
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$LinkFragment",
+                    "text" : "permit ip host 3.0.2.0 host 255.255.255.0",
+                    "vendorStructureId" : {
+                      "filename" : "configs/as1border1.cfg",
+                      "structureName" : "103: permit ip host 3.0.2.0 host 255.255.255.0",
+                      "structureType" : "extended ipv4 access-list line"
+                    }
+                  }
+                ]
+              },
+              "vendorStructureId" : {
+                "filename" : "configs/as1border1.cfg",
+                "structureName" : "103: permit ip host 3.0.2.0 host 255.255.255.0",
+                "structureType" : "extended ipv4 access-list line"
+              }
+            }
+          ],
+          "name" : "103",
+          "sourceName" : "103",
+          "sourceType" : "extended ipv4 access-list"
+        },
+        "structType" : "IpAccessList"
+      },
+      {
+        "conformers" : [
+          "as1border1"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "102",
+        "outliers" : [
+          "as1border2",
+          "as2dept1",
+          "as2dist1",
+          "as2dist2",
+          "as3border1",
+          "as3border2"
+        ],
+        "structDefinition" : {
+          "lines" : [
+            {
+              "class" : "org.batfish.datamodel.ExprAclLine",
+              "action" : "PERMIT",
+              "matchCondition" : {
+                "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                "headerSpace" : {
+                  "dstIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "255.0.0.0"
+                  },
+                  "negate" : false,
+                  "srcIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "2.0.0.0"
+                  }
+                }
+              },
+              "name" : "permit ip host 2.0.0.0 host 255.0.0.0",
+              "traceElement" : {
+                "fragments" : [
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                    "text" : "Matched line "
+                  },
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$LinkFragment",
+                    "text" : "permit ip host 2.0.0.0 host 255.0.0.0",
+                    "vendorStructureId" : {
+                      "filename" : "configs/as1border1.cfg",
+                      "structureName" : "102: permit ip host 2.0.0.0 host 255.0.0.0",
+                      "structureType" : "extended ipv4 access-list line"
+                    }
+                  }
+                ]
+              },
+              "vendorStructureId" : {
+                "filename" : "configs/as1border1.cfg",
+                "structureName" : "102: permit ip host 2.0.0.0 host 255.0.0.0",
+                "structureType" : "extended ipv4 access-list line"
+              }
+            },
+            {
+              "class" : "org.batfish.datamodel.ExprAclLine",
+              "action" : "PERMIT",
+              "matchCondition" : {
+                "class" : "org.batfish.datamodel.acl.MatchHeaderSpace",
+                "headerSpace" : {
+                  "dstIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "255.255.0.0"
+                  },
+                  "negate" : false,
+                  "srcIps" : {
+                    "class" : "org.batfish.datamodel.IpWildcardIpSpace",
+                    "ipWildcard" : "2.128.0.0"
+                  }
+                }
+              },
+              "name" : "permit ip host 2.128.0.0 host 255.255.0.0",
+              "traceElement" : {
+                "fragments" : [
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$TextFragment",
+                    "text" : "Matched line "
+                  },
+                  {
+                    "class" : "org.batfish.datamodel.TraceElement$LinkFragment",
+                    "text" : "permit ip host 2.128.0.0 host 255.255.0.0",
+                    "vendorStructureId" : {
+                      "filename" : "configs/as1border1.cfg",
+                      "structureName" : "102: permit ip host 2.128.0.0 host 255.255.0.0",
+                      "structureType" : "extended ipv4 access-list line"
+                    }
+                  }
+                ]
+              },
+              "vendorStructureId" : {
+                "filename" : "configs/as1border1.cfg",
+                "structureName" : "102: permit ip host 2.128.0.0 host 255.255.0.0",
+                "structureType" : "extended ipv4 access-list line"
+              }
+            }
+          ],
+          "name" : "102",
+          "sourceName" : "102",
+          "sourceType" : "extended ipv4 access-list"
+        },
+        "structType" : "IpAccessList"
+      },
+      {
+        "conformers" : [
+          "as1border2"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "GigabitEthernet2/0",
+        "outliers" : [
+          "as2border1",
+          "as2border2",
+          "as2core1",
+          "as2core2",
+          "as2dept1",
+          "as2dist1",
+          "as2dist2",
+          "as3core1"
+        ],
+        "structDefinition" : {
+          "name" : "GigabitEthernet2/0",
+          "active" : true,
+          "additionalArpIps" : {
+            "class" : "org.batfish.datamodel.EmptyIpSpace"
+          },
+          "adminUp" : true,
+          "allPrefixes" : [
+            "10.14.22.1/24"
+          ],
+          "autostate" : true,
+          "bandwidth" : 1.0E9,
+          "blacklisted" : false,
+          "declaredNames" : [
+            "GigabitEthernet2/0"
+          ],
+          "hmm" : false,
+          "lineUp" : true,
+          "mtu" : 1500,
+          "prefix" : "10.14.22.1/24",
+          "proxyArp" : true,
+          "ripEnabled" : false,
+          "ripPassive" : false,
+          "spanningTreePortfast" : false,
+          "speed" : 1.0E9,
+          "switchport" : false,
+          "switchportMode" : "NONE",
+          "switchportTrunkEncapsulation" : "DOT1Q",
+          "type" : "PHYSICAL",
+          "vrf" : "default"
+        },
+        "structType" : "Interface"
+      },
+      {
+        "conformers" : [
+          "as1border1"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "GigabitEthernet0/0",
+        "outliers" : [
+          "as1border2",
+          "as1core1",
+          "as2border1",
+          "as2border2",
+          "as2core1",
+          "as2core2",
+          "as2dept1",
+          "as2dist1",
+          "as2dist2",
+          "as3border1",
+          "as3border2",
+          "as3core1"
+        ],
+        "structDefinition" : {
+          "name" : "GigabitEthernet0/0",
+          "active" : true,
+          "additionalArpIps" : {
+            "class" : "org.batfish.datamodel.EmptyIpSpace"
+          },
+          "adminUp" : true,
+          "allPrefixes" : [
+            "1.0.1.1/24"
+          ],
+          "autostate" : true,
+          "bandwidth" : 1.0E9,
+          "blacklisted" : false,
+          "declaredNames" : [
+            "GigabitEthernet0/0"
+          ],
+          "hmm" : false,
+          "lineUp" : true,
+          "mtu" : 1500,
+          "ospfSettings" : {
+            "area" : 1,
+            "cost" : 1,
+            "deadInterval" : 40,
+            "enabled" : true,
+            "helloInterval" : 10,
+            "helloMultiplier" : 0,
+            "networkType" : "BROADCAST",
+            "passive" : false,
+            "process" : "1"
+          },
+          "prefix" : "1.0.1.1/24",
+          "proxyArp" : true,
+          "ripEnabled" : false,
+          "ripPassive" : false,
+          "spanningTreePortfast" : false,
+          "speed" : 1.0E9,
+          "switchport" : false,
+          "switchportMode" : "NONE",
+          "switchportTrunkEncapsulation" : "DOT1Q",
+          "type" : "PHYSICAL",
+          "vrf" : "default"
+        },
+        "structType" : "Interface"
+      },
+      {
+        "conformers" : [
+          "as1border1"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "GigabitEthernet1/0",
+        "outliers" : [
+          "as1border2",
+          "as1core1",
+          "as2border1",
+          "as2border2",
+          "as2core1",
+          "as2core2",
+          "as2dept1",
+          "as2dist1",
+          "as2dist2",
+          "as3border1",
+          "as3border2",
+          "as3core1"
+        ],
+        "structDefinition" : {
+          "name" : "GigabitEthernet1/0",
+          "active" : true,
+          "additionalArpIps" : {
+            "class" : "org.batfish.datamodel.EmptyIpSpace"
+          },
+          "adminUp" : true,
+          "allPrefixes" : [
+            "10.12.11.1/24"
+          ],
+          "autostate" : true,
+          "bandwidth" : 1.0E9,
+          "blacklisted" : false,
+          "declaredNames" : [
+            "GigabitEthernet1/0"
+          ],
+          "hmm" : false,
+          "lineUp" : true,
+          "mtu" : 1500,
+          "prefix" : "10.12.11.1/24",
+          "proxyArp" : true,
+          "ripEnabled" : false,
+          "ripPassive" : false,
+          "spanningTreePortfast" : false,
+          "speed" : 1.0E9,
+          "switchport" : false,
+          "switchportMode" : "NONE",
+          "switchportTrunkEncapsulation" : "DOT1Q",
+          "type" : "PHYSICAL",
+          "vrf" : "default"
+        },
+        "structType" : "Interface"
+      },
+      {
+        "conformers" : [
+          "as1border1"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "Loopback0",
+        "outliers" : [
+          "as1border2",
+          "as1core1",
+          "as2border1",
+          "as2border2",
+          "as2core1",
+          "as2core2",
+          "as2dept1",
+          "as2dist1",
+          "as2dist2",
+          "as3border1",
+          "as3border2",
+          "as3core1"
+        ],
+        "structDefinition" : {
+          "name" : "Loopback0",
+          "active" : true,
+          "additionalArpIps" : {
+            "class" : "org.batfish.datamodel.EmptyIpSpace"
+          },
+          "adminUp" : true,
+          "allPrefixes" : [
+            "1.1.1.1/32"
+          ],
+          "autostate" : true,
+          "bandwidth" : 8.0E9,
+          "declaredNames" : [
+            "Loopback0"
+          ],
+          "hmm" : false,
+          "mtu" : 1500,
+          "ospfSettings" : {
+            "area" : 1,
+            "cost" : 1,
+            "deadInterval" : 40,
+            "enabled" : true,
+            "helloInterval" : 10,
+            "helloMultiplier" : 0,
+            "networkType" : "BROADCAST",
+            "passive" : true,
+            "process" : "1"
+          },
+          "prefix" : "1.1.1.1/32",
+          "proxyArp" : true,
+          "ripEnabled" : false,
+          "ripPassive" : false,
+          "spanningTreePortfast" : false,
+          "switchport" : false,
+          "switchportMode" : "NONE",
+          "switchportTrunkEncapsulation" : "DOT1Q",
+          "type" : "LOOPBACK",
+          "vrf" : "default"
+        },
+        "structType" : "Interface"
+      },
+      {
+        "conformers" : [
+          "as1border1"
+        ],
+        "hypothesis" : "sameDefinition",
+        "name" : "default",
+        "outliers" : [
+          "as1border2",
+          "as1core1",
+          "as2border1",
+          "as2border2",
+          "as2core1",
+          "as2core2",
+          "as2dept1",
+          "as2dist1",
+          "as2dist2",
+          "as3border1",
+          "as3border2",
+          "as3core1",
+          "host1",
+          "host2"
+        ],
+        "structDefinition" : {
+          "name" : "default",
+          "ospfProcesses" : {
+            "1" : {
+              "adminCosts" : {
+                "ospf" : 110,
+                "ospfE1" : 110,
+                "ospfE2" : 110,
+                "ospfIA" : 110,
+                "ospfIS" : 110
+              },
+              "areas" : {
+                "1" : {
+                  "injectDefaultRoute" : true,
+                  "interfaces" : [
+                    "GigabitEthernet0/0",
+                    "Loopback0"
+                  ],
+                  "metricOfDefaultRoute" : 0,
+                  "name" : 1,
+                  "stubType" : "NONE"
+                }
+              },
+              "exportPolicy" : "~OSPF_EXPORT_POLICY:default:1~",
+              "processId" : "1",
+              "referenceBandwidth" : 1.0E8,
+              "routerId" : "1.1.1.1",
+              "summaryAdminCost" : 254,
+              "summaryDiscardMetric" : 0
+            }
+          },
+          "bgpProcess" : {
+            "clientToClientReflection" : true,
+            "ebgpAdminCost" : 20,
+            "ibgpAdminCost" : 200,
+            "localAdminCost" : 200,
+            "localOriginationTypeTieBreaker" : "NO_PREFERENCE",
+            "networkNextHopIpTieBreaker" : "HIGHEST_NEXT_HOP_IP",
+            "redistributeNextHopIpTieBreaker" : "HIGHEST_NEXT_HOP_IP",
+            "redistributionPolicy" : "~BGP_REDISTRIBUTION_POLICY:default~",
+            "routerId" : "1.1.1.1",
+            "clusterListAsIbgpCost" : true,
+            "multipathEbgp" : true,
+            "multipathEquivalentAsPathMatchMode" : "EXACT_PATH",
+            "multipathIbgp" : true,
+            "neighbors" : {
+              "1.10.1.1" : {
+                "class" : "org.batfish.datamodel.BgpActivePeerConfig",
+                "checkLocalIpOnAccept" : true,
+                "clusterId" : 16843009,
+                "defaultMetric" : 0,
+                "ebgpMultihop" : false,
+                "enforceFirstAs" : true,
+                "group" : "as1",
+                "ipv4UnicastAddressFamily" : {
+                  "addressFamilyCapabilities" : {
+                    "additionalPathsReceive" : true,
+                    "additionalPathsSelectAll" : true,
+                    "additionalPathsSend" : true,
+                    "advertiseExternal" : false,
+                    "advertiseInactive" : true,
+                    "allowLocalAsIn" : false,
+                    "allowRemoteAsOut" : "ALWAYS",
+                    "sendCommunity" : true,
+                    "sendExtendedCommunity" : false
+                  },
+                  "exportPolicy" : "~BGP_PEER_EXPORT_POLICY:default:1.10.1.1~",
+                  "routeReflectorClient" : false
+                },
+                "localAs" : 1,
+                "localIp" : "1.1.1.1",
+                "peerAddress" : "1.10.1.1",
+                "remoteAsns" : "1",
+                "replaceNonLocalAsesOnExport" : false
+              },
+              "3.2.2.2" : {
+                "class" : "org.batfish.datamodel.BgpActivePeerConfig",
+                "checkLocalIpOnAccept" : true,
+                "clusterId" : 16843009,
+                "defaultMetric" : 0,
+                "ebgpMultihop" : false,
+                "enforceFirstAs" : true,
+                "group" : "bad-ebgp",
+                "ipv4UnicastAddressFamily" : {
+                  "addressFamilyCapabilities" : {
+                    "additionalPathsReceive" : true,
+                    "additionalPathsSelectAll" : true,
+                    "additionalPathsSend" : true,
+                    "advertiseExternal" : false,
+                    "advertiseInactive" : true,
+                    "allowLocalAsIn" : false,
+                    "allowRemoteAsOut" : "ALWAYS",
+                    "sendCommunity" : false,
+                    "sendExtendedCommunity" : false
+                  },
+                  "exportPolicy" : "~BGP_PEER_EXPORT_POLICY:default:3.2.2.2~",
+                  "routeReflectorClient" : false
+                },
+                "localAs" : 1,
+                "peerAddress" : "3.2.2.2",
+                "remoteAsns" : "666",
+                "replaceNonLocalAsesOnExport" : false
+              },
+              "5.6.7.8" : {
+                "class" : "org.batfish.datamodel.BgpActivePeerConfig",
+                "checkLocalIpOnAccept" : true,
+                "clusterId" : 16843009,
+                "defaultMetric" : 0,
+                "ebgpMultihop" : false,
+                "enforceFirstAs" : true,
+                "group" : "xanadu",
+                "ipv4UnicastAddressFamily" : {
+                  "addressFamilyCapabilities" : {
+                    "additionalPathsReceive" : true,
+                    "additionalPathsSelectAll" : true,
+                    "additionalPathsSend" : true,
+                    "advertiseExternal" : false,
+                    "advertiseInactive" : true,
+                    "allowLocalAsIn" : false,
+                    "allowRemoteAsOut" : "ALWAYS",
+                    "sendCommunity" : false,
+                    "sendExtendedCommunity" : false
+                  },
+                  "exportPolicy" : "~BGP_PEER_EXPORT_POLICY:default:5.6.7.8~",
+                  "routeReflectorClient" : false
+                },
+                "localAs" : 1,
+                "peerAddress" : "5.6.7.8",
+                "remoteAsns" : "555",
+                "replaceNonLocalAsesOnExport" : false
+              },
+              "10.12.11.2" : {
+                "class" : "org.batfish.datamodel.BgpActivePeerConfig",
+                "checkLocalIpOnAccept" : true,
+                "clusterId" : 16843009,
+                "defaultMetric" : 0,
+                "ebgpMultihop" : false,
+                "enforceFirstAs" : true,
+                "group" : "as2",
+                "ipv4UnicastAddressFamily" : {
+                  "addressFamilyCapabilities" : {
+                    "additionalPathsReceive" : true,
+                    "additionalPathsSelectAll" : true,
+                    "additionalPathsSend" : true,
+                    "advertiseExternal" : false,
+                    "advertiseInactive" : true,
+                    "allowLocalAsIn" : false,
+                    "allowRemoteAsOut" : "ALWAYS",
+                    "sendCommunity" : true,
+                    "sendExtendedCommunity" : false
+                  },
+                  "exportPolicy" : "~BGP_PEER_EXPORT_POLICY:default:10.12.11.2~",
+                  "exportPolicySources" : [
+                    "as1_to_as2"
+                  ],
+                  "importPolicy" : "as2_to_as1",
+                  "importPolicySources" : [
+                    "as2_to_as1"
+                  ],
+                  "routeReflectorClient" : false
+                },
+                "localAs" : 1,
+                "localIp" : "10.12.11.1",
+                "peerAddress" : "10.12.11.2",
+                "remoteAsns" : "2",
+                "replaceNonLocalAsesOnExport" : false
+              }
+            },
+            "tieBreaker" : "ARRIVAL_ORDER"
+          },
+          "resolutionPolicy" : "~RESOLUTION_POLICY~"
+        },
+        "structType" : "Vrf"
+      }
+    ]
+  }
+]

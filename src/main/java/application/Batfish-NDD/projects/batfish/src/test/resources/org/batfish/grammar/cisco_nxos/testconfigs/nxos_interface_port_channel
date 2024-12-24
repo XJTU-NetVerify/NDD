@@ -1,0 +1,10 @@
+!RANCID-CONTENT-TYPE: cisco-nx
+!
+hostname nxos_interface_port_channel
+!
+feature lacp
+!
+interface port-channel1
+  lacp suspend-individual
+  bandwidth 3200000000
+!

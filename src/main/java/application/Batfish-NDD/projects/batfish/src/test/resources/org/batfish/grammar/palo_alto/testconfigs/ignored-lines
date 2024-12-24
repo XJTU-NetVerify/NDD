@@ -1,0 +1,142 @@
+set deviceconfig system hostname ignored-lines
+#
+set config mgt-config users
+set config shared application
+set config shared application-group
+set config shared authentication-profile RADIUS multi-factor-auth mfa-enable no
+set config shared certificate-profile FOO CA FOO-01
+set config shared server-profile tacplus MY_TACACS timeout 5
+set config shared service
+set config shared service-group
+set config shared content-preview application amazon-music-streaming category media
+set config shared profiles custom-url-category NAME description foo
+set config shared log-settings system critical send-email
+#
+set deviceconfig system type static
+set deviceconfig system update-server updates.paloaltonetworks.com
+set deviceconfig system update-schedule threats recurring weekly day-of-week wednesday
+set deviceconfig system update-schedule threats recurring weekly at 01:02
+set deviceconfig system update-schedule threats recurring weekly action download-only
+set deviceconfig system timezone US/Pacific
+set deviceconfig system service disable-telnet yes
+set deviceconfig system service disable-http yes
+set deviceconfig system panorama-server 10.252.32.9
+#
+set network profiles monitor-profile default interval 3
+set network profiles zone-protection-profile
+#
+set network qos profile default class class1 priority real-time
+set network qos profile default class class2 priority high
+set network qos profile default class class5 priority medium
+set network qos profile default class class6 priority low
+#
+# this should be dealt with soon
+set network ike gateway
+#
+set deviceconfig setting config rematch yes
+set deviceconfig setting management hostname-type-in-syslog FQDN
+set deviceconfig setting management initcfg type dhcp-client send-hostname yes
+set deviceconfig setting management initcfg type dhcp-client send-client-id no
+set deviceconfig setting management initcfg type dhcp-client accept-dhcp-hostname no
+set deviceconfig setting management initcfg type dhcp-client accept-dhcp-domain no
+set deviceconfig setting management initcfg public-key c3NoLXJ.....
+#
+set network interface ethernet ethernet1/1 layer3 ipv6 neighbor-discovery router-advertisement enable no
+set network interface ethernet ethernet1/1 layer3 ndp-proxy enabled no
+set network interface ethernet ethernet1/1 layer3 lldp enable no
+#
+set network virtual-router default protocol bgp enable no
+set network virtual-router default protocol bgp dampening-profile default cutoff 1.25
+#
+set policy panorama application-filter SOFTWARE-UPDATES category unknown
+set policy panorama application-filter SOFTWARE-UPDATES evasive yes
+set policy panorama application-filter SOFTWARE-UPDATES excessive-bandwidth-use yes
+set policy panorama application-filter SOFTWARE-UPDATES has-known-vulnerabilities yes
+set policy panorama application-filter SOFTWARE-UPDATES pervasive yes
+set policy panorama application-filter SOFTWARE-UPDATES prone-to-misuse yes
+set policy panorama application-filter SOFTWARE-UPDATES risk 5
+set policy panorama application-filter SOFTWARE-UPDATES transfers-files yes
+set policy panorama application-filter SOFTWARE-UPDATES tunnels-other-apps yes
+set policy panorama application-filter SOFTWARE-UPDATES used-by-malware yes
+set policy panorama application-filter SOFTWARE-UPDATES subcategory software-update
+set policy panorama application-filter SOFTWARE-UPDATES technology client-server
+set policy panorama profiles virus
+#
+set log-collector NAME deviceconfig system service disable-icmp no
+set log-collector NAME secure-conn-client certificate-type none
+set log-collector-group GNAME logfwd-setting collectors NAME
+set log-collector-group GNAME general-setting management quota-settings disk-quota detailed 50
+#
+set shared botnet configuration http dynamic-dns enabled yes
+set shared botnet configuration other-applications irc yes
+set shared botnet configuration unknown-applications unknown-tcp destinations-per-hour 10
+set shared botnet report topn 100
+set shared botnet report scheduled yes
+#
+set shared admin-role A1 role panorama cli superuser
+set shared admin-role A1 role panorama contextswitch monitor pdf-reports manage-pdf-summary enable
+#
+set tag PublicNW
+#
+set mgt-config users admin phash $1$vqgaovyp$BA8m4uld.cxY2T/n9ihK2.
+set mgt-config users admin permissions role-based superuser yes
+set mgt-config users admin public-key c3NoLX...
+#
+#
+set rulebase security rules RULE1 target negate no
+set rulebase security rules RULE1 category streaming
+set rulebase security rules RULE1 hip-profiles any
+set rulebase security rules RULE1 source-hip any
+set rulebase security rules RULE1 destination-hip any
+set rulebase security rules RULE1 source-user any
+set rulebase security rules RULE1 log-end no
+set rulebase security rules RULE1 log-start yes
+set rulebase security rules RULE1 log-setting default
+# TODO: implement and move out of here
+set rulebase security rules RULE1 rule-type universal
+#
+set vsys vsys1 log-settings syslog NAME server NAME facility LOG_LOCAL0
+set vsys vsys1 log-settings syslog NAME server NAME format IETF
+set vsys vsys1 log-settings syslog NAME server NAME port 65535
+set vsys vsys1 log-settings syslog NAME server NAME transport UDP
+set vsys vsys1 log-settings profiles NAME match-list ML_NAME log-type foo
+set template T1 config shared log-settings config match-list ML_NAME send-to-panorama yes
+set template T1 config shared log-settings userid match-list ML_NAME send-to-panorama yes
+set device-group DG1 log-settings profiles P1 description "long description"
+set vsys vsys1 profiles dos-protection
+set vsys vsys1 profile-group NAME
+# Readonly lines are related to firewalls managed by a panorama node
+set readonly devices localhost.localdomain device-group DG1 id 16
+set readonly devices localhost.localdomain template T1 id 12
+set readonly devices localhost.localdomain template T1 config devices localhost.localdomain vsys vsys1 zone Z1 id 14
+# Misc "empty" definitions
+set template T1 config mgt-config users
+set template T1 config shared
+set template T1 config devices localhost.localdomain network vlan
+set template T1 config devices localhost.localdomain network virtual-wire
+
+set device-group DGNAME profiles data-filtering NAME rules NAME2 application any
+set device-group DGNAME profiles data-objects NAME pattern-type regex pattern NAME2
+set device-group DGNAME profiles decryption NAME ssl-no-proxy block-expired-certificate yes
+set device-group DGNAME profiles dos-protection NAME flood icmp enable yes
+set device-group DGNAME profiles file-blocking NAME rules NAME2 action alert
+set device-group DGNAME profiles gtp NAME filtering apn VALUE action block
+set device-group DGNAME profiles hip-objects NAME firewall criteria is-enabled yes
+set device-group DGNAME profiles hip-profiles NAME match NAME2
+set device-group DGNAME profiles sctp NAME sctp-filtering sctp-ss7 VALUE action block
+set device-group DGNAME profiles spyware NAME rules NAME2 packet-capture disable
+set device-group DGNAME profiles virus NAME decoder http action reset-both
+set device-group DGNAME profiles vulnerability NAME rules NAME2 action alert
+set device-group DGNAME profiles wildfire-analysis NAME rules NAME2 direction both
+
+set device-group DGNAME profile-group GROUPNAME spyware NAME2
+set device-group DGNAME profile-group GROUPNAME vulnerability NAME2
+
+# BGP
+set network virtual-router BGP_VR protocol bgp peer-group PG peer PEER connection-options keep-alive-interval 30
+set network virtual-router BGP_VR protocol bgp peer-group PG peer PEER connection-options open-delay-time 0
+set network virtual-router BGP_VR protocol bgp peer-group PG peer PEER connection-options hold-time 90
+set network virtual-router BGP_VR protocol bgp peer-group PG peer PEER connection-options idle-hold-time 15
+set network virtual-router BGP_VR protocol bgp peer-group PG peer PEER connection-options min-route-adv-interval 30
+set network virtual-router BGP_VR protocol bgp peer-group PG peer PEER bfd profile Inherit-vr-global-setting
+set network virtual-router BGP_VR protocol bgp peer-group PG peer PEER max-prefixes 5000

@@ -1,0 +1,29 @@
+package org.batfish.representation.cisco_xr;
+
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
+import javax.annotation.Nonnull;
+
+public class CryptoMapSet implements Serializable {
+
+  private boolean _dynamic;
+
+  private List<CryptoMapEntry> _cryptoMapEntries;
+
+  public CryptoMapSet() {
+    _cryptoMapEntries = new ArrayList<>();
+  }
+
+  public boolean getDynamic() {
+    return _dynamic;
+  }
+
+  public void setDynamic(boolean dynamic) {
+    _dynamic = dynamic;
+  }
+
+  public @Nonnull List<CryptoMapEntry> getCryptoMapEntries() {
+    return _cryptoMapEntries;
+  }
+}

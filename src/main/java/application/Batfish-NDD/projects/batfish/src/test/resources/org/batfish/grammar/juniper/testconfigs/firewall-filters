@@ -1,0 +1,53 @@
+#
+set system host-name firewall-filters
+#
+set firewall filter FILTER1 term TERM from source-address 1.2.3.6
+set firewall filter FILTER1 term TERM then accept
+set firewall filter FILTER2 term TERM from source-address 1.2.3.6
+set firewall filter FILTER2 term TERM from source-address 1.2.3.5
+set firewall filter FILTER2 term TERM then reject
+set firewall filter FILTER_UNUSED term TERM from source-address 1.2.3.6
+set firewall filter FILTER_UNUSED term TERM then accept
+set interfaces xe-0/0/0 unit 0 family inet address 1.2.3.4/24
+set interfaces xe-0/0/0 unit 0 family inet filter input FILTER1
+set interfaces xe-0/0/1 unit 0 family inet address 2.2.3.4/24
+set interfaces xe-0/0/1 unit 0 family inet filter input FILTER2
+set interfaces xe-0/0/1 unit 0 family inet filter output FILTER2
+set interfaces xe-0/0/2 unit 0 family inet address 3.2.3.4/24
+set interfaces xe-0/0/2 unit 0 family inet filter output FILTER_UNDEF
+set interfaces xe-0/0/3 unit 0 family inet address 4.2.3.4/24
+set interfaces xe-0/0/3 unit 0 family inet filter input-list FILTER1
+set interfaces xe-0/0/3 unit 0 family inet filter input-list FILTER2
+set interfaces xe-0/0/3 unit 0 family inet filter output-list FILTER2
+set interfaces xe-0/0/3 unit 0 family inet filter output-list FILTER1
+#
+set firewall filter PARSING term FRAGMENT_OFFSET from fragment-offset 1
+set firewall filter PARSING term FRAGMENT_OFFSET from fragment-offset 3-12
+set firewall filter PARSING term FRAGMENT_OFFSET from fragment-offset-except 5
+set firewall filter PARSING term FRAGMENT_OFFSET from fragment-offset-except 10-11
+#
+set firewall filter PARSING term ICMP_TYPE from icmp-type 0
+set firewall filter PARSING term ICMP_TYPE from icmp-type 10-20
+set firewall filter PARSING term ICMP_TYPE from icmp-type-except 11
+set firewall filter PARSING term ICMP_TYPE from icmp-type-except 13-14
+#
+set firewall filter PARSING term ICMP_CODE from icmp-code 0
+set firewall filter PARSING term ICMP_CODE from icmp-code 30-40
+set firewall filter PARSING term ICMP_CODE from icmp-code-except 31
+set firewall filter PARSING term ICMP_CODE from icmp-code-except 33-34
+#
+set firewall interface-set ifset xe-0/0/0.0
+# TODO Support from interface-set wildcard
+set firewall interface-set ifset xe-0/0/1.*
+set firewall filter PARSING term INTERFACE_AND_INTERFACE_SET from interface-set ifset
+set firewall filter PARSING term INTERFACE_AND_INTERFACE_SET from interface xe-0/0/2.0
+# TODO Support from interface wildcard
+# set firewall filter PARSING term INTERFACE_AND_INTERFACE_SET from interface xe-0/0/3.*
+#
+set firewall filter PARSING term PACKET_LENGTH from packet-length 50
+set firewall filter PARSING term PACKET_LENGTH from packet-length 100-200
+set firewall filter PARSING term PACKET_LENGTH from packet-length-except 70
+set firewall filter PARSING term PACKET_LENGTH from packet-length-except 80-90
+#
+set firewall family inet filter FILTER term IPV6 from protocol ipv6
+set firewall family inet filter FILTER term DECAPSULATE-GRE then decapsulate gre

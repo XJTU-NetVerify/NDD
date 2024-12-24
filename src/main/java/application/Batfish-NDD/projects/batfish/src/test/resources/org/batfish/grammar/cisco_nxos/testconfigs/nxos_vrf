@@ -1,0 +1,120 @@
+!RANCID-CONTENT-TYPE: cisco-nx
+!
+hostname nxos_vrf
+!
+
+! Add interface to Vrf1
+! - shutdown = false
+! - active = true
+interface Ethernet1/1
+  no switchport
+  no shutdown
+  vrf member Vrf1
+!
+
+! Add interface to non-existent vrf2
+! - allowed, but inactive without later declaration of vrf2
+! - shutdown = false
+! - active = false (vrf2 does not exist)
+interface Ethernet1/2
+  no switchport
+  no shutdown
+  vrf member vrf2
+!
+
+! Add interface with pre-existing l3 configuration to vrf1
+! - shutdown = false
+! - active = true
+! - address = null (erased by vrf member assignment)
+interface Ethernet1/3
+  no switchport
+  no shutdown
+  ip address 10.0.3.1/24
+  vrf member vrf1
+!
+
+! Add interface to vrf1, then apply l3 configuration
+! - shutdown = false
+! - active = true
+! - address = 10.0.4.1/24
+interface Ethernet1/4
+  no switchport
+  no shutdown
+  vrf member vrf1
+  ip address 10.0.4.1/24
+!
+
+! Add interface to vrf1, apply l3 configuration, then remove it from vrf1
+! - shutdown = false
+! - active = true
+! - address = null (erased by clearing vrf member)
+interface Ethernet1/5
+  no switchport
+  no shutdown
+  vrf member vrf1
+  ip address 10.0.5.1/24
+  no vrf member vrf1
+!
+
+! Add interface to vrf1, then remove it without specifying vrf (same effect as above)
+! - shutdown = false
+! - active = true
+! - address = null
+interface Ethernet1/6
+  no switchport
+  no shutdown
+  vrf member vrf1
+  ip address 10.0.6.1/24
+  no vrf member
+!
+
+! Use "no vrf member" on an interface already in the default VRF: no effect, no warnings
+! - shutdown = false
+! - active = true
+! - address = 10.0.7.1/24
+interface Ethernet1/7
+  no switchport
+  no shutdown
+  ip address 10.0.7.1/24
+  no vrf member
+!
+
+! Add interface to shutdown VRF vrf3
+! - shutdown = false
+! - active = false (vrf3 is shutdown)
+! - address = 10.0.5.1/24
+interface Ethernet1/8
+  no switchport
+  no shutdown
+  vrf member vrf3
+  ip address 10.0.8.1/24
+!
+
+!!! Keep VRF definitions under default VRF configuration to avoid accidental leakage
+! Note that VI name should be 'Vrf1' since that is how it was first used above.
+vrf context vrf1
+  vni 10001
+  rd 65001:10
+  address-family ipv4 unicast
+    route-target both auto evpn
+    route-target import 11:65536
+  address-family ipv6 unicast
+    route-target both 65001:11 evpn
+    route-target both auto
+
+!!! Has VXLAN config
+vrf context vrf3
+  vni 10003
+  ! overridden, should not show up.
+  rd 1.2.3.4:65535
+  rd auto
+  shutdown
+
+vrf context management
+  ip domain-name test.example.com
+  ip domain-list exmaple.com
+  ip pim bidir-rp-limit 6
+  mdt mtu 1376
+  mdt enforce-bgp-mdt-safi
+  mdt pim hello-interval 30000
+  mdt pim jp-interval 60

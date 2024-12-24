@@ -1,0 +1,97 @@
+!RANCID-CONTENT-TYPE: arista
+!
+hostname arista_bgp_neighbors
+!
+router bgp 1
+  bgp cluster-id 99.99.99.99
+  neighbor PEER_G peer-group
+  neighbor PEER_G allowas-in 3
+  neighbor PEER_G export-localpref 40
+  ! "peer group" is new syntax for EOS 4.23 and on
+  neighbor PEER_G2 peer group
+  neighbor PEER_G2 route-reflector-client
+  neighbor 1.1.1.1 additional-paths send any
+  neighbor 1.1.1.1 additional-paths receive
+  neighbor 1.1.1.1 auto-local-addr
+  neighbor 1.1.1.1 default-originate always
+  neighbor 1.1.1.1 description SOME NEIGHBOR
+  neighbor 1.1.1.1 dont-capability-negotiate
+  neighbor 1.1.1.1 ebgp-multihop
+  neighbor 1.1.1.1 enforce-first-as
+  neighbor 1.1.1.1 export-localpref 55
+  default neighbor 1.1.1.1 export-localpref
+  neighbor 1.1.1.1 fall-over bfd
+  neighbor 1.1.1.1 local-as 65111 no-prepend replace-as
+  neighbor 1.1.1.1 local-as 65111 no-prepend replace-as fallback
+  neighbor 1.1.1.1 local-v6-addr 2001:db8:0:0:0:ff00:42:8329
+  neighbor 1.1.1.1 next-hop-self
+  neighbor 1.1.1.1 next-hop-unchanged
+  neighbor 1.1.1.1 peer-group PEER_G
+  neighbor 1.1.1.1 remote-as 35
+  neighbor 1.1.1.1 remove-private-as
+  neighbor 1.1.1.1 route-map RM_IN in
+  neighbor 1.1.1.1 route-map RM_OUT out
+  neighbor 1.1.1.1 send-community
+  neighbor 1.1.1.1 update-source Lo0
+!
+  neighbor 2.2.2.2 remote-as 36
+  neighbor 2.2.2.2 default-originate always route-map DEF_ORIG_MAP
+  neighbor 2.2.2.2 ebgp-multihop 10
+  no neighbor 2.2.2.2 enforce-first-as
+  no neighbor 2.2.2.2 export-localpref
+  neighbor 2.2.2.2 remove-private-as all
+  neighbor 2.2.2.2 shutdown
+!
+  ! "peer group" is new syntax for EOS 4.23 and on
+  neighbor 3.3.3.3 peer group PEER_G2
+  neighbor 3.3.3.3 remote-as 33
+  no neighbor 3.3.3.3 enforce-first-as
+  neighbor 3.3.3.3 remove-private-as all replace-as
+  no neighbor 3.3.3.3 shutdown
+!
+  ! check that we can delete neighbors
+  neighbor 4.4.4.4 remote-as 44
+  no neighbor 4.4.4.4
+!
+  network 1.2.3.4/32
+!
+  neighbor PARSE_ONLY peer-group
+  neighbor PARSE_ONLY bfd
+  neighbor PARSE_ONLY graceful-restart
+  neighbor PARSE_ONLY graceful-restart-helper
+  neighbor PARSE_ONLY idle-restart-timer 99
+  neighbor PARSE_ONLY maximum-routes 2222
+  neighbor PARSE_ONLY maximum-routes 3333 warning-limit 3000
+  neighbor PARSE_ONLY maximum-routes 3333 warning-limit 75 percent
+  neighbor PARSE_ONLY maximum-routes 3333 warning-limit 75 percent warning-only
+  neighbor PARSE_ONLY maximum-routes 4444 warning-only
+  neighbor PARSE_ONLY maximum-accepted-routes 5555
+  neighbor PARSE_ONLY maximum-accepted-routes 6666 warning-limit 60000
+  neighbor PARSE_ONLY password YzQ2ZTRlYTNhYzVhZTc0MDE2MTc2ZGEzODhkZmMyMmM=
+  neighbor PARSE_ONLY soft-reconfiguration inbound
+  neighbor PARSE_ONLY soft-reconfiguration inbound all
+  neighbor PARSE_ONLY timers 3 9
+  neighbor PARSE_ONLY local-v6-addr 2001:db8:0:0:0:ff00:42:8329
+  !
+  neighbor 2001:db8:0:0:0:ff00:42:1111 peer-group PEER_G
+!
+  neighbor DYNAMIC peer-group
+  neighbor DYNAMIC send-community
+  bgp listen limit 10
+  bgp listen range 4.4.4.0/24 peer-group DYNAMIC remote-as 4000
+  ! following deletion will fail, because of missing suffix.
+  no neighbor DYNAMIC
+!
+  neighbor 5.5.5.5 enforce-first-as
+!
+  ! should not end up in VS
+  neighbor DELETED_PG peer-group
+  no neighbor DELETED_PG peer-group
+  ! should warn that DELETED_MISSING_PG is not defined
+  no neighbor DELETED_MISSING_PG peer-group
+!
+  vrf tenant
+    neighbor 2.2.2.2 remote-as 88
+    ! should warn that 3.3.3.3 is not defined in tenant VRF
+    no neighbor 3.3.3.3
+!

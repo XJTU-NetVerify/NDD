@@ -1,0 +1,794 @@
+package org.batfish.bddreachability;
+
+import static org.batfish.bddreachability.BDDFirewallSessionTraceInfoMatchers.hasAction;
+import static org.batfish.bddreachability.BDDFirewallSessionTraceInfoMatchers.hasHostname;
+import static org.batfish.bddreachability.BDDFirewallSessionTraceInfoMatchers.hasIncomingInterfaces;
+import static org.batfish.bddreachability.BDDFirewallSessionTraceInfoMatchers.hasSessionFlows;
+import static org.batfish.bddreachability.BDDFirewallSessionTraceInfoMatchers.hasSessionScope;
+import static org.batfish.bddreachability.BDDFirewallSessionTraceInfoMatchers.hasTransformation;
+import static org.batfish.bddreachability.BDDReachabilityAnalysisSessionFactory.computeInitializedSesssions;
+import static org.batfish.bddreachability.BDDReverseTransformationRangesImpl.TransformationType.INCOMING;
+import static org.batfish.bddreachability.BDDReverseTransformationRangesImpl.TransformationType.OUTGOING;
+import static org.batfish.bddreachability.transition.Transitions.compose;
+import static org.batfish.bddreachability.transition.Transitions.constraint;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.hasSize;
+import static org.junit.Assert.assertEquals;
+
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import net.sf.javabdd.BDD;
+import net.sf.javabdd.BDDFactory;
+import org.batfish.bddreachability.BDDReverseTransformationRangesImpl.Key;
+import org.batfish.bddreachability.transition.Transition;
+import org.batfish.bddreachability.transition.TransitionVisitor;
+import org.batfish.common.bdd.BDDPacket;
+import org.batfish.common.bdd.BDDSourceManager;
+import org.batfish.common.bdd.HeaderSpaceToBDD;
+import org.batfish.datamodel.ConcreteInterfaceAddress;
+import org.batfish.datamodel.Configuration;
+import org.batfish.datamodel.ConfigurationFormat;
+import org.batfish.datamodel.FirewallSessionInterfaceInfo;
+import org.batfish.datamodel.FirewallSessionInterfaceInfo.Action;
+import org.batfish.datamodel.FirewallSessionVrfInfo;
+import org.batfish.datamodel.Interface;
+import org.batfish.datamodel.IpProtocol;
+import org.batfish.datamodel.NetworkFactory;
+import org.batfish.datamodel.Prefix;
+import org.batfish.datamodel.Vrf;
+import org.batfish.datamodel.collections.NodeInterfacePair;
+import org.batfish.datamodel.flow.Accept;
+import org.batfish.datamodel.flow.ForwardOutInterface;
+import org.batfish.datamodel.flow.OriginatingSessionScope;
+import org.batfish.datamodel.flow.PostNatFibLookup;
+import org.batfish.symbolic.state.OriginateVrf;
+import org.batfish.symbolic.state.PreInInterface;
+import org.batfish.symbolic.state.PreOutEdgePostNat;
+import org.batfish.symbolic.state.StateExpr;
+import org.batfish.symbolic.state.VrfAccept;
+import org.junit.Before;
+import org.junit.Test;
+
+/** Tests for {@link BDDReachabilityAnalysisSessionFactory}. */
+public class BDDReachabilityAnalysisSessionFactoryTest {
+  private static final String FW = "fw";
+  private static final String R1 = "r1";
+  private static final String R2 = "r2";
+  private static final String R3 = "r3";
+
+  // Just used for PreOutEdgePostNat on FW
+  private static final String BORDER = "border";
+  private static final String BORDER_IFACE = "BORDER_IFACE";
+
+  // interface/vrf names
+  private static final String R1I1 = "R1I1";
+  private static final String R2I1 = "R2I1";
+  private static final String R3I1 = "R3I1";
+
+  private static final String FW_VRF = "FW_VRF";
+  private static final String FWI1 = "FWI1";
+  private static final String FWI2 = "FWI2";
+  private static final String FWI3 = "FWI3";
+
+  // next hops
+  private static final NodeInterfacePair NEXT_HOP_R1I1 = NodeInterfacePair.of(R1, R1I1);
+  private static final NodeInterfacePair NEXT_HOP_R2I1 = NodeInterfacePair.of(R2, R2I1);
+
+  // transformation transitions
+  private static final Transition FWI1_REVERSE_TRANSFORMATION = new MockTransition(FWI1);
+  private static final Transition FWI2_REVERSE_TRANSFORMATION = new MockTransition(FWI2);
+  private static final Transition FWI3_REVERSE_TRANSFORMATION = new MockTransition(FWI3);
+
+  private final BDDReverseTransformationRanges _trivialReverseTransformationRanges =
+      new BDDReverseTransformationRanges() {
+        @Override
+        public @Nonnull BDD reverseIncomingTransformationRange(
+            String node,
+            String iface,
+            @Nullable String inIface,
+            @Nullable NodeInterfacePair lastHop) {
+          return _factory.one();
+        }
+
+        @Override
+        public @Nonnull BDD reverseOutgoingTransformationRange(
+            String node,
+            String iface,
+            @Nullable String inIface,
+            @Nullable NodeInterfacePair lastHop) {
+          return _factory.one();
+        }
+      };
+
+  private final BDDPacket _pkt = new BDDPacket();
+  private final BDDFactory _factory = _pkt.getFactory();
+  private final HeaderSpaceToBDD _toBDD = new HeaderSpaceToBDD(_pkt, ImmutableMap.of());
+
+  private LastHopOutgoingInterfaceManager _lastHopMgr;
+  private BDDSourceManager _fwSrcMgr;
+
+  private Map<String, Configuration> _configs;
+
+  // transformations
+  private MockBDDReverseFlowTransformationFactory _reverseFlowTransformationFactory;
+  private Transition _fwI3ToI1ReverseTransformation;
+  private Transition _fwI3ToI2ReverseTransformation;
+
+  private BDD dstBdd(Prefix prefix) {
+    return _toBDD.getDstIpSpaceToBdd().toBDD(prefix);
+  }
+
+  private BDD srcBdd(Prefix prefix) {
+    return _toBDD.getSrcIpSpaceToBdd().toBDD(prefix);
+  }
+
+  private BDD dstPortBdd(int port) {
+    return _pkt.getDstPort().value(port);
+  }
+
+  private BDD srcPortBdd(int port) {
+    return _pkt.getSrcPort().value(port);
+  }
+
+  @Before
+  public void setup() {
+    NetworkFactory nf = new NetworkFactory();
+    Configuration.Builder cb =
+        nf.configurationBuilder().setConfigurationFormat(ConfigurationFormat.CISCO_IOS);
+    Configuration fw = cb.setHostname(FW).build();
+    Configuration r1 = cb.setHostname(R1).build();
+    Configuration r2 = cb.setHostname(R2).build();
+    Configuration r3 = cb.setHostname(R3).build();
+
+    Interface.Builder ib = nf.interfaceBuilder();
+
+    // initialize R1
+    // interfaces
+    Interface r1i1;
+    {
+      Vrf vrf = nf.vrfBuilder().setOwner(r1).build();
+      ib.setOwner(r1).setVrf(vrf);
+      r1i1 = ib.setName(R1I1).build();
+    }
+
+    // initialize R2
+    Interface r2i1;
+    {
+      Vrf vrf = nf.vrfBuilder().setOwner(r2).build();
+      ib.setOwner(r2).setVrf(vrf);
+      r2i1 = ib.setName(R2I1).build();
+    }
+
+    // initialize R3
+    Interface r3i1;
+    {
+      Vrf vrf = nf.vrfBuilder().setOwner(r3).build();
+      ib.setOwner(r3).setVrf(vrf);
+      r3i1 = ib.setName(R3I1).build();
+    }
+
+    // initialize FW
+    Interface fwi1;
+    Interface fwi2;
+    {
+      Vrf vrf = nf.vrfBuilder().setName(FW_VRF).setOwner(fw).build();
+      vrf.setFirewallSessionVrfInfo(new FirewallSessionVrfInfo(true));
+      ib.setOwner(fw).setVrf(vrf);
+      fwi1 = ib.setName(FWI1).setAddress(ConcreteInterfaceAddress.parse("1.1.1.1/24")).build();
+      fwi2 = ib.setName(FWI2).setAddress(ConcreteInterfaceAddress.parse("2.2.2.2/24")).build();
+      Interface fwi3 =
+          ib.setName(FWI3).setAddress(ConcreteInterfaceAddress.parse("3.3.3.3/24")).build();
+
+      // Create sessions for flows exiting FW:I3
+      fwi3.setFirewallSessionInterfaceInfo(
+          new FirewallSessionInterfaceInfo(
+              Action.FORWARD_OUT_IFACE, ImmutableSet.of(FWI3), null, null));
+    }
+
+    _configs = ImmutableMap.of(FW, fw, R1, r1, R2, r2, R3, r3);
+    _fwSrcMgr = BDDSourceManager.forInterfaces(_pkt, ImmutableSet.of(FWI1, FWI2, FWI3));
+
+    // temporarily add a FirewallSessionInterfaceInfo to FW to force its last hops to be tracked
+    fwi1.setFirewallSessionInterfaceInfo(
+        new FirewallSessionInterfaceInfo(
+            Action.FORWARD_OUT_IFACE, ImmutableList.of(FWI2), null, null));
+    Set<org.batfish.datamodel.Edge> edges =
+        ImmutableSet.of(
+            // R1:I1 -- FW:I1
+            new org.batfish.datamodel.Edge(r1i1, fwi1),
+            new org.batfish.datamodel.Edge(fwi1, r1i1),
+            // R2:I1 -- FW:I1
+            new org.batfish.datamodel.Edge(r2i1, fwi1),
+            new org.batfish.datamodel.Edge(fwi1, r2i1),
+            // R3:I1 -- FW:I2
+            new org.batfish.datamodel.Edge(r3i1, fwi2),
+            new org.batfish.datamodel.Edge(fwi2, r3i1));
+    _lastHopMgr = new LastHopOutgoingInterfaceManager(_pkt, _configs, edges);
+
+    // reverse transformations
+    _fwI3ToI1ReverseTransformation =
+        compose(FWI3_REVERSE_TRANSFORMATION, FWI1_REVERSE_TRANSFORMATION);
+    _fwI3ToI2ReverseTransformation =
+        compose(FWI3_REVERSE_TRANSFORMATION, FWI2_REVERSE_TRANSFORMATION);
+    _reverseFlowTransformationFactory =
+        new MockBDDReverseFlowTransformationFactory(
+            // incoming transformations
+            ImmutableMap.of(
+                NodeInterfacePair.of(FW, FWI1),
+                FWI1_REVERSE_TRANSFORMATION,
+                NodeInterfacePair.of(FW, FWI2),
+                FWI2_REVERSE_TRANSFORMATION),
+            // outgoing transformations
+            ImmutableMap.of(NodeInterfacePair.of(FW, FWI3), FWI3_REVERSE_TRANSFORMATION));
+  }
+
+  private Map<String, List<BDDFirewallSessionTraceInfo>> computeInitializedSessions(
+      Map<StateExpr, BDD> forwardReachableSets) {
+    return computeInitializedSessions(forwardReachableSets, _trivialReverseTransformationRanges);
+  }
+
+  private Map<String, List<BDDFirewallSessionTraceInfo>> computeInitializedSessions(
+      Map<StateExpr, BDD> forwardReachableSets,
+      BDDReverseTransformationRanges transformationRanges) {
+
+    return computeInitializedSesssions(
+        _pkt,
+        _configs,
+        ImmutableMap.of(FW, _fwSrcMgr, R1, _fwSrcMgr, R2, _fwSrcMgr),
+        _lastHopMgr,
+        forwardReachableSets,
+        _reverseFlowTransformationFactory,
+        transformationRanges);
+  }
+
+  /** Transition class that is only used to test how session transformations are built. */
+  private static final class MockTransition implements Transition {
+    private final String _id;
+
+    private MockTransition(String id) {
+      _id = id;
+    }
+
+    @Override
+    public BDD transitForward(BDD bdd) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public BDD transitBackward(BDD bdd) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public <T> T accept(TransitionVisitor<T> visitor) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof MockTransition)) {
+        return false;
+      }
+      MockTransition that = (MockTransition) o;
+      return Objects.equals(_id, that._id);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hashCode(_id);
+    }
+  }
+
+  @Test
+  public void testSinglePath() {
+    // One path: R1:I1 -> FW:I1 -- FW:I3 -> BORDER_IFACE:BORDER
+
+    // R1:I1 -> FW:I1
+    BDD inBdd =
+        _lastHopMgr
+            .getLastHopOutgoingInterfaceBdd(R1, R1I1, FW, FWI1)
+            .and(_fwSrcMgr.getSourceInterfaceBDD(FWI1));
+
+    Prefix routePrefix = Prefix.parse("1.0.0.0/8");
+    BDD fwdRouteBdd = dstBdd(routePrefix);
+    BDD outBdd = inBdd.and(fwdRouteBdd);
+
+    BDD sessionFlows = srcBdd(routePrefix);
+
+    Map<StateExpr, BDD> forwardReachableSets =
+        ImmutableMap.of(
+            new PreInInterface(FW, FWI1), inBdd,
+            new PreOutEdgePostNat(FW, FWI3, BORDER, BORDER_IFACE), outBdd);
+
+    Map<String, List<BDDFirewallSessionTraceInfo>> sessions =
+        computeInitializedSessions(forwardReachableSets);
+
+    assertThat(sessions.keySet(), contains(FW));
+    List<BDDFirewallSessionTraceInfo> fwSessions = sessions.get(FW);
+    assertThat(fwSessions, hasSize(1));
+    BDDFirewallSessionTraceInfo fwSession = fwSessions.get(0);
+
+    assertThat(fwSession, hasHostname(FW));
+    assertThat(fwSession, hasIncomingInterfaces(contains(FWI3)));
+    assertThat(fwSession, hasAction(new ForwardOutInterface(FWI1, NodeInterfacePair.of(R1, R1I1))));
+    assertThat(fwSession, hasSessionFlows(sessionFlows));
+    assertThat(fwSession, hasTransformation(_fwI3ToI1ReverseTransformation));
+  }
+
+  @Test
+  public void testGetSessionFlows() {
+    Prefix sourcePrefix = Prefix.parse("2.0.0.0/8");
+    Prefix destPrefix = Prefix.parse("1.0.0.0/8");
+    BDD tcp = _pkt.getIpProtocol().value(IpProtocol.TCP);
+    BDD outBdd =
+        _factory.andAll(
+            dstBdd(destPrefix), // dst IP constraint
+            srcBdd(sourcePrefix),
+            dstPortBdd(1),
+            srcPortBdd(2),
+            tcp,
+            // everything below will be erased
+            _factory.ithVar(0), // unallocated variable
+            _lastHopMgr.getLastHopOutgoingInterfaceBdd(R1, R1I1, FW, FWI1),
+            _fwSrcMgr.getSourceInterfaceBDD(FWI1),
+            _pkt.getTcpCwr(),
+            _pkt.getDscp().value(0),
+            _pkt.getEcn().value(0));
+
+    BDD sessionFlows =
+        _factory.andAll(
+            srcBdd(destPrefix), dstBdd(sourcePrefix), dstPortBdd(2), srcPortBdd(1), tcp);
+
+    BDDReachabilityAnalysisSessionFactory sessionFactory =
+        new BDDReachabilityAnalysisSessionFactory(
+            _pkt,
+            // None of the inputs below are needed for getSessionBdd
+            ImmutableMap.of(),
+            ImmutableMap.of(),
+            _lastHopMgr,
+            ImmutableMap.of(),
+            _reverseFlowTransformationFactory,
+            _trivialReverseTransformationRanges);
+    assertEquals(sessionFlows, sessionFactory.getSessionFlowMatchBdd(outBdd));
+  }
+
+  @Test
+  public void testDifferentLastHops() {
+    /* Two paths, different last-hops, same source interface:
+     * R1:I1 -> FW:I1 -- FW:I3 -> BORDER:BORDER_IFACE
+     * R2:I1 -> FW:I1 -- FW:I3 -> BORDER:BORDER_IFACE
+     */
+    Prefix routePrefix1 = Prefix.parse("1.0.0.0/8");
+    Prefix routePrefix2 = Prefix.parse("2.0.0.0/8");
+    Prefix routePrefix3 = Prefix.parse("3.0.0.0/8");
+    BDD fwdRouteBdd1 = dstBdd(routePrefix1);
+    BDD fwdRouteBdd2 = dstBdd(routePrefix2);
+    BDD fwdRouteBdd3 = dstBdd(routePrefix3);
+
+    BDD r1I1Flows =
+        _lastHopMgr
+            .getLastHopOutgoingInterfaceBdd(R1, R1I1, FW, FWI1)
+            .and(fwdRouteBdd1.or(fwdRouteBdd2));
+    BDD r2I1Flows =
+        _lastHopMgr
+            .getLastHopOutgoingInterfaceBdd(R2, R2I1, FW, FWI1)
+            .and(fwdRouteBdd2.or(fwdRouteBdd3));
+
+    // R1:I1 -> FW:I1  or  R1:I2 -> FW:I1
+    BDD inBdd = _fwSrcMgr.getSourceInterfaceBDD(FWI1).and(r1I1Flows.or(r2I1Flows));
+
+    // Somewhere between entering and leaving the device, the traffic is constrained to TCP
+    BDD tcp = _pkt.getIpProtocol().value(IpProtocol.TCP);
+
+    BDD outBdd = inBdd.and(tcp);
+
+    BDD r1I1SessionFlows = tcp.and(srcBdd(routePrefix1).or(srcBdd(routePrefix2)));
+    BDD r2I1SessionFlows = tcp.and(srcBdd(routePrefix2).or(srcBdd(routePrefix3)));
+
+    Map<StateExpr, BDD> forwardReachableSets =
+        ImmutableMap.of(
+            new PreInInterface(FW, FWI1), inBdd,
+            new PreOutEdgePostNat(FW, FWI3, BORDER, BORDER_IFACE), outBdd);
+
+    BDD r1I1IncomingTransformationRange = srcPortBdd(1);
+    BDD r2I1IncomingTransformationRange = srcPortBdd(2);
+
+    // give src and dst ports different values to make sure we don't mix them up
+    BDD r1I1OutgoingingTransformationRange = dstPortBdd(2);
+    BDD r2I1OutgoingingTransformationRange = dstPortBdd(1);
+
+    BDDReverseTransformationRanges transformationRanges =
+        new MockBDDReverseTransformationRanges(
+            _factory.zero(),
+            ImmutableMap.of(
+                // incoming transformation ranges
+                new Key(FW, FWI1, INCOMING, FWI1, NEXT_HOP_R1I1),
+                r1I1IncomingTransformationRange,
+                new Key(FW, FWI1, INCOMING, FWI1, NEXT_HOP_R2I1),
+                r2I1IncomingTransformationRange,
+
+                // outgoing transformation ranges
+                new Key(FW, FWI3, OUTGOING, FWI1, NEXT_HOP_R1I1),
+                r1I1OutgoingingTransformationRange,
+                new Key(FW, FWI3, OUTGOING, FWI1, NEXT_HOP_R2I1),
+                r2I1OutgoingingTransformationRange));
+
+    Map<String, List<BDDFirewallSessionTraceInfo>> sessions =
+        computeInitializedSessions(forwardReachableSets, transformationRanges);
+
+    assertThat(sessions.keySet(), contains(FW));
+    List<BDDFirewallSessionTraceInfo> fwSessions = sessions.get(FW);
+
+    assertThat(
+        fwSessions,
+        containsInAnyOrder(
+            allOf(
+                // R1:I1 -> FW:I1
+                hasHostname(FW),
+                hasIncomingInterfaces(contains(FWI3)),
+                hasAction(new ForwardOutInterface(FWI1, NEXT_HOP_R1I1)),
+                hasSessionFlows(r1I1SessionFlows),
+                hasTransformation(
+                    compose(
+                        FWI3_REVERSE_TRANSFORMATION,
+                        constraint(r1I1OutgoingingTransformationRange),
+                        FWI1_REVERSE_TRANSFORMATION,
+                        constraint(r1I1IncomingTransformationRange)))),
+            allOf(
+                // R2:I1 -> FW:I1
+                hasHostname(FW),
+                hasIncomingInterfaces(contains(FWI3)),
+                hasAction(new ForwardOutInterface(FWI1, NodeInterfacePair.of(R2, R2I1))),
+                hasSessionFlows(r2I1SessionFlows),
+                hasTransformation(
+                    compose(
+                        FWI3_REVERSE_TRANSFORMATION,
+                        constraint(r2I1OutgoingingTransformationRange),
+                        FWI1_REVERSE_TRANSFORMATION,
+                        constraint(r2I1IncomingTransformationRange))))));
+  }
+
+  @Test
+  public void testDifferentSourceInterfaces() {
+    /* two paths, difference source interfaces
+     * R1:I1 -> FW:I1 -- FW:I3 -> BORDER:BORDER_IFACE
+     * R3:I1 -> FW:I2 -- FW:I3 -> BORDER:BORDER_IFACE
+     */
+    Prefix routePrefix1 = Prefix.parse("1.0.0.0/8");
+    Prefix routePrefix2 = Prefix.parse("2.0.0.0/8");
+    Prefix routePrefix3 = Prefix.parse("3.0.0.0/8");
+    BDD fwdRouteBdd1 = dstBdd(routePrefix1);
+    BDD fwdRouteBdd2 = dstBdd(routePrefix2);
+    BDD fwdRouteBdd3 = dstBdd(routePrefix3);
+
+    BDD r1I1Flows =
+        _lastHopMgr
+            .getLastHopOutgoingInterfaceBdd(R1, R1I1, FW, FWI1)
+            .and(fwdRouteBdd1.or(fwdRouteBdd2));
+    BDD r3I1Flows =
+        _lastHopMgr
+            .getLastHopOutgoingInterfaceBdd(R3, R3I1, FW, FWI2)
+            .and(fwdRouteBdd2.or(fwdRouteBdd3));
+
+    // R1:I1 -> FW:I1
+    BDD inBdd1 = _fwSrcMgr.getSourceInterfaceBDD(FWI1).and(r1I1Flows);
+
+    // R3:I1 -> FW:I2
+    BDD inBdd2 = _fwSrcMgr.getSourceInterfaceBDD(FWI2).and(r3I1Flows);
+
+    // Somewhere between entering and leaving the device, the traffic is constrained to TCP
+    BDD tcp = _pkt.getIpProtocol().value(IpProtocol.TCP);
+    BDD outBdd = tcp.and(inBdd1.or(inBdd2));
+
+    BDD r1I1SessionFlows = tcp.and(srcBdd(routePrefix1).or(srcBdd(routePrefix2)));
+    BDD r3I1SessionFlows = tcp.and(srcBdd(routePrefix2).or(srcBdd(routePrefix3)));
+
+    Map<StateExpr, BDD> forwardReachableSets =
+        ImmutableMap.of(
+            new PreInInterface(FW, FWI1), inBdd1,
+            new PreInInterface(FW, FWI2), inBdd2,
+            new PreOutEdgePostNat(FW, FWI3, BORDER, BORDER_IFACE), outBdd);
+
+    Map<String, List<BDDFirewallSessionTraceInfo>> sessions =
+        computeInitializedSessions(forwardReachableSets, _trivialReverseTransformationRanges);
+
+    assertThat(sessions.keySet(), contains(FW));
+    List<BDDFirewallSessionTraceInfo> fwSessions = sessions.get(FW);
+
+    assertThat(
+        fwSessions,
+        containsInAnyOrder(
+            allOf(
+                // R1:I1 -> FW:I1
+                hasHostname(FW),
+                hasIncomingInterfaces(contains(FWI3)),
+                hasAction(new ForwardOutInterface(FWI1, NodeInterfacePair.of(R1, R1I1))),
+                hasSessionFlows(r1I1SessionFlows),
+                hasTransformation(_fwI3ToI1ReverseTransformation)),
+            allOf(
+                // R3:I1 -> FW:I2
+                hasHostname(FW),
+                hasIncomingInterfaces(contains(FWI3)),
+                hasAction(new ForwardOutInterface(FWI2, NodeInterfacePair.of(R3, R3I1))),
+                hasSessionFlows(r3I1SessionFlows),
+                hasTransformation(_fwI3ToI2ReverseTransformation))));
+  }
+
+  @Test
+  public void testOriginatingFromDevice() {
+    // FW -- FW:I3 -> BORDER_IFACE:BORDER
+    BDD inBdd = _fwSrcMgr.getOriginatingFromDeviceBDD();
+
+    Prefix routePrefix = Prefix.parse("1.0.0.0/8");
+    BDD fwdRouteBdd = dstBdd(routePrefix);
+    BDD outBdd = inBdd.and(fwdRouteBdd);
+
+    BDD sessionFlows = srcBdd(routePrefix);
+
+    Map<StateExpr, BDD> forwardReachableSets =
+        ImmutableMap.of(
+            new OriginateVrf(FW, Configuration.DEFAULT_VRF_NAME), inBdd,
+            new PreOutEdgePostNat(FW, FWI3, BORDER, BORDER_IFACE), outBdd);
+
+    Map<String, List<BDDFirewallSessionTraceInfo>> sessions =
+        computeInitializedSessions(forwardReachableSets, _trivialReverseTransformationRanges);
+
+    assertThat(sessions.keySet(), contains(FW));
+    List<BDDFirewallSessionTraceInfo> fwSessions = sessions.get(FW);
+    assertThat(fwSessions, hasSize(1));
+    BDDFirewallSessionTraceInfo fwSession = fwSessions.get(0);
+
+    assertThat(fwSession, hasHostname(FW));
+    assertThat(fwSession, hasIncomingInterfaces(contains(FWI3)));
+    assertThat(fwSession, hasAction(Accept.INSTANCE));
+    assertThat(fwSession, hasSessionFlows(sessionFlows));
+    assertThat(fwSession, hasTransformation(FWI3_REVERSE_TRANSFORMATION));
+  }
+
+  @Test
+  public void testNoLastHopOutgoingInterface() {
+    // FW:I1 -- FW:I3 -> BORDER_IFACE:BORDER
+    BDD inBdd =
+        _fwSrcMgr
+            .getSourceInterfaceBDD(FWI1)
+            .and(_lastHopMgr.getNoLastHopOutgoingInterfaceBdd(FW, FWI1));
+
+    Prefix routePrefix = Prefix.parse("1.0.0.0/8");
+    BDD fwdRouteBdd = dstBdd(routePrefix);
+    BDD outBdd = inBdd.and(fwdRouteBdd);
+
+    BDD sessionFlows = srcBdd(routePrefix);
+
+    Map<StateExpr, BDD> forwardReachableSets =
+        ImmutableMap.of(
+            new OriginateVrf(FW, Configuration.DEFAULT_VRF_NAME), inBdd,
+            new PreOutEdgePostNat(FW, FWI3, BORDER, BORDER_IFACE), outBdd);
+
+    Map<String, List<BDDFirewallSessionTraceInfo>> sessions =
+        computeInitializedSessions(forwardReachableSets, _trivialReverseTransformationRanges);
+
+    assertThat(sessions.keySet(), contains(FW));
+    List<BDDFirewallSessionTraceInfo> fwSessions = sessions.get(FW);
+    assertThat(fwSessions, hasSize(1));
+    BDDFirewallSessionTraceInfo fwSession = fwSessions.get(0);
+
+    assertThat(fwSession, hasHostname(FW));
+    assertThat(fwSession, hasIncomingInterfaces(contains(FWI3)));
+    assertThat(fwSession, hasAction(new ForwardOutInterface(FWI1, null)));
+    assertThat(fwSession, hasSessionFlows(sessionFlows));
+    assertThat(fwSession, hasTransformation(_fwI3ToI1ReverseTransformation));
+  }
+
+  @Test
+  public void testSinglePath_inbound() {
+    // Path:  R1:I1 -> FW:I1 -> FW
+
+    // R1:I1 -> FW:I1
+    BDD inBdd =
+        _lastHopMgr
+            .getLastHopOutgoingInterfaceBdd(R1, R1I1, FW, FWI1)
+            .and(_fwSrcMgr.getSourceInterfaceBDD(FWI1));
+
+    Prefix routePrefix = Prefix.parse("1.0.0.0/8");
+    BDD fwdRouteBdd = dstBdd(routePrefix);
+    BDD acceptBdd = inBdd.and(fwdRouteBdd);
+
+    Map<StateExpr, BDD> forwardReachableSets =
+        ImmutableMap.of(new VrfAccept(FW, FW_VRF), acceptBdd);
+
+    Map<String, List<BDDFirewallSessionTraceInfo>> sessions =
+        computeInitializedSessions(forwardReachableSets);
+
+    assertThat(sessions.keySet(), contains(FW));
+    assertThat(
+        sessions.get(FW),
+        contains(
+            allOf(
+                hasHostname(FW),
+                hasSessionScope(new OriginatingSessionScope(FW_VRF)),
+                hasAction(PostNatFibLookup.INSTANCE),
+                hasSessionFlows(srcBdd(routePrefix)),
+                hasTransformation(FWI1_REVERSE_TRANSFORMATION))));
+  }
+
+  @Test
+  public void testDifferentLastHops_inbound() {
+    /* Two paths, different last-hops, same source interface:
+     * R1:I1 -> FW:I1 -- FW
+     * R2:I1 -> FW:I1 -- FW
+     */
+    Prefix routePrefix1 = Prefix.parse("1.0.0.0/8");
+    Prefix routePrefix2 = Prefix.parse("2.0.0.0/8");
+    Prefix routePrefix3 = Prefix.parse("3.0.0.0/8");
+    BDD fwdRouteBdd1 = dstBdd(routePrefix1);
+    BDD fwdRouteBdd2 = dstBdd(routePrefix2);
+    BDD fwdRouteBdd3 = dstBdd(routePrefix3);
+
+    BDD r1I1Flows =
+        _lastHopMgr
+            .getLastHopOutgoingInterfaceBdd(R1, R1I1, FW, FWI1)
+            .and(fwdRouteBdd1.or(fwdRouteBdd2));
+    BDD r2I1Flows =
+        _lastHopMgr
+            .getLastHopOutgoingInterfaceBdd(R2, R2I1, FW, FWI1)
+            .and(fwdRouteBdd2.or(fwdRouteBdd3));
+
+    // R1:I1 -> FW:I1  or  R2:I1 -> FW:I1; and somewhere between entering and being accepted, the
+    // traffic is constrained to TCP
+    BDD tcp = _pkt.getIpProtocol().value(IpProtocol.TCP);
+    BDD acceptBdd = _fwSrcMgr.getSourceInterfaceBDD(FWI1).and(r1I1Flows.or(r2I1Flows)).and(tcp);
+
+    Map<StateExpr, BDD> forwardReachableSets =
+        ImmutableMap.of(new VrfAccept(FW, FW_VRF), acceptBdd);
+
+    BDD r1I1IncomingTransformationRange = srcPortBdd(1);
+    BDD r2I1IncomingTransformationRange = srcPortBdd(2);
+
+    BDDReverseTransformationRanges transformationRanges =
+        new MockBDDReverseTransformationRanges(
+            _factory.zero(),
+            ImmutableMap.of(
+                // incoming transformation ranges
+                new Key(FW, FWI1, INCOMING, FWI1, NEXT_HOP_R1I1),
+                r1I1IncomingTransformationRange,
+                new Key(FW, FWI1, INCOMING, FWI1, NEXT_HOP_R2I1),
+                r2I1IncomingTransformationRange));
+
+    Map<String, List<BDDFirewallSessionTraceInfo>> sessions =
+        computeInitializedSessions(forwardReachableSets, transformationRanges);
+
+    assertThat(sessions.keySet(), contains(FW));
+    List<BDDFirewallSessionTraceInfo> fwSessions = sessions.get(FW);
+
+    BDD r1I1SessionFlows = tcp.and(srcBdd(routePrefix1).or(srcBdd(routePrefix2)));
+    BDD r2I1SessionFlows = tcp.and(srcBdd(routePrefix2).or(srcBdd(routePrefix3)));
+    assertThat(
+        fwSessions,
+        containsInAnyOrder(
+            allOf(
+                // R1:I1 -> FW:I1
+                hasHostname(FW),
+                hasSessionScope(new OriginatingSessionScope(FW_VRF)),
+                hasAction(PostNatFibLookup.INSTANCE),
+                hasSessionFlows(r1I1SessionFlows),
+                hasTransformation(
+                    compose(
+                        FWI1_REVERSE_TRANSFORMATION, constraint(r1I1IncomingTransformationRange)))),
+            allOf(
+                // R2:I1 -> FW:I1
+                hasHostname(FW),
+                hasSessionScope(new OriginatingSessionScope(FW_VRF)),
+                hasAction(PostNatFibLookup.INSTANCE),
+                hasSessionFlows(r2I1SessionFlows),
+                hasTransformation(
+                    compose(
+                        FWI1_REVERSE_TRANSFORMATION,
+                        constraint(r2I1IncomingTransformationRange))))));
+  }
+
+  @Test
+  public void testDifferentSourceInterfaces_inbound() {
+    /* two paths, different source interfaces
+     * R1:I1 -> FW:I1 -- FW
+     * R3:I1 -> FW:I2 -- FW
+     */
+    Prefix routePrefix1 = Prefix.parse("1.0.0.0/8");
+    Prefix routePrefix2 = Prefix.parse("2.0.0.0/8");
+    Prefix routePrefix3 = Prefix.parse("3.0.0.0/8");
+    BDD fwdRouteBdd1 = dstBdd(routePrefix1);
+    BDD fwdRouteBdd2 = dstBdd(routePrefix2);
+    BDD fwdRouteBdd3 = dstBdd(routePrefix3);
+
+    BDD r1I1Flows =
+        _lastHopMgr
+            .getLastHopOutgoingInterfaceBdd(R1, R1I1, FW, FWI1)
+            .and(fwdRouteBdd1.or(fwdRouteBdd2));
+    BDD r3I1Flows =
+        _lastHopMgr
+            .getLastHopOutgoingInterfaceBdd(R3, R3I1, FW, FWI2)
+            .and(fwdRouteBdd2.or(fwdRouteBdd3));
+
+    // R1:I1 -> FW:I1
+    BDD inBdd1 = _fwSrcMgr.getSourceInterfaceBDD(FWI1).and(r1I1Flows);
+
+    // R3:I1 -> FW:I2
+    BDD inBdd2 = _fwSrcMgr.getSourceInterfaceBDD(FWI2).and(r3I1Flows);
+
+    // R1:I1 -> FW:I1  or  R3:I1 -> FW:I2; and somewhere between entering and being accepted, the
+    // traffic is constrained to TCP
+    BDD tcp = _pkt.getIpProtocol().value(IpProtocol.TCP);
+    BDD acceptBdd = tcp.and(inBdd1.or(inBdd2));
+
+    Map<StateExpr, BDD> forwardReachableSets =
+        ImmutableMap.of(new VrfAccept(FW, FW_VRF), acceptBdd);
+
+    Map<String, List<BDDFirewallSessionTraceInfo>> sessions =
+        computeInitializedSessions(forwardReachableSets, _trivialReverseTransformationRanges);
+
+    assertThat(sessions.keySet(), contains(FW));
+    List<BDDFirewallSessionTraceInfo> fwSessions = sessions.get(FW);
+
+    BDD r1I1SessionFlows = tcp.and(srcBdd(routePrefix1).or(srcBdd(routePrefix2)));
+    BDD r3I1SessionFlows = tcp.and(srcBdd(routePrefix2).or(srcBdd(routePrefix3)));
+    assertThat(
+        fwSessions,
+        containsInAnyOrder(
+            allOf(
+                // R1:I1 -> FW:I1
+                hasHostname(FW),
+                hasSessionScope(new OriginatingSessionScope(FW_VRF)),
+                hasAction(PostNatFibLookup.INSTANCE),
+                hasSessionFlows(r1I1SessionFlows),
+                hasTransformation(FWI1_REVERSE_TRANSFORMATION)),
+            allOf(
+                // R3:I1 -> FW:I2
+                hasHostname(FW),
+                hasSessionScope(new OriginatingSessionScope(FW_VRF)),
+                hasAction(PostNatFibLookup.INSTANCE),
+                hasSessionFlows(r3I1SessionFlows),
+                hasTransformation(FWI2_REVERSE_TRANSFORMATION))));
+  }
+
+  @Test
+  public void testNoLastHopOutgoingInterface_inbound() {
+    // FW:I1 -- FW
+    BDD inBdd =
+        _fwSrcMgr
+            .getSourceInterfaceBDD(FWI1)
+            .and(_lastHopMgr.getNoLastHopOutgoingInterfaceBdd(FW, FWI1));
+
+    Prefix routePrefix = Prefix.parse("1.0.0.0/8");
+    BDD fwdRouteBdd = dstBdd(routePrefix);
+    BDD acceptBdd = inBdd.and(fwdRouteBdd);
+
+    Map<StateExpr, BDD> forwardReachableSets =
+        ImmutableMap.of(new VrfAccept(FW, FW_VRF), acceptBdd);
+
+    Map<String, List<BDDFirewallSessionTraceInfo>> sessions =
+        computeInitializedSessions(forwardReachableSets, _trivialReverseTransformationRanges);
+
+    assertThat(sessions.keySet(), contains(FW));
+    assertThat(
+        sessions.get(FW),
+        contains(
+            allOf(
+                hasHostname(FW),
+                hasSessionScope(new OriginatingSessionScope(FW_VRF)),
+                hasAction(PostNatFibLookup.INSTANCE),
+                hasSessionFlows(srcBdd(routePrefix)),
+                hasTransformation(FWI1_REVERSE_TRANSFORMATION))));
+  }
+}

@@ -23,6 +23,7 @@ import java.util.*;
 
 
 public class NodeTable implements Serializable{
+	public static int mkCount = 0;
 
 	/**
 	 * 
@@ -369,6 +370,8 @@ public class NodeTable implements Serializable{
 			grow();
 			hash = compute_hash(v,l,h); // table_size might have changed (or not if we only did a GC)
 		}
+
+		mkCount++;
 
 		// take next free node
 		curr = first_free_node;

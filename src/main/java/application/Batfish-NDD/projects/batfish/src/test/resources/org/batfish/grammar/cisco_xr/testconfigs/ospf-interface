@@ -1,0 +1,10 @@
+!RANCID-CONTENT-TYPE: cisco-xr
+hostname ospf-interface
+!
+interface Bundle-Ether201
+ ipv4 address 10.0.0.1 255.255.255.252
+!
+router ospf 2
+ router-id 10.10.10.10
+ area 0
+  interface Bundle-Ether201

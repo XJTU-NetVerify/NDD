@@ -1,0 +1,86 @@
+config system global
+    set hostname "policy_defs_refs"
+end
+config system interface
+    edit "port1"
+        set vdom "root"
+        set type physical
+        set ip 10.0.1.1/24
+    next
+    edit port2
+        set vdom "root"
+        set type physical
+        set ip 10.0.2.1/24
+    next
+    edit port3
+        set vdom "root"
+        set type physical
+        set ip 10.0.3.1/24
+    next
+end
+config system zone
+    edit zoneA
+        set interface port1
+    next
+end
+config firewall service custom
+    edit "service1"
+        set tcp-portrange 1
+    next
+    edit "service2"
+        set tcp-portrange 2
+    next
+    edit "service3"
+        set tcp-portrange 3
+    next
+end
+config firewall address
+    edit addr1
+        set subnet 10.0.1.0 255.255.255.0
+    next
+    edit addr2
+        set subnet 10.0.2.0 255.255.255.0
+    next
+    edit addr3
+        set subnet 10.0.3.0 255.255.255.0
+    next
+end
+config firewall policy
+    edit 1
+        set action accept
+        set status enable
+
+        # Undefined references
+        set srcintf UNDEFINED
+        set dstintf UNDEFINED
+        set srcaddr UNDEFINED
+        set dstaddr UNDEFINED
+        set service UNDEFINED
+
+        set srcintf zoneA port3
+        set dstintf zoneA
+        set srcaddr addr1
+        set dstaddr addr1 addr3
+        set service service1
+
+        append srcintf port2
+        append dstintf port2
+        append srcaddr addr2
+        append dstaddr addr2
+        append service service2
+    next
+    # Deleting a non-existent policy
+    delete 2
+    # Valid policy clone
+    clone 1 to 2
+    # Cloning a non-existent policy
+    clone 3 to 4
+    edit 5
+        set srcintf any
+        set dstintf any
+        set srcaddr addr2
+        set dstaddr addr2
+        set service service2
+    next
+    delete 5
+end

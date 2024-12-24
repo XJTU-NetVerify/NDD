@@ -1,0 +1,9 @@
+!BATFISH_FORMAT: a10_acos
+hostname static_route
+!
+ip route 10.100.0.0 /16 10.100.4.2 description "baz" 255
+ip route 10.100.0.0 /16 10.100.4.3
+! Overwrites previous line
+ip route 10.100.0.0 /16 10.100.4.3 1 description "foobar"
+ip route 10.100.1.0 /24 10.100.4.4
+!

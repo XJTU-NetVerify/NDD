@@ -1,0 +1,73 @@
+{
+    "class": "org.batfish.question.routes.RoutesQuestion",
+    "differential": false,
+    "instance": {
+        "description": "Returns routes in the BGP RIB.",
+        "instanceName": "bgpRib",
+        "longDescription": "Shows BGP routes for specified VRF and node(s). This question is not available in Batfish containers on dockerhub prior to March 29, 2021.",
+        "orderedVariableNames": [
+            "nodes",
+            "network",
+            "prefixMatchType",
+            "vrfs",
+            "status"
+        ],
+        "tags": [
+            "dataplane",
+            "routing"
+        ],
+        "variables": {
+            "nodes": {
+                "description": "Examine routes on nodes matching this specifier",
+                "type": "nodeSpec",
+                "optional": true,
+                "displayName": "Nodes"
+            },
+            "vrfs": {
+                "description": "Examine routes on VRFs matching this name or regex",
+                "type": "vrf",
+                "optional": true,
+                "displayName": "VRFs"
+            },
+            "network": {
+                "description": "Examine routes for networks matching this prefix",
+                "type": "prefix",
+                "optional": true,
+                "displayName": "Network"
+            },
+            "prefixMatchType": {
+                "description": "Use this prefix matching criterion: EXACT, LONGEST_PREFIX_MATCH, LONGER_PREFIXES, SHORTER_PREFIXES",
+                "optional": true,
+                "type": "string",
+                "value": "EXACT",
+                "values": [
+                    {
+                        "name": "EXACT"
+                    },
+                    {
+                        "name": "LONGEST_PREFIX_MATCH"
+                    },
+                    {
+                        "name": "LONGER_PREFIXES"
+                    },
+                    {
+                        "name": "SHORTER_PREFIXES"
+                    }
+                ],
+                "displayName": "Prefix match type"
+            },
+            "status": {
+               "description": "Examine routes whose status matches this specifier",
+               "type": "bgpRouteStatusSpec",
+               "optional": true,
+               "displayName": "Status"
+            }
+        }
+    },
+    "network": "${network}",
+    "prefixMatchType": "${prefixMatchType}",
+    "nodes": "${nodes}",
+    "vrfs": "${vrfs}",
+    "rib": "bgp",
+    "bgpRouteStatus": "${status}"
+}

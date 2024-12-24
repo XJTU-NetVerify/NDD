@@ -1,0 +1,3330 @@
+package org.batfish.grammar.f5_bigip_structured;
+
+import static com.google.common.base.Preconditions.checkArgument;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.BGP_NEIGHBOR;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.BGP_PROCESS;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.DATA_GROUP_EXTERNAL;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.DATA_GROUP_INTERNAL;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.DEVICE;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.DEVICE_GROUP;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.HA_GROUP;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.INTERFACE;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.MONITOR;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.MONITOR_DNS;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.MONITOR_GATEWAY_ICMP;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.MONITOR_HTTP;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.MONITOR_HTTPS;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.MONITOR_LDAP;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.MONITOR_TCP;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.NODE;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PERSISTENCE;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PERSISTENCE_COOKIE;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PERSISTENCE_SOURCE_ADDR;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PERSISTENCE_SSL;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.POOL;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PREFIX_LIST;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_ANALYTICS;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_CERTIFICATE_AUTHORITY;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_CLASSIFICATION;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_CLIENT_LDAP;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_CLIENT_SSL;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_DHCPV4;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_DHCPV6;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_DIAMETER;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_DNS;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_FASTHTTP;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_FASTL4;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_FIX;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_FTP;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_GTP;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_HTML;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_HTTP;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_HTTP2;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_HTTP_COMPRESSION;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_HTTP_PROXY_CONNECT;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_ICAP;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_ILX;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_IPOTHER;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_IPSECALG;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_MAP_T;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_MQTT;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_NETFLOW;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_OCSP_STAPLING_PARAMS;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_ONE_CONNECT;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_PCP;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_PPTP;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_QOE;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_RADIUS;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_REQUEST_ADAPT;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_REQUEST_LOG;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_RESPONSE_ADAPT;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_REWRITE;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_RTSP;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_SCTP;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_SERVER_LDAP;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_SERVER_SSL;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_SIP;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_SMTPS;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_SOCKS;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_SPLITSESSIONCLIENT;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_SPLITSESSIONSERVER;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_STATISTICS;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_STREAM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_TCP;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_TCP_ANALYTICS;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_TFTP;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_TRAFFIC_ACCELERATION;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_UDP;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_WEBSOCKET;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_WEB_ACCELERATION;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_WEB_SECURITY;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.PROFILE_XML;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.ROUTE;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.ROUTE_MAP;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.RULE;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.SELF;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.SNAT;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.SNATPOOL;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.SNAT_TRANSLATION;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.TRAFFIC_GROUP;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.TRUNK;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.VIRTUAL;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.VIRTUAL_ADDRESS;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.VLAN;
+import static org.batfish.representation.f5_bigip.F5BigipStructureType.VLAN_MEMBER_INTERFACE;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.BGP_ADDRESS_FAMILY_REDISTRIBUTE_KERNEL_ROUTE_MAP;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.BGP_NEIGHBOR_IPV4_ROUTE_MAP_OUT;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.BGP_NEIGHBOR_IPV6_ROUTE_MAP_OUT;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.BGP_NEIGHBOR_SELF_REFERENCE;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.BGP_NEIGHBOR_UPDATE_SOURCE;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.BGP_PROCESS_SELF_REFERENCE;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.DATA_GROUP_EXTERNAL_SELF_REFERENCE;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.DATA_GROUP_INTERNAL_SELF_REFERENCE;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.DEVICE_GROUP_DEVICE;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.HA_GROUP_POOL;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.HA_GROUP_TRUNK;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.INTERFACE_SELF_REFERENCE;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.MONITOR_DNS_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.MONITOR_GATEWAY_ICMP_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.MONITOR_HTTPS_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.MONITOR_HTTPS_SSL_PROFILE;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.MONITOR_HTTP_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.MONITOR_LDAP_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.MONITOR_TCP_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PERSISTENCE_COOKIE_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PERSISTENCE_SOURCE_ADDR_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PERSISTENCE_SSL_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.POOL_MEMBER;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.POOL_MONITOR;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_ANALYTICS_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_CERTIFICATE_AUTHORITY_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_CLASSIFICATION_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_CLIENT_LDAP_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_CLIENT_SSL_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_DHCPV4_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_DHCPV6_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_DIAMETER_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_DNS_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_FASTHTTP_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_FASTL4_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_FIX_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_FTP_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_GTP_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_HTML_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_HTTP2_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_HTTP_COMPRESSION_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_HTTP_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_HTTP_PROXY_CONNECT_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_ICAP_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_ILX_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_IPOTHER_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_IPSECALG_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_MAP_T_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_MQTT_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_NETFLOW_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_OCSP_STAPLING_PARAMS_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_ONE_CONNECT_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_PCP_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_PPTP_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_QOE_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_RADIUS_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_REQUEST_ADAPT_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_REQUEST_LOG_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_RESPONSE_ADAPT_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_REWRITE_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_RTSP_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_SCTP_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_SERVER_LDAP_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_SERVER_SSL_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_SIP_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_SMTPS_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_SOCKS_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_SPLITSESSIONCLIENT_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_SPLITSESSIONSERVER_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_STATISTICS_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_STREAM_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_TCP_ANALYTICS_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_TCP_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_TFTP_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_TRAFFIC_ACCELERATION_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_UDP_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_WEBSOCKET_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_WEB_ACCELERATION_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_WEB_SECURITY_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.PROFILE_XML_DEFAULTS_FROM;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.ROUTE_MAP_MATCH_IPV4_ADDRESS_PREFIX_LIST;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.ROUTE_SELF_REFERENCE;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.SELF_SELF_REFERENCE;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.SELF_VLAN;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.SNATPOOL_MEMBERS_MEMBER;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.SNAT_SELF_REFERENCE;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.SNAT_SNATPOOL;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.SNAT_VLANS_VLAN;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.TRAFFIC_GROUP_HA_GROUP;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.TRUNK_INTERFACE;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.TRUST_DOMAIN_CA_DEVICE;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.TRUST_DOMAIN_TRUST_GROUP;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.VIRTUAL_DESTINATION;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.VIRTUAL_PERSIST_PERSISTENCE;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.VIRTUAL_POOL;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.VIRTUAL_PROFILE;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.VIRTUAL_RULES_RULE;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.VIRTUAL_SELF_REFERENCE;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.VIRTUAL_SOURCE_ADDRESS_TRANSLATION_POOL;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.VIRTUAL_VLANS_VLAN;
+import static org.batfish.representation.f5_bigip.F5BigipStructureUsage.VLAN_INTERFACE;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
+import java.util.Arrays;
+import java.util.Objects;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import javax.annotation.ParametersAreNonnullByDefault;
+import org.antlr.v4.runtime.ParserRuleContext;
+import org.antlr.v4.runtime.Token;
+import org.antlr.v4.runtime.tree.ErrorNode;
+import org.batfish.common.BatfishException;
+import org.batfish.common.Warnings;
+import org.batfish.common.Warnings.ParseWarning;
+import org.batfish.common.util.BatfishObjectMapper;
+import org.batfish.datamodel.ConcreteInterfaceAddress;
+import org.batfish.datamodel.Ip;
+import org.batfish.datamodel.Ip6;
+import org.batfish.datamodel.IpProtocol;
+import org.batfish.datamodel.LineAction;
+import org.batfish.datamodel.MacAddress;
+import org.batfish.datamodel.Prefix;
+import org.batfish.datamodel.Prefix6;
+import org.batfish.datamodel.SubRange;
+import org.batfish.datamodel.bgp.community.StandardCommunity;
+import org.batfish.datamodel.vendor_family.f5_bigip.DeviceGroupType;
+import org.batfish.datamodel.vendor_family.f5_bigip.RouteAdvertisementMode;
+import org.batfish.grammar.BatfishCombinedParser;
+import org.batfish.grammar.ParseTreePrettyPrinter;
+import org.batfish.grammar.SilentSyntaxListener;
+import org.batfish.grammar.UnrecognizedLineToken;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Bundle_speedContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Cm_deviceContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Cm_device_groupContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Cm_keyContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Cm_traffic_groupContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Cm_trust_domainContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Cmd_base_macContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Cmd_certContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Cmd_configsync_ipContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Cmd_hostnameContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Cmd_keyContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Cmd_management_ipContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Cmd_self_deviceContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Cmdg_auto_syncContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Cmdg_hiddenContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Cmdg_network_failoverContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Cmdg_typeContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Cmdgd_deviceContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Cmdgdd_set_sync_leaderContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Cmdua_addressContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Cmduaa_effective_ipContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Cmduaa_effective_portContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Cmduaa_ipContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Cmduaa_portContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Cmtd_ca_certContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Cmtd_ca_cert_bundleContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Cmtd_ca_devicesContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Cmtd_trust_groupContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Cmtg_ha_groupContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Cmtg_macContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Cmtg_unit_idContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Device_group_typeContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.F5_bigip_structured_configurationContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.IgnoredContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Imish_chunkContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Ip_addressContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Ip_address_portContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Ip_prefixContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Ip_protocolContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Ipv6_addressContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Ipv6_address_portContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Ipv6_prefixContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.L_nodeContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.L_poolContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.L_ruleContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.L_snatContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.L_snat_translationContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.L_snatpoolContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.L_virtualContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.L_virtual_addressContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Ldg_externalContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Ldg_internalContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lm_dnsContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lm_gateway_icmpContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lm_httpContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lm_httpsContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lm_ldapContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lm_tcpContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lmd_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lmg_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lmh_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lmhs_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lmhs_ssl_profileContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lml_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lmt_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Ln_address6Context;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Ln_addressContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lp_descriptionContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lp_monitorContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lper_cookieContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lper_cookie_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lper_source_addrContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lper_sslContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lpersa_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lperss_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lpm_memberContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lpmm_address6Context;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lpmm_addressContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lpmm_descriptionContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_analyticsContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_analytics_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_certificate_authorityContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_certificate_authority_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_classificationContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_classification_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_client_ldapContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_client_ldap_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_client_sslContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_client_ssl_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_dhcpv4Context;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_dhcpv4_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_dhcpv6Context;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_dhcpv6_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_diameterContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_diameter_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_dnsContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_dns_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_fasthttpContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_fasthttp_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_fastl4Context;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_fastl4_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_fixContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_fix_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_ftpContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_ftp_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_gtpContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_gtp_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_htmlContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_html_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_http2Context;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_http2_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_httpContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_http_compressionContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_http_compression_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_http_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_http_proxy_connectContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_http_proxy_connect_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_icapContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_icap_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_ilxContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_ilx_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_ipotherContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_ipother_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_ipsecalgContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_ipsecalg_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_map_tContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_map_t_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_mqttContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_mqtt_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_netflowContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_netflow_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_ocsp_stapling_paramsContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_ocsp_stapling_params_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_one_connectContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_one_connect_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_pcpContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_pcp_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_pptpContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_pptp_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_qoeContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_qoe_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_radiusContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_radius_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_request_adaptContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_request_adapt_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_request_logContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_request_log_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_response_adaptContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_response_adapt_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_rewriteContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_rewrite_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_rtspContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_rtsp_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_sctpContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_sctp_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_server_ldapContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_server_ldap_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_server_sslContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_server_ssl_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_sipContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_sip_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_smtpsContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_smtps_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_socksContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_socks_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_splitsessionclientContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_splitsessionclient_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_splitsessionserverContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_splitsessionserver_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_statisticsContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_statistics_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_streamContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_stream_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_tcpContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_tcp_analyticsContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_tcp_analytics_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_tcp_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_tftpContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_tftp_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_traffic_accelerationContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_traffic_acceleration_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_udpContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_udp_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_web_accelerationContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_web_acceleration_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_web_securityContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_web_security_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_websocketContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_websocket_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_xmlContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lprof_xml_defaults_fromContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Ls_snatpoolContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Ls_vlans_disabledContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Ls_vlans_enabledContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lso_origin6Context;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lso_originContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lspm_memberContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lst_address6Context;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lst_addressContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lsv_vlanContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lv_descriptionContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lv_destinationContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lv_disabledContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lv_enabledContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lv_ip_forwardContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lv_ip_protocolContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lv_mask6Context;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lv_maskContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lv_persistContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lv_poolContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lv_profilesContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lv_profiles_profileContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lv_rejectContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lv_source6Context;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lv_sourceContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lv_translate_addressContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lv_translate_portContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lv_vlans_disabledContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lv_vlans_enabledContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lva_address6Context;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lva_addressContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lva_arpContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lva_icmp_echoContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lva_mask6Context;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lva_maskContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lva_route_advertisementContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lvp_persistenceContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lvr_ruleContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lvsat_poolContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Lvv_vlanContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Mac_addressContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Net_interfaceContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Net_routeContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Net_route_domainContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Net_selfContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Net_self_allowContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Net_trunkContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Net_tunnelsContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Net_vlanContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Ni_bundleContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Ni_descriptionContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Ni_disabledContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Ni_enabledContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Nr_bgpContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Nr_prefix_listContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Nr_route_mapContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Nrb_local_asContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Nrb_profileContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Nrb_router_id6Context;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Nrb_router_idContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Nrbaf_ipv4Context;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Nrbaf_ipv6Context;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Nrbafcr_kernelContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Nrbafcrk_route_mapContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Nrbn_nameContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Nrbnn_descriptionContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Nrbnn_ebgp_multihopContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Nrbnn_remote_asContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Nrbnn_update_sourceContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Nrbnnaf_ipv4Context;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Nrbnnaf_ipv6Context;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Nrbnnafc_activateContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Nrbnnafcr_outContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Nreem4a_prefix_listContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Nreesc_valueContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Nroute_gw6Context;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Nroute_gwContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Nroute_network6Context;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Nroute_networkContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Nrp_route_domainContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Nrpe_entryContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Nrpee_actionContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Nrpee_prefix6Context;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Nrpee_prefixContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Nrpee_prefix_len_rangeContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Nrr_route_domainContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Nrre_entryContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Nrree_actionContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Ns_address6Context;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Ns_addressContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Ns_allow_serviceContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Ns_traffic_groupContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Ns_vlanContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Nti_interfaceContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Ntp_serversContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Nv_tagContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Nvi_interfaceContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Prefix_len_rangeContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Prefix_list_actionContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Route_advertisement_modeContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Route_map_actionContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.S_securityContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Sgs_hostnameContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Sh_active_bonusContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Shp_poolContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Shpp_weightContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Sht_trunkContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Shtt_weightContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Standard_communityContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Structure_nameContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Structure_name_with_portContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Sys_dnsContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Sys_ha_groupContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Sys_management_ipContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Sys_management_routeContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Sys_ntpContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Sys_snmpContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Uint16Context;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Unicast_address_ipContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.UnrecognizedContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Vlan_idContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.WordContext;
+import org.batfish.grammar.f5_bigip_structured.F5BigipStructuredParser.Word_portContext;
+import org.batfish.grammar.silent_syntax.SilentSyntaxCollection;
+import org.batfish.representation.f5_bigip.BgpAddressFamily;
+import org.batfish.representation.f5_bigip.BgpIpv4AddressFamily;
+import org.batfish.representation.f5_bigip.BgpNeighbor;
+import org.batfish.representation.f5_bigip.BgpNeighborAddressFamily;
+import org.batfish.representation.f5_bigip.BgpProcess;
+import org.batfish.representation.f5_bigip.BgpRedistributionPolicy;
+import org.batfish.representation.f5_bigip.BuiltinMonitor;
+import org.batfish.representation.f5_bigip.BuiltinPersistence;
+import org.batfish.representation.f5_bigip.BuiltinProfile;
+import org.batfish.representation.f5_bigip.ConcreteUnicastAddressIp;
+import org.batfish.representation.f5_bigip.Device;
+import org.batfish.representation.f5_bigip.DeviceGroup;
+import org.batfish.representation.f5_bigip.DeviceGroupDevice;
+import org.batfish.representation.f5_bigip.F5BigipConfiguration;
+import org.batfish.representation.f5_bigip.F5BigipRoutingProtocol;
+import org.batfish.representation.f5_bigip.F5BigipStructureType;
+import org.batfish.representation.f5_bigip.F5BigipStructureUsage;
+import org.batfish.representation.f5_bigip.HaGroup;
+import org.batfish.representation.f5_bigip.HaGroupPool;
+import org.batfish.representation.f5_bigip.HaGroupTrunk;
+import org.batfish.representation.f5_bigip.Interface;
+import org.batfish.representation.f5_bigip.Ipv4Origin;
+import org.batfish.representation.f5_bigip.Ipv6Origin;
+import org.batfish.representation.f5_bigip.ManagementIp;
+import org.batfish.representation.f5_bigip.Node;
+import org.batfish.representation.f5_bigip.Pool;
+import org.batfish.representation.f5_bigip.PoolMember;
+import org.batfish.representation.f5_bigip.PrefixList;
+import org.batfish.representation.f5_bigip.PrefixListEntry;
+import org.batfish.representation.f5_bigip.Route;
+import org.batfish.representation.f5_bigip.RouteMap;
+import org.batfish.representation.f5_bigip.RouteMapEntry;
+import org.batfish.representation.f5_bigip.RouteMapMatchPrefixList;
+import org.batfish.representation.f5_bigip.RouteMapSetCommunity;
+import org.batfish.representation.f5_bigip.Self;
+import org.batfish.representation.f5_bigip.Snat;
+import org.batfish.representation.f5_bigip.SnatPool;
+import org.batfish.representation.f5_bigip.SnatTranslation;
+import org.batfish.representation.f5_bigip.TrafficGroup;
+import org.batfish.representation.f5_bigip.Trunk;
+import org.batfish.representation.f5_bigip.UnicastAddress;
+import org.batfish.representation.f5_bigip.UnicastAddressIp;
+import org.batfish.representation.f5_bigip.UpdateSourceInterface;
+import org.batfish.representation.f5_bigip.Virtual;
+import org.batfish.representation.f5_bigip.VirtualAddress;
+import org.batfish.representation.f5_bigip.Vlan;
+import org.batfish.representation.f5_bigip.VlanInterface;
+
+@ParametersAreNonnullByDefault
+public class F5BigipStructuredConfigurationBuilder extends F5BigipStructuredParserBaseListener
+    implements SilentSyntaxListener {
+
+  private static int toInteger(Ip_address_portContext ctx) {
+    String text = ctx.getText();
+    return Integer.parseInt(text.substring(text.indexOf(":") + 1));
+  }
+
+  private static int toInteger(Ipv6_address_portContext ctx) {
+    String text = ctx.getText();
+    return Integer.parseInt(text.substring(text.lastIndexOf(".") + 1));
+  }
+
+  private static int toInteger(Uint16Context ctx) {
+    return Integer.parseInt(ctx.getText());
+  }
+
+  private static int toInteger(Vlan_idContext ctx) {
+    return Integer.parseInt(ctx.getText());
+  }
+
+  private static int toInteger(Word_portContext ctx) {
+    String text = ctx.getText();
+    return Integer.parseInt(text.substring(text.lastIndexOf(":") + 1));
+  }
+
+  private static @Nonnull ConcreteInterfaceAddress toInterfaceAddress(Ip_prefixContext ctx) {
+    return ConcreteInterfaceAddress.parse(ctx.getText());
+  }
+
+  private static @Nonnull Ip toIp(Ip_address_portContext ctx) {
+    String text = ctx.getText();
+    return Ip.parse(text.substring(0, text.indexOf(":")));
+  }
+
+  private static @Nonnull Ip toIp(Ip_addressContext ctx) {
+    return Ip.parse(ctx.getText());
+  }
+
+  private static @Nonnull Ip6 toIp6(Ipv6_address_portContext ctx) {
+    String text = ctx.getText();
+    return Ip6.parse(text.substring(0, text.lastIndexOf(".")));
+  }
+
+  private static @Nonnull Ip6 toIp6(Ipv6_addressContext ctx) {
+    return Ip6.parse(ctx.getText());
+  }
+
+  private static long toLong(ParserRuleContext ctx) {
+    return Long.parseUnsignedLong(ctx.getText(), 10);
+  }
+
+  private static @Nonnull String toName(Structure_name_with_portContext ctx) {
+    String unqualifiedName;
+    if (ctx.ipp != null) {
+      unqualifiedName = toIp(ctx.ipp).toString();
+    } else if (ctx.ip6p != null) {
+      unqualifiedName = toIp6(ctx.ip6p).toString();
+    } else {
+      unqualifiedName = toName(ctx.wp);
+    }
+    return ctx.partition != null
+        ? String.format("%s%s", ctx.partition.getText(), unqualifiedName)
+        : unqualifiedName;
+  }
+
+  private static @Nonnull String toName(Structure_nameContext ctx) {
+    return ctx.getText();
+  }
+
+  private static @Nonnull String toName(Word_portContext ctx) {
+    String text = ctx.getText();
+    return text.substring(0, text.lastIndexOf(":"));
+  }
+
+  private static int toPort(Structure_name_with_portContext ctx) {
+    if (ctx.ipp != null) {
+      return toInteger(ctx.ipp);
+    } else if (ctx.ip6p != null) {
+      return toInteger(ctx.ip6p);
+    } else {
+      return toInteger(ctx.wp);
+    }
+  }
+
+  private static @Nonnull Prefix toPrefix(Ip_prefixContext ctx) {
+    return Prefix.parse(ctx.getText());
+  }
+
+  private static @Nonnull Prefix6 toPrefix6(Ipv6_prefixContext ctx) {
+    return Prefix6.parse(ctx.getText());
+  }
+
+  private static @Nonnull String unquote(String text) {
+    if (text.length() < 2 || text.charAt(0) != '"' || text.charAt(text.length() - 1) != '"') {
+      // not quoted
+      return text;
+    } else {
+      return text.substring(1, text.length() - 1).replace("\\\"", "\"");
+    }
+  }
+
+  private @Nullable F5BigipConfiguration _c;
+  private @Nullable BgpAddressFamily _currentBgpAddressFamily;
+  private @Nullable BgpNeighbor _currentBgpNeighbor;
+  private @Nullable BgpNeighborAddressFamily _currentBgpNeighborAddressFamily;
+  private @Nullable BgpProcess _currentBgpProcess;
+  private @Nullable BgpRedistributionPolicy _currentBgpRedistributionPolicy;
+  private Device _currentDevice;
+  private DeviceGroup _currentDeviceGroup;
+  private DeviceGroupDevice _currentDeviceGroupDevice;
+  private HaGroup _currentHaGroup;
+  private HaGroupPool _currentHaGroupPool;
+  private HaGroupTrunk _currentHaGroupTrunk;
+  private IgnoredContext _currentIgnored;
+  private @Nullable Interface _currentInterface;
+  private @Nullable Node _currentNode;
+  private @Nullable Pool _currentPool;
+  private @Nullable PoolMember _currentPoolMember;
+  private @Nullable PrefixList _currentPrefixList;
+  private @Nullable PrefixListEntry _currentPrefixListEntry;
+  private @Nullable Route _currentRoute;
+  private @Nullable RouteMap _currentRouteMap;
+  private @Nullable RouteMapEntry _currentRouteMapEntry;
+  private @Nullable Self _currentSelf;
+  private @Nullable Snat _currentSnat;
+  private @Nullable SnatPool _currentSnatPool;
+  private @Nullable SnatTranslation _currentSnatTranslation;
+  private TrafficGroup _currentTrafficGroup;
+  private @Nullable Trunk _currentTrunk;
+  private UnicastAddress _currentUnicastAddress;
+  private @Nullable UnrecognizedContext _currentUnrecognized;
+  private @Nullable Virtual _currentVirtual;
+  private @Nullable VirtualAddress _currentVirtualAddress;
+  private @Nullable Vlan _currentVlan;
+  private @Nullable Integer _imishConfigurationLine;
+  private @Nullable Integer _imishConfigurationOffset;
+  private final @Nonnull F5BigipStructuredCombinedParser _parser;
+  private final @Nonnull String _text;
+  private final @Nonnull Warnings _w;
+  private final @Nonnull SilentSyntaxCollection _silentSyntax;
+
+  public F5BigipStructuredConfigurationBuilder(
+      F5BigipStructuredCombinedParser parser,
+      String text,
+      Warnings w,
+      SilentSyntaxCollection silentSyntax) {
+    _parser = parser;
+    _text = text;
+    _w = w;
+    _silentSyntax = silentSyntax;
+  }
+
+  @Override
+  public @Nonnull SilentSyntaxCollection getSilentSyntax() {
+    return _silentSyntax;
+  }
+
+  private @Nonnull String convErrorMessage(Class<?> type, ParserRuleContext ctx) {
+    return String.format("Could not convert to %s: %s", type.getSimpleName(), getFullText(ctx));
+  }
+
+  private @Nullable <T, U extends T> T convProblem(
+      Class<T> returnType, ParserRuleContext ctx, @Nullable U defaultReturnValue) {
+    _w.redFlag(convErrorMessage(returnType, ctx));
+    return defaultReturnValue;
+  }
+
+  @Override
+  public void enterF5_bigip_structured_configuration(F5_bigip_structured_configurationContext ctx) {
+    _c = new F5BigipConfiguration();
+  }
+
+  @Override
+  public void enterCm_device(Cm_deviceContext ctx) {
+    String name = toName(ctx.name);
+    _currentDevice = _c.getDevices().computeIfAbsent(name, Device::new);
+    _c.defineStructure(DEVICE, name, ctx.getParent());
+  }
+
+  @Override
+  public void exitCm_device(Cm_deviceContext ctx) {
+    _currentDevice = null;
+  }
+
+  @Override
+  public void exitCmd_base_mac(Cmd_base_macContext ctx) {
+    _currentDevice.setBaseMac(toMacAddress(ctx.mac));
+  }
+
+  private static @Nonnull MacAddress toMacAddress(Mac_addressContext ctx) {
+    return MacAddress.parse(ctx.getText());
+  }
+
+  @Override
+  public void exitCmd_cert(Cmd_certContext ctx) {
+    todo(ctx);
+  }
+
+  @Override
+  public void exitCmd_configsync_ip(Cmd_configsync_ipContext ctx) {
+    _currentDevice.setConfigSyncIp(toIp(ctx.ip));
+  }
+
+  @Override
+  public void exitCmd_hostname(Cmd_hostnameContext ctx) {
+    _currentDevice.setHostname(unquote(ctx.hostname.getText()).toLowerCase());
+  }
+
+  @Override
+  public void exitCmd_key(Cmd_keyContext ctx) {
+    todo(ctx);
+  }
+
+  @Override
+  public void exitCmd_management_ip(Cmd_management_ipContext ctx) {
+    _currentDevice.setManagementIp(toIp(ctx.ip));
+  }
+
+  @Override
+  public void exitCmd_self_device(Cmd_self_deviceContext ctx) {
+    _currentDevice.setSelfDevice(ctx.TRUE() != null);
+  }
+
+  @Override
+  public void enterCmdua_address(Cmdua_addressContext ctx) {
+    _currentUnicastAddress = new UnicastAddress();
+    _currentDevice.getUnicastAddresses().add(_currentUnicastAddress);
+  }
+
+  @Override
+  public void exitCmdua_address(Cmdua_addressContext ctx) {
+    _currentUnicastAddress = null;
+  }
+
+  @Override
+  public void exitCmduaa_effective_ip(Cmduaa_effective_ipContext ctx) {
+    _currentUnicastAddress.setEffectiveIp(toUnicastAddressIp(ctx.ip));
+  }
+
+  private static @Nonnull UnicastAddressIp toUnicastAddressIp(Unicast_address_ipContext ctx) {
+    if (ctx.MANAGEMENT_IP() != null) {
+      return ManagementIp.instance();
+    } else {
+      assert ctx.ip != null;
+      return new ConcreteUnicastAddressIp(toIp(ctx.ip));
+    }
+  }
+
+  @Override
+  public void exitCmduaa_effective_port(Cmduaa_effective_portContext ctx) {
+    _currentUnicastAddress.setEffectivePort(toInteger(ctx.port));
+  }
+
+  @Override
+  public void exitCmduaa_ip(Cmduaa_ipContext ctx) {
+    _currentUnicastAddress.setIp(toUnicastAddressIp(ctx.ip));
+  }
+
+  @Override
+  public void exitCmduaa_port(Cmduaa_portContext ctx) {
+    _currentUnicastAddress.setPort(toInteger(ctx.port));
+  }
+
+  @Override
+  public void enterCm_device_group(Cm_device_groupContext ctx) {
+    String name = toName(ctx.name);
+    _currentDeviceGroup = _c.getDeviceGroups().computeIfAbsent(name, DeviceGroup::new);
+    _c.defineStructure(DEVICE_GROUP, name, ctx.getParent());
+  }
+
+  @Override
+  public void exitCm_device_group(Cm_device_groupContext ctx) {
+    _currentDeviceGroup = null;
+  }
+
+  @Override
+  public void exitCmdg_auto_sync(Cmdg_auto_syncContext ctx) {
+    _currentDeviceGroup.setAutoSync(ctx.ENABLED() != null);
+  }
+
+  @Override
+  public void enterCmdgd_device(Cmdgd_deviceContext ctx) {
+    String name = toName(ctx.name);
+    _currentDeviceGroupDevice =
+        _currentDeviceGroup.getDevices().computeIfAbsent(name, DeviceGroupDevice::new);
+    _c.referenceStructure(DEVICE, name, DEVICE_GROUP_DEVICE, ctx.getStart().getLine());
+  }
+
+  @Override
+  public void exitCmdgd_device(Cmdgd_deviceContext ctx) {
+    _currentDeviceGroupDevice = null;
+  }
+
+  @Override
+  public void exitCmdgdd_set_sync_leader(Cmdgdd_set_sync_leaderContext ctx) {
+    _currentDeviceGroupDevice.setSetSyncLeader(true);
+  }
+
+  @Override
+  public void exitCmdg_hidden(Cmdg_hiddenContext ctx) {
+    _currentDeviceGroup.setHidden(ctx.TRUE() != null);
+  }
+
+  @Override
+  public void exitCmdg_network_failover(Cmdg_network_failoverContext ctx) {
+    _currentDeviceGroup.setNetworkFailover(ctx.ENABLED() != null);
+  }
+
+  @Override
+  public void exitCmdg_type(Cmdg_typeContext ctx) {
+    _currentDeviceGroup.setType(toType(ctx.type));
+  }
+
+  private static @Nonnull DeviceGroupType toType(Device_group_typeContext ctx) {
+    if (ctx.SYNC_FAILOVER() != null) {
+      return DeviceGroupType.SYNC_FAILOVER;
+    } else {
+      assert ctx.SYNC_ONLY() != null;
+      return DeviceGroupType.SYNC_ONLY;
+    }
+  }
+
+  @Override
+  public void enterCm_key(Cm_keyContext ctx) {
+    todo(ctx.getParent());
+  }
+
+  @Override
+  public void enterCm_traffic_group(Cm_traffic_groupContext ctx) {
+    String name = toName(ctx.name);
+    _currentTrafficGroup = _c.getTrafficGroups().computeIfAbsent(name, TrafficGroup::new);
+    _c.defineStructure(TRAFFIC_GROUP, name, ctx.getParent());
+  }
+
+  @Override
+  public void exitCm_traffic_group(Cm_traffic_groupContext ctx) {
+    _currentTrafficGroup = null;
+  }
+
+  @Override
+  public void exitCmtg_ha_group(Cmtg_ha_groupContext ctx) {
+    String name = toName(ctx.name);
+    _currentTrafficGroup.setHaGroup(name);
+    _c.referenceStructure(HA_GROUP, name, TRAFFIC_GROUP_HA_GROUP, ctx.name.getStart().getLine());
+  }
+
+  @Override
+  public void exitCmtg_mac(Cmtg_macContext ctx) {
+    _currentTrafficGroup.setMac(toMacAddress(ctx.mac));
+  }
+
+  @Override
+  public void exitCmtg_unit_id(Cmtg_unit_idContext ctx) {
+    _currentTrafficGroup.setUnitId(toInteger(ctx.id));
+  }
+
+  @Override
+  public void enterCm_trust_domain(Cm_trust_domainContext ctx) {
+    todo(ctx.getParent());
+  }
+
+  @Override
+  public void exitCmtd_ca_cert(Cmtd_ca_certContext ctx) {
+    todo(ctx);
+  }
+
+  @Override
+  public void exitCmtd_ca_cert_bundle(Cmtd_ca_cert_bundleContext ctx) {
+    todo(ctx);
+  }
+
+  @Override
+  public void exitCmtd_ca_devices(Cmtd_ca_devicesContext ctx) {
+    ctx.names.forEach(
+        name ->
+            _c.referenceStructure(
+                DEVICE, toName(name), TRUST_DOMAIN_CA_DEVICE, name.getStart().getLine()));
+  }
+
+  @Override
+  public void exitCmtd_trust_group(Cmtd_trust_groupContext ctx) {
+    _c.referenceStructure(
+        DEVICE_GROUP, toName(ctx.name), TRUST_DOMAIN_TRUST_GROUP, ctx.name.getStart().getLine());
+  }
+
+  @Override
+  public void enterLdg_external(Ldg_externalContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(DATA_GROUP_EXTERNAL, name, ctx);
+    _c.referenceStructure(
+        DATA_GROUP_EXTERNAL, name, DATA_GROUP_EXTERNAL_SELF_REFERENCE, ctx.getStart().getLine());
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLdg_internal(Ldg_internalContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(DATA_GROUP_INTERNAL, name, ctx);
+    _c.referenceStructure(
+        DATA_GROUP_INTERNAL, name, DATA_GROUP_INTERNAL_SELF_REFERENCE, ctx.getStart().getLine());
+    todo(ctx);
+  }
+
+  @Override
+  public void enterL_node(L_nodeContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(NODE, name, ctx);
+    _currentNode = _c.getNodes().computeIfAbsent(name, Node::new);
+  }
+
+  @Override
+  public void enterL_pool(L_poolContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(POOL, name, ctx);
+    _currentPool = _c.getPools().computeIfAbsent(name, Pool::new);
+  }
+
+  @Override
+  public void enterL_rule(L_ruleContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(RULE, name, ctx);
+  }
+
+  @Override
+  public void enterL_snat(L_snatContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(SNAT, name, ctx);
+    _c.referenceStructure(SNAT, name, SNAT_SELF_REFERENCE, ctx.name.getStart().getLine());
+    _currentSnat = _c.getSnats().computeIfAbsent(name, Snat::new);
+  }
+
+  @Override
+  public void enterL_snat_translation(L_snat_translationContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(SNAT_TRANSLATION, name, ctx);
+    _currentSnatTranslation = _c.getSnatTranslations().computeIfAbsent(name, SnatTranslation::new);
+  }
+
+  @Override
+  public void enterL_snatpool(L_snatpoolContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(SNATPOOL, name, ctx);
+    _currentSnatPool = _c.getSnatPools().computeIfAbsent(name, SnatPool::new);
+  }
+
+  @Override
+  public void enterL_virtual(L_virtualContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(VIRTUAL, name, ctx);
+    _c.referenceStructure(VIRTUAL, name, VIRTUAL_SELF_REFERENCE, ctx.name.getStart().getLine());
+    _currentVirtual = _c.getVirtuals().computeIfAbsent(name, Virtual::new);
+  }
+
+  @Override
+  public void enterL_virtual_address(L_virtual_addressContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(VIRTUAL_ADDRESS, name, ctx);
+    _currentVirtualAddress = _c.getVirtualAddresses().computeIfAbsent(name, VirtualAddress::new);
+  }
+
+  @Override
+  public void enterLm_dns(Lm_dnsContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(MONITOR_DNS, name, ctx);
+  }
+
+  @Override
+  public void enterLm_gateway_icmp(Lm_gateway_icmpContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(MONITOR_GATEWAY_ICMP, name, ctx);
+  }
+
+  @Override
+  public void enterLm_http(Lm_httpContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(MONITOR_HTTP, name, ctx);
+  }
+
+  @Override
+  public void enterLm_https(Lm_httpsContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(MONITOR_HTTPS, name, ctx);
+  }
+
+  @Override
+  public void exitLm_ldap(Lm_ldapContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(MONITOR_LDAP, name, ctx);
+  }
+
+  @Override
+  public void exitLm_tcp(Lm_tcpContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(MONITOR_TCP, name, ctx);
+  }
+
+  @Override
+  public void enterLper_cookie(Lper_cookieContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PERSISTENCE_COOKIE, name, ctx);
+  }
+
+  @Override
+  public void exitLper_cookie_defaults_from(Lper_cookie_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinPersistence.getBuiltinPersistence(name) == null) {
+      _c.referenceStructure(
+          PERSISTENCE_COOKIE,
+          name,
+          PERSISTENCE_COOKIE_DEFAULTS_FROM,
+          ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLper_source_addr(Lper_source_addrContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PERSISTENCE_SOURCE_ADDR, name, ctx);
+  }
+
+  @Override
+  public void exitLpersa_defaults_from(Lpersa_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinPersistence.getBuiltinPersistence(name) == null) {
+      _c.referenceStructure(
+          PERSISTENCE_SOURCE_ADDR,
+          name,
+          PERSISTENCE_SOURCE_ADDR_DEFAULTS_FROM,
+          ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLper_ssl(Lper_sslContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PERSISTENCE_SSL, name, ctx);
+  }
+
+  @Override
+  public void exitLperss_defaults_from(Lperss_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinPersistence.getBuiltinPersistence(name) == null) {
+      _c.referenceStructure(
+          PERSISTENCE_SSL, name, PERSISTENCE_SSL_DEFAULTS_FROM, ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLpm_member(Lpm_memberContext ctx) {
+    Structure_name_with_portContext np = ctx.name_with_port;
+    String name = toName(np);
+    int port = toPort(np);
+    _c.referenceStructure(NODE, name, POOL_MEMBER, np.getStart().getLine());
+    if (port == 0) {
+      warn(ctx, "0 is not a valid port");
+      _currentPoolMember = new PoolMember("dummy", name, 1);
+    } else {
+      _currentPoolMember =
+          _currentPool
+              .getMembers()
+              .computeIfAbsent(np.getText(), n -> new PoolMember(n, name, port));
+    }
+  }
+
+  @Override
+  public void enterLprof_analytics(Lprof_analyticsContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_ANALYTICS, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_analytics_defaults_from(Lprof_analytics_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_ANALYTICS, name, PROFILE_ANALYTICS_DEFAULTS_FROM, ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_certificate_authority(Lprof_certificate_authorityContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_CERTIFICATE_AUTHORITY, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_certificate_authority_defaults_from(
+      Lprof_certificate_authority_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_CERTIFICATE_AUTHORITY,
+          name,
+          PROFILE_CERTIFICATE_AUTHORITY_DEFAULTS_FROM,
+          ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_classification(Lprof_classificationContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_CLASSIFICATION, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_classification_defaults_from(
+      Lprof_classification_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_CLASSIFICATION,
+          name,
+          PROFILE_CLASSIFICATION_DEFAULTS_FROM,
+          ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_client_ldap(Lprof_client_ldapContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_CLIENT_LDAP, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_client_ldap_defaults_from(Lprof_client_ldap_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_CLIENT_LDAP,
+          name,
+          PROFILE_CLIENT_LDAP_DEFAULTS_FROM,
+          ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_client_ssl(Lprof_client_sslContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_CLIENT_SSL, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_client_ssl_defaults_from(Lprof_client_ssl_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_CLIENT_SSL,
+          name,
+          PROFILE_CLIENT_SSL_DEFAULTS_FROM,
+          ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_dhcpv4(Lprof_dhcpv4Context ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_DHCPV4, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_dhcpv4_defaults_from(Lprof_dhcpv4_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_DHCPV4, name, PROFILE_DHCPV4_DEFAULTS_FROM, ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_dhcpv6(Lprof_dhcpv6Context ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_DHCPV6, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_dhcpv6_defaults_from(Lprof_dhcpv6_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_DHCPV6, name, PROFILE_DHCPV6_DEFAULTS_FROM, ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_diameter(Lprof_diameterContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_DIAMETER, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_diameter_defaults_from(Lprof_diameter_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_DIAMETER, name, PROFILE_DIAMETER_DEFAULTS_FROM, ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_dns(Lprof_dnsContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_DNS, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_dns_defaults_from(Lprof_dns_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_DNS, name, PROFILE_DNS_DEFAULTS_FROM, ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_fasthttp(Lprof_fasthttpContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_FASTHTTP, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_fasthttp_defaults_from(Lprof_fasthttp_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_FASTHTTP, name, PROFILE_FASTHTTP_DEFAULTS_FROM, ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_fastl4(Lprof_fastl4Context ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_FASTL4, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_fastl4_defaults_from(Lprof_fastl4_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_FASTL4, name, PROFILE_FASTL4_DEFAULTS_FROM, ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_fix(Lprof_fixContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_FIX, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_fix_defaults_from(Lprof_fix_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_FIX, name, PROFILE_FIX_DEFAULTS_FROM, ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_ftp(Lprof_ftpContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_FTP, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_ftp_defaults_from(Lprof_ftp_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_FTP, name, PROFILE_FTP_DEFAULTS_FROM, ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_gtp(Lprof_gtpContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_GTP, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_gtp_defaults_from(Lprof_gtp_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_GTP, name, PROFILE_GTP_DEFAULTS_FROM, ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_html(Lprof_htmlContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_HTML, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_html_defaults_from(Lprof_html_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_HTML, name, PROFILE_HTML_DEFAULTS_FROM, ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_http2(Lprof_http2Context ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_HTTP2, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_http2_defaults_from(Lprof_http2_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_HTTP2, name, PROFILE_HTTP2_DEFAULTS_FROM, ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_http_compression(Lprof_http_compressionContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_HTTP_COMPRESSION, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_http_compression_defaults_from(
+      Lprof_http_compression_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_HTTP_COMPRESSION,
+          name,
+          PROFILE_HTTP_COMPRESSION_DEFAULTS_FROM,
+          ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_http(Lprof_httpContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_HTTP, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_http_defaults_from(Lprof_http_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_HTTP, name, PROFILE_HTTP_DEFAULTS_FROM, ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_http_proxy_connect(Lprof_http_proxy_connectContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_HTTP_PROXY_CONNECT, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_http_proxy_connect_defaults_from(
+      Lprof_http_proxy_connect_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_HTTP_PROXY_CONNECT,
+          name,
+          PROFILE_HTTP_PROXY_CONNECT_DEFAULTS_FROM,
+          ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_icap(Lprof_icapContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_ICAP, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_icap_defaults_from(Lprof_icap_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_ICAP, name, PROFILE_ICAP_DEFAULTS_FROM, ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_ilx(Lprof_ilxContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_ILX, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_ilx_defaults_from(Lprof_ilx_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_ILX, name, PROFILE_ILX_DEFAULTS_FROM, ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_ipother(Lprof_ipotherContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_IPOTHER, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_ipother_defaults_from(Lprof_ipother_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_IPOTHER, name, PROFILE_IPOTHER_DEFAULTS_FROM, ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_ipsecalg(Lprof_ipsecalgContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_IPSECALG, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_ipsecalg_defaults_from(Lprof_ipsecalg_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_IPSECALG, name, PROFILE_IPSECALG_DEFAULTS_FROM, ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_map_t(Lprof_map_tContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_MAP_T, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_map_t_defaults_from(Lprof_map_t_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_MAP_T, name, PROFILE_MAP_T_DEFAULTS_FROM, ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_mqtt(Lprof_mqttContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_MQTT, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_mqtt_defaults_from(Lprof_mqtt_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_MQTT, name, PROFILE_MQTT_DEFAULTS_FROM, ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_netflow(Lprof_netflowContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_NETFLOW, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_netflow_defaults_from(Lprof_netflow_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_NETFLOW, name, PROFILE_NETFLOW_DEFAULTS_FROM, ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_ocsp_stapling_params(Lprof_ocsp_stapling_paramsContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_OCSP_STAPLING_PARAMS, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_ocsp_stapling_params_defaults_from(
+      Lprof_ocsp_stapling_params_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_OCSP_STAPLING_PARAMS,
+          name,
+          PROFILE_OCSP_STAPLING_PARAMS_DEFAULTS_FROM,
+          ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_one_connect(Lprof_one_connectContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_ONE_CONNECT, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_one_connect_defaults_from(Lprof_one_connect_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_ONE_CONNECT,
+          name,
+          PROFILE_ONE_CONNECT_DEFAULTS_FROM,
+          ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_pcp(Lprof_pcpContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_PCP, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_pcp_defaults_from(Lprof_pcp_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_PCP, name, PROFILE_PCP_DEFAULTS_FROM, ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_pptp(Lprof_pptpContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_PPTP, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_pptp_defaults_from(Lprof_pptp_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_PPTP, name, PROFILE_PPTP_DEFAULTS_FROM, ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_qoe(Lprof_qoeContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_QOE, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_qoe_defaults_from(Lprof_qoe_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_QOE, name, PROFILE_QOE_DEFAULTS_FROM, ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_radius(Lprof_radiusContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_RADIUS, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_radius_defaults_from(Lprof_radius_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_RADIUS, name, PROFILE_RADIUS_DEFAULTS_FROM, ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_request_adapt(Lprof_request_adaptContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_REQUEST_ADAPT, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_request_adapt_defaults_from(Lprof_request_adapt_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_REQUEST_ADAPT,
+          name,
+          PROFILE_REQUEST_ADAPT_DEFAULTS_FROM,
+          ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_request_log(Lprof_request_logContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_REQUEST_LOG, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_request_log_defaults_from(Lprof_request_log_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_REQUEST_LOG,
+          name,
+          PROFILE_REQUEST_LOG_DEFAULTS_FROM,
+          ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_response_adapt(Lprof_response_adaptContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_RESPONSE_ADAPT, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_response_adapt_defaults_from(
+      Lprof_response_adapt_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_RESPONSE_ADAPT,
+          name,
+          PROFILE_RESPONSE_ADAPT_DEFAULTS_FROM,
+          ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_rewrite(Lprof_rewriteContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_REWRITE, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_rewrite_defaults_from(Lprof_rewrite_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_REWRITE, name, PROFILE_REWRITE_DEFAULTS_FROM, ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_rtsp(Lprof_rtspContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_RTSP, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_rtsp_defaults_from(Lprof_rtsp_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_RTSP, name, PROFILE_RTSP_DEFAULTS_FROM, ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_sctp(Lprof_sctpContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_SCTP, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_sctp_defaults_from(Lprof_sctp_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_SCTP, name, PROFILE_SCTP_DEFAULTS_FROM, ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_server_ldap(Lprof_server_ldapContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_SERVER_LDAP, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_server_ldap_defaults_from(Lprof_server_ldap_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_SERVER_LDAP,
+          name,
+          PROFILE_SERVER_LDAP_DEFAULTS_FROM,
+          ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_server_ssl(Lprof_server_sslContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_SERVER_SSL, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_server_ssl_defaults_from(Lprof_server_ssl_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_SERVER_SSL,
+          name,
+          PROFILE_SERVER_SSL_DEFAULTS_FROM,
+          ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_sip(Lprof_sipContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_SIP, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_sip_defaults_from(Lprof_sip_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_SIP, name, PROFILE_SIP_DEFAULTS_FROM, ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_smtps(Lprof_smtpsContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_SMTPS, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_smtps_defaults_from(Lprof_smtps_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_SMTPS, name, PROFILE_SMTPS_DEFAULTS_FROM, ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_socks(Lprof_socksContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_SOCKS, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_socks_defaults_from(Lprof_socks_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_SOCKS, name, PROFILE_SOCKS_DEFAULTS_FROM, ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_splitsessionclient(Lprof_splitsessionclientContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_SPLITSESSIONCLIENT, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_splitsessionclient_defaults_from(
+      Lprof_splitsessionclient_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_SPLITSESSIONCLIENT,
+          name,
+          PROFILE_SPLITSESSIONCLIENT_DEFAULTS_FROM,
+          ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_splitsessionserver(Lprof_splitsessionserverContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_SPLITSESSIONSERVER, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_splitsessionserver_defaults_from(
+      Lprof_splitsessionserver_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_SPLITSESSIONSERVER,
+          name,
+          PROFILE_SPLITSESSIONSERVER_DEFAULTS_FROM,
+          ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_statistics(Lprof_statisticsContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_STATISTICS, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_statistics_defaults_from(Lprof_statistics_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_STATISTICS,
+          name,
+          PROFILE_STATISTICS_DEFAULTS_FROM,
+          ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_stream(Lprof_streamContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_STREAM, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_stream_defaults_from(Lprof_stream_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_STREAM, name, PROFILE_STREAM_DEFAULTS_FROM, ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_tcp_analytics(Lprof_tcp_analyticsContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_TCP_ANALYTICS, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_tcp_analytics_defaults_from(Lprof_tcp_analytics_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_TCP_ANALYTICS,
+          name,
+          PROFILE_TCP_ANALYTICS_DEFAULTS_FROM,
+          ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_tcp(Lprof_tcpContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_TCP, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_tcp_defaults_from(Lprof_tcp_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_TCP, name, PROFILE_TCP_DEFAULTS_FROM, ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_tftp(Lprof_tftpContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_TFTP, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_tftp_defaults_from(Lprof_tftp_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_TFTP, name, PROFILE_TFTP_DEFAULTS_FROM, ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_traffic_acceleration(Lprof_traffic_accelerationContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_TRAFFIC_ACCELERATION, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_traffic_acceleration_defaults_from(
+      Lprof_traffic_acceleration_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_TRAFFIC_ACCELERATION,
+          name,
+          PROFILE_TRAFFIC_ACCELERATION_DEFAULTS_FROM,
+          ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_udp(Lprof_udpContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_UDP, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_udp_defaults_from(Lprof_udp_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_UDP, name, PROFILE_UDP_DEFAULTS_FROM, ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_web_acceleration(Lprof_web_accelerationContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_WEB_ACCELERATION, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_web_acceleration_defaults_from(
+      Lprof_web_acceleration_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_WEB_ACCELERATION,
+          name,
+          PROFILE_WEB_ACCELERATION_DEFAULTS_FROM,
+          ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_web_security(Lprof_web_securityContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_WEB_SECURITY, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_web_security_defaults_from(Lprof_web_security_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_WEB_SECURITY,
+          name,
+          PROFILE_WEB_SECURITY_DEFAULTS_FROM,
+          ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_websocket(Lprof_websocketContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_WEBSOCKET, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_websocket_defaults_from(Lprof_websocket_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_WEBSOCKET, name, PROFILE_WEBSOCKET_DEFAULTS_FROM, ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLprof_xml(Lprof_xmlContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PROFILE_XML, name, ctx);
+  }
+
+  @Override
+  public void exitLprof_xml_defaults_from(Lprof_xml_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_XML, name, PROFILE_XML_DEFAULTS_FROM, ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void exitLv_profiles(Lv_profilesContext ctx) {
+    todo(ctx);
+  }
+
+  @Override
+  public void enterLv_profiles_profile(Lv_profiles_profileContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(PROFILE, name, VIRTUAL_PROFILE, ctx.name.getStart().getLine());
+    }
+  }
+
+  @Override
+  public void enterLva_route_advertisement(Lva_route_advertisementContext ctx) {
+    _currentVirtualAddress.setRouteAdvertisementMode(toRouteAdvertisementMode(ctx.ramode));
+  }
+
+  @Override
+  public void enterLvv_vlan(Lvv_vlanContext ctx) {
+    String name = ctx.name.getText();
+    _c.referenceStructure(VLAN, name, VIRTUAL_VLANS_VLAN, ctx.name.getStart().getLine());
+    _currentVirtual.getVlans().add(name);
+  }
+
+  @Override
+  public void enterNet_interface(Net_interfaceContext ctx) {
+    String name = ctx.name.getText();
+    _c.defineStructure(INTERFACE, name, ctx);
+    _c.referenceStructure(INTERFACE, name, INTERFACE_SELF_REFERENCE, ctx.name.getStart().getLine());
+    _currentInterface = _c.getInterfaces().computeIfAbsent(name, Interface::new);
+  }
+
+  @Override
+  public void enterNet_route(Net_routeContext ctx) {
+    String name = ctx.name.getText();
+    _c.defineStructure(ROUTE, name, ctx);
+    _c.referenceStructure(ROUTE, name, ROUTE_SELF_REFERENCE, ctx.name.getStart().getLine());
+    _currentRoute = _c.getRoutes().computeIfAbsent(name, Route::new);
+  }
+
+  @Override
+  public void enterNet_route_domain(Net_route_domainContext ctx) {
+    todo(ctx);
+  }
+
+  @Override
+  public void enterNet_self(Net_selfContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(SELF, name, ctx);
+    _c.referenceStructure(SELF, name, SELF_SELF_REFERENCE, ctx.name.getStart().getLine());
+    _currentSelf = _c.getSelves().computeIfAbsent(name, Self::new);
+  }
+
+  @Override
+  public void enterNet_self_allow(Net_self_allowContext ctx) {
+    todo(ctx);
+  }
+
+  @Override
+  public void enterNet_trunk(Net_trunkContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(F5BigipStructureType.TRUNK, name, ctx);
+    _currentTrunk = _c.getTrunks().computeIfAbsent(name, Trunk::new);
+  }
+
+  @Override
+  public void enterNet_tunnels(Net_tunnelsContext ctx) {
+    todo(ctx);
+  }
+
+  @Override
+  public void enterNet_vlan(Net_vlanContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(VLAN, name, ctx);
+    _currentVlan = _c.getVlans().computeIfAbsent(name, Vlan::new);
+  }
+
+  @Override
+  public void enterNr_bgp(Nr_bgpContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(BGP_PROCESS, name, ctx);
+    _c.referenceStructure(
+        BGP_PROCESS, name, BGP_PROCESS_SELF_REFERENCE, ctx.name.getStart().getLine());
+    _currentBgpProcess = _c.getBgpProcesses().computeIfAbsent(name, BgpProcess::new);
+  }
+
+  @Override
+  public void enterNr_prefix_list(Nr_prefix_listContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(PREFIX_LIST, name, ctx);
+    _currentPrefixList = _c.getPrefixLists().computeIfAbsent(name, PrefixList::new);
+  }
+
+  @Override
+  public void enterNr_route_map(Nr_route_mapContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(ROUTE_MAP, name, ctx);
+    _currentRouteMap = _c.getRouteMaps().computeIfAbsent(name, RouteMap::new);
+  }
+
+  @Override
+  public void enterNrbaf_ipv4(Nrbaf_ipv4Context ctx) {
+    _currentBgpAddressFamily = _currentBgpProcess.getIpv4AddressFamily();
+  }
+
+  @Override
+  public void enterNrbaf_ipv6(Nrbaf_ipv6Context ctx) {
+    _currentBgpAddressFamily = _currentBgpProcess.getIpv6AddressFamily();
+  }
+
+  @Override
+  public void enterNrbafcr_kernel(Nrbafcr_kernelContext ctx) {
+    _currentBgpRedistributionPolicy =
+        _currentBgpAddressFamily
+            .getRedistributionPolicies()
+            .computeIfAbsent(F5BigipRoutingProtocol.KERNEL, BgpRedistributionPolicy::new);
+  }
+
+  @Override
+  public void enterNrbn_name(Nrbn_nameContext ctx) {
+    String name = ctx.name.getText();
+    _c.defineStructure(BGP_NEIGHBOR, name, ctx);
+    _c.referenceStructure(BGP_NEIGHBOR, name, BGP_NEIGHBOR_SELF_REFERENCE, ctx.name.getLine());
+    _currentBgpNeighbor = _currentBgpProcess.getNeighbors().computeIfAbsent(name, BgpNeighbor::new);
+  }
+
+  @Override
+  public void enterNrbnnaf_ipv4(Nrbnnaf_ipv4Context ctx) {
+    _currentBgpNeighborAddressFamily = _currentBgpNeighbor.getIpv4AddressFamily();
+  }
+
+  @Override
+  public void enterNrbnnaf_ipv6(Nrbnnaf_ipv6Context ctx) {
+    _currentBgpNeighborAddressFamily = _currentBgpNeighbor.getIpv6AddressFamily();
+  }
+
+  @Override
+  public void enterNrpe_entry(Nrpe_entryContext ctx) {
+    _currentPrefixListEntry =
+        _currentPrefixList.getEntries().computeIfAbsent(toLong(ctx.num), PrefixListEntry::new);
+  }
+
+  @Override
+  public void enterNrre_entry(Nrre_entryContext ctx) {
+    _currentRouteMapEntry =
+        _currentRouteMap.getEntries().computeIfAbsent(toLong(ctx.num), RouteMapEntry::new);
+  }
+
+  @Override
+  public void exitBundle_speed(Bundle_speedContext ctx) {
+    Double speed = toSpeed(ctx);
+    _currentInterface.setSpeed(speed);
+  }
+
+  @Override
+  public void exitImish_chunk(Imish_chunkContext ctx) {
+    _imishConfigurationLine = ctx.getStart().getLine();
+    _imishConfigurationOffset = ctx.getStart().getStartIndex();
+  }
+
+  @Override
+  public void exitL_node(L_nodeContext ctx) {
+    _currentNode = null;
+  }
+
+  @Override
+  public void exitL_pool(L_poolContext ctx) {
+    _currentPool = null;
+  }
+
+  @Override
+  public void exitL_snat(L_snatContext ctx) {
+    _currentSnat = null;
+  }
+
+  @Override
+  public void exitL_snat_translation(L_snat_translationContext ctx) {
+    _currentSnatTranslation = null;
+  }
+
+  @Override
+  public void exitL_snatpool(L_snatpoolContext ctx) {
+    _currentSnatPool = null;
+  }
+
+  @Override
+  public void exitL_virtual(L_virtualContext ctx) {
+    _currentVirtual = null;
+  }
+
+  @Override
+  public void exitL_virtual_address(L_virtual_addressContext ctx) {
+    _currentVirtualAddress = null;
+  }
+
+  @Override
+  public void exitLmd_defaults_from(Lmd_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinMonitor.getBuiltinMonitor(name) == null) {
+      _c.referenceStructure(
+          MONITOR_DNS, name, MONITOR_DNS_DEFAULTS_FROM, ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void exitLmg_defaults_from(Lmg_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinMonitor.getBuiltinMonitor(name) == null) {
+      _c.referenceStructure(
+          MONITOR_GATEWAY_ICMP,
+          name,
+          MONITOR_GATEWAY_ICMP_DEFAULTS_FROM,
+          ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void exitLmh_defaults_from(Lmh_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinMonitor.getBuiltinMonitor(name) == null) {
+      _c.referenceStructure(
+          MONITOR_HTTP, name, MONITOR_HTTP_DEFAULTS_FROM, ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void exitLmhs_defaults_from(Lmhs_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinMonitor.getBuiltinMonitor(name) == null) {
+      _c.referenceStructure(
+          MONITOR_HTTPS, name, MONITOR_HTTPS_DEFAULTS_FROM, ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void exitLmhs_ssl_profile(Lmhs_ssl_profileContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinProfile.getBuiltinProfile(name) == null) {
+      _c.referenceStructure(
+          PROFILE_SERVER_SSL, name, MONITOR_HTTPS_SSL_PROFILE, ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void exitLml_defaults_from(Lml_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinMonitor.getBuiltinMonitor(name) == null) {
+      _c.referenceStructure(
+          MONITOR_LDAP, name, MONITOR_LDAP_DEFAULTS_FROM, ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void exitLmt_defaults_from(Lmt_defaults_fromContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinMonitor.getBuiltinMonitor(name) == null) {
+      _c.referenceStructure(
+          MONITOR_TCP, name, MONITOR_TCP_DEFAULTS_FROM, ctx.name.getStart().getLine());
+    }
+    todo(ctx);
+  }
+
+  @Override
+  public void exitLn_address(Ln_addressContext ctx) {
+    _currentNode.setAddress(toIp(ctx.address));
+  }
+
+  @Override
+  public void exitLn_address6(Ln_address6Context ctx) {
+    _currentNode.setAddress6(toIp6(ctx.address));
+  }
+
+  @Override
+  public void exitLp_description(Lp_descriptionContext ctx) {
+    _currentPool.setDescription(unquote(ctx.text.getText()));
+  }
+
+  @Override
+  public void exitLp_monitor(Lp_monitorContext ctx) {
+    for (Structure_nameContext nameCtx : ctx.names) {
+      String name = toName(nameCtx);
+      if (BuiltinMonitor.getBuiltinMonitor(name) == null) {
+        _c.referenceStructure(MONITOR, name, POOL_MONITOR, nameCtx.getStart().getLine());
+      }
+      _currentPool.getMonitors().add(name);
+    }
+  }
+
+  @Override
+  public void exitLpm_member(Lpm_memberContext ctx) {
+    _currentPoolMember = null;
+  }
+
+  @Override
+  public void exitLpmm_address(Lpmm_addressContext ctx) {
+    _currentPoolMember.setAddress(toIp(ctx.address));
+  }
+
+  @Override
+  public void exitLpmm_address6(Lpmm_address6Context ctx) {
+    _currentPoolMember.setAddress6(toIp6(ctx.address6));
+  }
+
+  @Override
+  public void exitLpmm_description(Lpmm_descriptionContext ctx) {
+    _currentPoolMember.setDescription(unquote(ctx.text.getText()));
+  }
+
+  @Override
+  public void exitLs_snatpool(Ls_snatpoolContext ctx) {
+    String name = toName(ctx.name);
+    _c.referenceStructure(SNATPOOL, name, SNAT_SNATPOOL, ctx.name.getStart().getLine());
+    _currentSnat.setSnatpool(name);
+  }
+
+  @Override
+  public void exitLs_vlans_disabled(Ls_vlans_disabledContext ctx) {
+    _currentSnat.setVlansEnabled(false);
+  }
+
+  @Override
+  public void exitLs_vlans_enabled(Ls_vlans_enabledContext ctx) {
+    _currentSnat.setVlansEnabled(true);
+  }
+
+  @Override
+  public void exitLso_origin(Lso_originContext ctx) {
+    _currentSnat.getIpv4Origins().computeIfAbsent(toPrefix(ctx.origin), Ipv4Origin::new);
+  }
+
+  @Override
+  public void exitLso_origin6(Lso_origin6Context ctx) {
+    _currentSnat.getIpv6Origins().computeIfAbsent(toPrefix6(ctx.origin6), Ipv6Origin::new);
+  }
+
+  @Override
+  public void exitLspm_member(Lspm_memberContext ctx) {
+    String name = toName(ctx.name);
+    _c.referenceStructure(
+        SNAT_TRANSLATION, name, SNATPOOL_MEMBERS_MEMBER, ctx.name.getStart().getLine());
+    _currentSnatPool.getMembers().add(name);
+  }
+
+  @Override
+  public void exitLst_address(Lst_addressContext ctx) {
+    _currentSnatTranslation.setAddress(toIp(ctx.address));
+  }
+
+  @Override
+  public void exitLst_address6(Lst_address6Context ctx) {
+    _currentSnatTranslation.setAddress6(toIp6(ctx.address6));
+  }
+
+  @Override
+  public void exitLsv_vlan(Lsv_vlanContext ctx) {
+    String name = ctx.name.getText();
+    _c.referenceStructure(VLAN, name, SNAT_VLANS_VLAN, ctx.name.getStart().getLine());
+    _currentSnat.getVlans().add(name);
+  }
+
+  @Override
+  public void exitLv_description(Lv_descriptionContext ctx) {
+    _currentVirtual.setDescription(unquote(ctx.text.getText()));
+  }
+
+  @Override
+  public void exitLv_destination(Lv_destinationContext ctx) {
+    Structure_name_with_portContext np = ctx.name_with_port;
+    String name = toName(np);
+    int port = toPort(np);
+    _c.referenceStructure(VIRTUAL_ADDRESS, name, VIRTUAL_DESTINATION, np.getStart().getLine());
+    _currentVirtual.setDestination(name);
+    _currentVirtual.setDestinationPort(port);
+  }
+
+  @Override
+  public void exitLv_disabled(Lv_disabledContext ctx) {
+    _currentVirtual.setDisabled(true);
+  }
+
+  @Override
+  public void exitLv_enabled(Lv_enabledContext ctx) {
+    _currentVirtual.setDisabled(false);
+  }
+
+  @Override
+  public void exitLv_ip_forward(Lv_ip_forwardContext ctx) {
+    if (_currentVirtual.getPool() != null) {
+      _w.redFlag(
+          String.format(
+              "'ip-forward' mode incompatible with pool '%s' already configured on virtual '%s'",
+              _currentVirtual.getPool(), _currentVirtual.getName()));
+      return;
+    }
+    if (_currentVirtual.getReject()) {
+      _w.redFlag(
+          String.format(
+              "'ip-forward' mode incompatible with 'reject' mode already configured on virtual"
+                  + " '%s'",
+              _currentVirtual.getName()));
+      return;
+    }
+    _currentVirtual.setIpForward(true);
+    _currentVirtual.setTranslateAddress(false);
+    _currentVirtual.setTranslatePort(false);
+  }
+
+  @Override
+  public void exitLv_ip_protocol(Lv_ip_protocolContext ctx) {
+    _currentVirtual.setIpProtocol(toIpProtocol(ctx.ip_protocol()));
+  }
+
+  @Override
+  public void exitLv_mask(Lv_maskContext ctx) {
+    _currentVirtual.setMask(toIp(ctx.mask));
+  }
+
+  @Override
+  public void exitLv_mask6(Lv_mask6Context ctx) {
+    _currentVirtual.setMask6(toIp6(ctx.mask6));
+  }
+
+  @Override
+  public void exitLv_pool(Lv_poolContext ctx) {
+    String name = toName(ctx.name);
+    _c.referenceStructure(POOL, name, VIRTUAL_POOL, ctx.name.getStart().getLine());
+    if (_currentVirtual.getIpForward()) {
+      _w.redFlag(
+          String.format(
+              "'pool' incompatible with 'ip-forward' mode already configured on virtual '%s'",
+              _currentVirtual.getName()));
+      return;
+    }
+    if (_currentVirtual.getReject()) {
+      _w.redFlag(
+          String.format(
+              "'pool' incompatible with 'reject' mode already configured on virtual '%s'",
+              _currentVirtual.getName()));
+      return;
+    }
+    _currentVirtual.setPool(name);
+    if (_currentVirtual.getTranslateAddress() == null) {
+      _currentVirtual.setTranslateAddress(true);
+    }
+    if (_currentVirtual.getTranslatePort() == null) {
+      _currentVirtual.setTranslatePort(true);
+    }
+  }
+
+  @Override
+  public void exitLv_reject(Lv_rejectContext ctx) {
+    if (_currentVirtual.getIpForward()) {
+      _w.redFlag(
+          String.format(
+              "'reject' mode incompatible with 'ip-forward' mode already configured on virtual"
+                  + " '%s'",
+              _currentVirtual.getName()));
+      return;
+    }
+    if (_currentVirtual.getPool() != null) {
+      _w.redFlag(
+          String.format(
+              "'reject' mode incompatible with pool '%s' already configured on virtual '%s'",
+              _currentVirtual.getPool(), _currentVirtual.getName()));
+      return;
+    }
+    _currentVirtual.setReject(true);
+    _currentVirtual.setTranslateAddress(false);
+    _currentVirtual.setTranslatePort(false);
+  }
+
+  @Override
+  public void exitLv_source(Lv_sourceContext ctx) {
+    _currentVirtual.setSource(toPrefix(ctx.source));
+  }
+
+  @Override
+  public void exitLv_source6(Lv_source6Context ctx) {
+    _currentVirtual.setSource6(toPrefix6(ctx.source6));
+  }
+
+  @Override
+  public void exitLv_translate_address(Lv_translate_addressContext ctx) {
+    boolean enabled = ctx.ENABLED() != null;
+    if (enabled && _currentVirtual.getIpForward()) {
+      _w.redFlag(
+          String.format(
+              "'translate-address enabled' incompatible with 'ip-forward' mode already configured"
+                  + " on virtual '%s'",
+              _currentVirtual.getName()));
+      return;
+    }
+    if (enabled && _currentVirtual.getReject()) {
+      _w.redFlag(
+          String.format(
+              "'translate-address enabled' incompatible with 'reject' mode already configured on"
+                  + " virtual '%s'",
+              _currentVirtual.getName()));
+      return;
+    }
+    _currentVirtual.setTranslateAddress(enabled);
+  }
+
+  @Override
+  public void exitLv_translate_port(Lv_translate_portContext ctx) {
+    boolean enabled = ctx.ENABLED() != null;
+    if (enabled && _currentVirtual.getIpForward()) {
+      _w.redFlag(
+          String.format(
+              "'translate-port enabled' incompatible with 'ip-forward' mode already configured on"
+                  + " virtual '%s'",
+              _currentVirtual.getName()));
+      return;
+    }
+    if (enabled && _currentVirtual.getReject()) {
+      _w.redFlag(
+          String.format(
+              "'translate-port enabled' incompatible with 'reject' mode already configured on"
+                  + " virtual '%s'",
+              _currentVirtual.getName()));
+      return;
+    }
+    _currentVirtual.setTranslatePort(enabled);
+  }
+
+  @Override
+  public void exitLv_vlans_disabled(Lv_vlans_disabledContext ctx) {
+    _currentVirtual.setVlansEnabled(false);
+  }
+
+  @Override
+  public void exitLv_vlans_enabled(Lv_vlans_enabledContext ctx) {
+    _currentVirtual.setVlansEnabled(true);
+  }
+
+  @Override
+  public void exitLva_address(Lva_addressContext ctx) {
+    _currentVirtualAddress.setAddress(toIp(ctx.address));
+  }
+
+  @Override
+  public void exitLva_address6(Lva_address6Context ctx) {
+    _currentVirtualAddress.setAddress6(toIp6(ctx.address));
+  }
+
+  @Override
+  public void exitLva_arp(Lva_arpContext ctx) {
+    _currentVirtualAddress.setArpDisabled(ctx.DISABLED() != null);
+  }
+
+  @Override
+  public void exitLva_icmp_echo(Lva_icmp_echoContext ctx) {
+    _currentVirtualAddress.setIcmpEchoDisabled(ctx.DISABLED() != null);
+  }
+
+  @Override
+  public void exitLva_mask(Lva_maskContext ctx) {
+    _currentVirtualAddress.setMask(toIp(ctx.mask));
+  }
+
+  @Override
+  public void exitLva_mask6(Lva_mask6Context ctx) {
+    _currentVirtualAddress.setMask6(toIp6(ctx.mask6));
+  }
+
+  @Override
+  public void exitLv_persist(Lv_persistContext ctx) {
+    todo(ctx);
+  }
+
+  @Override
+  public void exitLvp_persistence(Lvp_persistenceContext ctx) {
+    String name = toName(ctx.name);
+    if (BuiltinPersistence.getBuiltinPersistence(name) == null) {
+      _c.referenceStructure(
+          PERSISTENCE, name, VIRTUAL_PERSIST_PERSISTENCE, ctx.name.getStart().getLine());
+    }
+  }
+
+  @Override
+  public void exitLvr_rule(Lvr_ruleContext ctx) {
+    String name = toName(ctx.name);
+    _c.referenceStructure(RULE, name, VIRTUAL_RULES_RULE, ctx.name.getStart().getLine());
+  }
+
+  @Override
+  public void exitLvsat_pool(Lvsat_poolContext ctx) {
+    String name = toName(ctx.name);
+    _c.referenceStructure(
+        SNATPOOL, name, VIRTUAL_SOURCE_ADDRESS_TRANSLATION_POOL, ctx.name.getStart().getLine());
+    _currentVirtual.setSourceAddressTranslationPool(name);
+  }
+
+  @Override
+  public void exitNet_interface(Net_interfaceContext ctx) {
+    _currentInterface = null;
+  }
+
+  @Override
+  public void exitNet_self(Net_selfContext ctx) {
+    _currentSelf = null;
+  }
+
+  @Override
+  public void exitNet_trunk(Net_trunkContext ctx) {
+    _currentTrunk = null;
+  }
+
+  @Override
+  public void exitNet_vlan(Net_vlanContext ctx) {
+    _currentVlan = null;
+  }
+
+  @Override
+  public void exitNi_bundle(Ni_bundleContext ctx) {
+    todo(ctx);
+  }
+
+  @Override
+  public void exitNi_disabled(Ni_disabledContext ctx) {
+    _currentInterface.setDisabled(true);
+  }
+
+  @Override
+  public void exitNi_description(Ni_descriptionContext ctx) {
+    _currentInterface.setDescription(unquote(ctx.text.getText()));
+  }
+
+  @Override
+  public void exitNi_enabled(Ni_enabledContext ctx) {
+    _currentInterface.setDisabled(false);
+  }
+
+  @Override
+  public void exitNr_bgp(Nr_bgpContext ctx) {
+    _currentBgpProcess = null;
+  }
+
+  @Override
+  public void exitNr_prefix_list(Nr_prefix_listContext ctx) {
+    _currentPrefixList = null;
+  }
+
+  @Override
+  public void exitNr_route_map(Nr_route_mapContext ctx) {
+    _currentRouteMap = null;
+  }
+
+  @Override
+  public void exitNrb_local_as(Nrb_local_asContext ctx) {
+    _currentBgpProcess.setLocalAs(toLong(ctx.as));
+  }
+
+  @Override
+  public void exitNrb_profile(Nrb_profileContext ctx) {
+    todo(ctx);
+  }
+
+  @Override
+  public void exitNrb_router_id(Nrb_router_idContext ctx) {
+    _currentBgpProcess.setRouterId(toIp(ctx.id));
+  }
+
+  @Override
+  public void exitNrb_router_id6(Nrb_router_id6Context ctx) {
+    todo(ctx);
+  }
+
+  @Override
+  public void exitNrbaf_ipv4(Nrbaf_ipv4Context ctx) {
+    _currentBgpAddressFamily = null;
+  }
+
+  @Override
+  public void exitNrbaf_ipv6(Nrbaf_ipv6Context ctx) {
+    _currentBgpAddressFamily = null;
+  }
+
+  @Override
+  public void exitNrbafcr_kernel(Nrbafcr_kernelContext ctx) {
+    _currentBgpRedistributionPolicy = null;
+  }
+
+  @Override
+  public void exitNrbafcrk_route_map(Nrbafcrk_route_mapContext ctx) {
+    String name = toName(ctx.name);
+    _c.referenceStructure(
+        ROUTE_MAP,
+        name,
+        BGP_ADDRESS_FAMILY_REDISTRIBUTE_KERNEL_ROUTE_MAP,
+        ctx.name.getStart().getLine());
+    _currentBgpRedistributionPolicy.setRouteMap(name);
+  }
+
+  @Override
+  public void exitNrbn_name(Nrbn_nameContext ctx) {
+    _currentBgpNeighbor = null;
+  }
+
+  @Override
+  public void exitNrbnn_description(Nrbnn_descriptionContext ctx) {
+    _currentBgpNeighbor.setDescription(unquote(ctx.description.getText()));
+  }
+
+  @Override
+  public void exitNrbnn_ebgp_multihop(Nrbnn_ebgp_multihopContext ctx) {
+    _currentBgpNeighbor.setEbgpMultihop(toInteger(ctx.count));
+  }
+
+  @Override
+  public void exitNrbnn_remote_as(Nrbnn_remote_asContext ctx) {
+    _currentBgpNeighbor.setRemoteAs(toLong(ctx.as));
+  }
+
+  @Override
+  public void exitNrbnn_update_source(Nrbnn_update_sourceContext ctx) {
+    String name = toName(ctx.name);
+    _c.referenceStructure(VLAN, name, BGP_NEIGHBOR_UPDATE_SOURCE, ctx.name.getStart().getLine());
+    _currentBgpNeighbor.setUpdateSource(new UpdateSourceInterface(name));
+  }
+
+  @Override
+  public void exitNrbnnaf_ipv4(Nrbnnaf_ipv4Context ctx) {
+    _currentBgpNeighborAddressFamily = null;
+  }
+
+  @Override
+  public void exitNrbnnaf_ipv6(Nrbnnaf_ipv6Context ctx) {
+    _currentBgpNeighborAddressFamily = null;
+  }
+
+  @Override
+  public void exitNrbnnafc_activate(Nrbnnafc_activateContext ctx) {
+    _currentBgpNeighborAddressFamily.setActivate(ctx.DISABLED() == null);
+  }
+
+  @Override
+  public void exitNrbnnafcr_out(Nrbnnafcr_outContext ctx) {
+    String name = toName(ctx.name);
+    F5BigipStructureUsage usage =
+        _currentBgpAddressFamily instanceof BgpIpv4AddressFamily
+            ? BGP_NEIGHBOR_IPV4_ROUTE_MAP_OUT
+            : BGP_NEIGHBOR_IPV6_ROUTE_MAP_OUT;
+    _c.referenceStructure(ROUTE_MAP, name, usage, ctx.name.getStart().getLine());
+    _currentBgpNeighborAddressFamily.setRouteMapOut(name);
+  }
+
+  @Override
+  public void exitNreem4a_prefix_list(Nreem4a_prefix_listContext ctx) {
+    String name = toName(ctx.name);
+    _c.referenceStructure(
+        PREFIX_LIST, name, ROUTE_MAP_MATCH_IPV4_ADDRESS_PREFIX_LIST, ctx.name.getStart().getLine());
+    _currentRouteMapEntry.setMatchPrefixList(new RouteMapMatchPrefixList(name));
+  }
+
+  @Override
+  public void exitNreesc_value(Nreesc_valueContext ctx) {
+    _currentRouteMapEntry.setSetCommunity(
+        new RouteMapSetCommunity(
+            ctx.communities.stream()
+                .map(this::toCommunity)
+                .filter(Objects::nonNull)
+                .collect(ImmutableSet.toImmutableSet())));
+  }
+
+  @Override
+  public void exitNroute_gw(Nroute_gwContext ctx) {
+    Ip ip = toIp(ctx.gw);
+    // Gateway IP is valid iff it is on a directly-connected network
+    if (_c.getSelves().values().stream()
+        .map(Self::getAddress)
+        .filter(Objects::nonNull)
+        .map(ConcreteInterfaceAddress::getPrefix)
+        .anyMatch(directlyConnectedNetwork -> directlyConnectedNetwork.containsIp(ip))) {
+      _w.redFlag(
+          String.format(
+              "Cannot set gateway IP '%s' for route '%s' that is not on a directly-connected"
+                  + " network in: %s",
+              ip, _currentRoute.getName(), getFullText(ctx)));
+    }
+    _currentRoute.setGw(ip);
+  }
+
+  @Override
+  public void exitNroute_gw6(Nroute_gw6Context ctx) {
+    _currentRoute.setGw6(toIp6(ctx.gw6));
+    todo(ctx);
+  }
+
+  @Override
+  public void exitNroute_network(Nroute_networkContext ctx) {
+    _currentRoute.setNetwork(ctx.network != null ? toPrefix(ctx.network) : Prefix.ZERO);
+  }
+
+  @Override
+  public void exitNroute_network6(Nroute_network6Context ctx) {
+    _currentRoute.setNetwork6(toPrefix6(ctx.network6));
+    todo(ctx);
+  }
+
+  @Override
+  public void exitNrp_route_domain(Nrp_route_domainContext ctx) {
+    todo(ctx);
+  }
+
+  @Override
+  public void exitNrpe_entry(Nrpe_entryContext ctx) {
+    _currentPrefixListEntry = null;
+  }
+
+  @Override
+  public void exitNrpee_action(Nrpee_actionContext ctx) {
+    _currentPrefixListEntry.setAction(toLineAction(ctx.action));
+  }
+
+  @Override
+  public void exitNrpee_prefix(Nrpee_prefixContext ctx) {
+    _currentPrefixListEntry.setPrefix(toPrefix(ctx.prefix));
+  }
+
+  @Override
+  public void exitNrpee_prefix_len_range(Nrpee_prefix_len_rangeContext ctx) {
+    _currentPrefixListEntry.setLengthRange(toSubRange(ctx.range));
+  }
+
+  @Override
+  public void exitNrpee_prefix6(Nrpee_prefix6Context ctx) {
+    _currentPrefixListEntry.setPrefix6(toPrefix6(ctx.prefix6));
+  }
+
+  @Override
+  public void exitNrr_route_domain(Nrr_route_domainContext ctx) {
+    todo(ctx);
+  }
+
+  @Override
+  public void exitNrre_entry(Nrre_entryContext ctx) {
+    _currentRouteMapEntry = null;
+  }
+
+  @Override
+  public void exitNrree_action(Nrree_actionContext ctx) {
+    _currentRouteMapEntry.setAction(toLineAction(ctx.action));
+  }
+
+  @Override
+  public void exitNs_address(Ns_addressContext ctx) {
+    _currentSelf.setAddress(toInterfaceAddress(ctx.interface_address));
+  }
+
+  @Override
+  public void exitNs_address6(Ns_address6Context ctx) {
+    // TODO: implement IPv6 interface address
+    todo(ctx);
+  }
+
+  @Override
+  public void exitNs_allow_service(Ns_allow_serviceContext ctx) {
+    todo(ctx);
+  }
+
+  @Override
+  public void exitNs_traffic_group(Ns_traffic_groupContext ctx) {
+    todo(ctx);
+  }
+
+  @Override
+  public void exitNs_vlan(Ns_vlanContext ctx) {
+    String name = toName(ctx.name);
+    _c.referenceStructure(VLAN, name, SELF_VLAN, ctx.name.getStart().getLine());
+    _currentSelf.setVlan(name);
+  }
+
+  @Override
+  public void exitNti_interface(Nti_interfaceContext ctx) {
+    String name = ctx.name.getText();
+    if (!_c.getInterfaces().containsKey(name)) {
+      _c.getInterfaces().put(name, new Interface(name));
+      _c.defineStructure(INTERFACE, name, ctx);
+    }
+    _c.referenceStructure(INTERFACE, name, TRUNK_INTERFACE, ctx.name.getStart().getLine());
+    _currentTrunk.getInterfaces().add(name);
+  }
+
+  @Override
+  public void exitNtp_servers(Ntp_serversContext ctx) {
+    _c.setNtpServers(
+        ctx.servers.stream().map(WordContext::getText).collect(ImmutableList.toImmutableList()));
+  }
+
+  @Override
+  public void exitNv_tag(Nv_tagContext ctx) {
+    _currentVlan.setTag(toInteger(ctx.tag));
+  }
+
+  @Override
+  public void exitNvi_interface(Nvi_interfaceContext ctx) {
+    String name = toName(ctx.name);
+    _c.referenceStructure(
+        VLAN_MEMBER_INTERFACE, name, VLAN_INTERFACE, ctx.name.getStart().getLine());
+    _currentVlan.getInterfaces().computeIfAbsent(name, VlanInterface::new);
+  }
+
+  @Override
+  public void exitS_security(S_securityContext ctx) {
+    todo(ctx);
+  }
+
+  @Override
+  public void exitSgs_hostname(Sgs_hostnameContext ctx) {
+    String hostname = unquote(ctx.hostname.getText());
+    _c.setHostname(hostname);
+  }
+
+  @Override
+  public void exitSys_dns(Sys_dnsContext ctx) {
+    todo(ctx);
+  }
+
+  @Override
+  public void enterSys_ha_group(Sys_ha_groupContext ctx) {
+    String name = toName(ctx.name);
+    _c.defineStructure(HA_GROUP, name, ctx.getParent());
+    _currentHaGroup = _c.getHaGroups().computeIfAbsent(name, HaGroup::new);
+  }
+
+  @Override
+  public void exitSys_ha_group(Sys_ha_groupContext ctx) {
+    _currentHaGroup = null;
+  }
+
+  @Override
+  public void exitSh_active_bonus(Sh_active_bonusContext ctx) {
+    _currentHaGroup.setActiveBonus(toInteger(ctx.bonus));
+  }
+
+  @Override
+  public void enterShp_pool(Shp_poolContext ctx) {
+    String name = toName(ctx.name);
+    _c.referenceStructure(POOL, name, HA_GROUP_POOL, ctx.name.getStart().getLine());
+    _currentHaGroupPool = _currentHaGroup.getPools().computeIfAbsent(name, HaGroupPool::new);
+  }
+
+  @Override
+  public void exitShp_pool(Shp_poolContext ctx) {
+    _currentHaGroupPool = null;
+  }
+
+  @Override
+  public void exitShpp_weight(Shpp_weightContext ctx) {
+    _currentHaGroupPool.setWeight(toInteger(ctx.weight));
+  }
+
+  @Override
+  public void enterSht_trunk(Sht_trunkContext ctx) {
+    String name = toName(ctx.name);
+    _c.referenceStructure(TRUNK, name, HA_GROUP_TRUNK, ctx.name.getStart().getLine());
+    _currentHaGroupTrunk = _currentHaGroup.getTrunks().computeIfAbsent(name, HaGroupTrunk::new);
+  }
+
+  @Override
+  public void exitSht_trunk(Sht_trunkContext ctx) {
+    _currentHaGroupTrunk = null;
+  }
+
+  @Override
+  public void exitShtt_weight(Shtt_weightContext ctx) {
+    _currentHaGroupTrunk.setWeight(toInteger(ctx.weight));
+  }
+
+  @Override
+  public void enterSys_management_ip(Sys_management_ipContext ctx) {
+    todo(ctx);
+  }
+
+  @Override
+  public void exitSys_management_route(Sys_management_routeContext ctx) {
+    todo(ctx);
+  }
+
+  @Override
+  public void exitSys_ntp(Sys_ntpContext ctx) {
+    todo(ctx);
+  }
+
+  @Override
+  public void exitSys_snmp(Sys_snmpContext ctx) {
+    todo(ctx);
+  }
+
+  @Override
+  public void enterIgnored(IgnoredContext ctx) {
+    if (_currentIgnored != null) {
+      return;
+    }
+    _currentIgnored = ctx;
+  }
+
+  @Override
+  public void exitIgnored(IgnoredContext ctx) {
+    if (_currentIgnored != ctx) {
+      return;
+    }
+    _currentIgnored = null;
+  }
+
+  @Override
+  public void enterUnrecognized(UnrecognizedContext ctx) {
+    if (_currentIgnored != null || _currentUnrecognized != null) {
+      return;
+    }
+    _c.setUnrecognized(true);
+    _currentUnrecognized = ctx;
+  }
+
+  @Override
+  public void exitUnrecognized(UnrecognizedContext ctx) {
+    if (_currentIgnored != null || _currentUnrecognized != ctx) {
+      return;
+    }
+    unrecognized(ctx);
+    _currentUnrecognized = null;
+  }
+
+  public F5BigipConfiguration getConfiguration() {
+    return _c;
+  }
+
+  @Override
+  public @Nonnull String getInputText() {
+    return _text;
+  }
+
+  @Override
+  public @Nonnull BatfishCombinedParser<?, ?> getParser() {
+    return _parser;
+  }
+
+  @Override
+  public @Nonnull Warnings getWarnings() {
+    return _w;
+  }
+
+  public @Nullable Integer getImishConfigurationLine() {
+    return _imishConfigurationLine;
+  }
+
+  @Nullable
+  Integer getImishConfigurationOffset() {
+    return _imishConfigurationOffset;
+  }
+
+  private @Nonnull String getUnrecognizedLeadText(UnrecognizedContext ctx) {
+    return _text.substring(
+        ctx.getStart().getStartIndex(), ctx.last_word.getStop().getStopIndex() + 1);
+  }
+
+  private @Nullable Long toCommunity(Standard_communityContext ctx) {
+    if (ctx.STANDARD_COMMUNITY() != null) {
+      return StandardCommunity.parse(ctx.getText()).asLong();
+    } else {
+      return convProblem(Long.class, ctx, null);
+    }
+  }
+
+  @Override
+  public @Nonnull String getWarningText(ParserRuleContext ctx) {
+    // Just print first line
+    return getFullText(ctx).split("\n", -1)[0];
+  }
+
+  private @Nullable IpProtocol toIpProtocol(Ip_protocolContext ctx) {
+    if (ctx.TCP() != null) {
+      return IpProtocol.TCP;
+    } else if (ctx.UDP() != null) {
+      return IpProtocol.UDP;
+    } else {
+      return convProblem(IpProtocol.class, ctx, null);
+    }
+  }
+
+  private @Nullable LineAction toLineAction(Prefix_list_actionContext ctx) {
+    if (ctx.PERMIT() != null) {
+      return LineAction.PERMIT;
+    } else if (ctx.DENY() != null) {
+      return LineAction.DENY;
+    } else {
+      return convProblem(LineAction.class, ctx, null);
+    }
+  }
+
+  private @Nullable LineAction toLineAction(Route_map_actionContext ctx) {
+    if (ctx.PERMIT() != null) {
+      return LineAction.PERMIT;
+    } else if (ctx.DENY() != null) {
+      return LineAction.DENY;
+    } else {
+      return convProblem(LineAction.class, ctx, null);
+    }
+  }
+
+  private @Nullable RouteAdvertisementMode toRouteAdvertisementMode(
+      Route_advertisement_modeContext ctx) {
+    if (ctx.ALL() != null) {
+      return RouteAdvertisementMode.ALL;
+    } else if (ctx.ALWAYS() != null) {
+      return RouteAdvertisementMode.ALWAYS;
+    } else if (ctx.ANY() != null) {
+      return RouteAdvertisementMode.ANY;
+    } else if (ctx.DISABLED() != null) {
+      return RouteAdvertisementMode.DISABLED;
+    } else if (ctx.ENABLED() != null) {
+      return RouteAdvertisementMode.ENABLED;
+    } else if (ctx.SELECTIVE() != null) {
+      return RouteAdvertisementMode.SELECTIVE;
+    } else {
+      return convProblem(RouteAdvertisementMode.class, ctx, null);
+    }
+  }
+
+  private @Nullable Double toSpeed(Bundle_speedContext ctx) {
+    if (ctx.FORTY_G() != null) {
+      return 40E9D;
+    } else if (ctx.ONE_HUNDRED_G() != null) {
+      return 100E9D;
+    } else {
+      return convProblem(Double.class, ctx, null);
+    }
+  }
+
+  private @Nullable SubRange toSubRange(Prefix_len_rangeContext ctx) {
+    String[] parts = ctx.getText().split(":", -1);
+    try {
+      checkArgument(parts.length == 2);
+      int low = Integer.parseInt(parts[0], 10);
+      int high = Integer.parseInt(parts[1], 10);
+      return new SubRange(low, high);
+    } catch (IllegalArgumentException e) {
+      return convProblem(SubRange.class, ctx, null);
+    }
+  }
+
+  private void unrecognized(UnrecognizedContext ctx) {
+    ParseWarning warning =
+        new ParseWarning(
+            ctx.getStart().getLine(),
+            getUnrecognizedLeadText(ctx),
+            ctx.toString(Arrays.asList(_parser.getParser().getRuleNames())),
+            "This syntax is unrecognized");
+    unrecognized(warning, ctx);
+  }
+
+  private void unrecognized(ParseWarning warning, @Nullable ParserRuleContext ctx) {
+    // for testing
+    if (_parser.getSettings().getDisableUnrecognized()) {
+      try {
+        String warningStr = BatfishObjectMapper.writePrettyString(warning);
+        String parseTreeStr =
+            ctx != null
+                ? ParseTreePrettyPrinter.print(
+                    ctx, _parser, _parser.getSettings().getPrintParseTreeLineNums())
+                : "";
+        throw new BatfishException(
+            String.format(
+                "Forcing failure on unrecognized line: %s\n%s", warningStr, parseTreeStr));
+      } catch (JsonProcessingException e) {
+        throw new BatfishException("Failure describing unrecognized line", e);
+      }
+    }
+
+    _w.getParseWarnings().add(warning);
+    _c.setUnrecognized(true);
+  }
+
+  @Override
+  public void visitErrorNode(ErrorNode errorNode) {
+    Token token = errorNode.getSymbol();
+    int line = token.getLine();
+    String lineText = errorNode.getText().replace("\n", "").replace("\r", "").trim();
+    _c.setUnrecognized(true);
+
+    if (token instanceof UnrecognizedLineToken) {
+      UnrecognizedLineToken unrecToken = (UnrecognizedLineToken) token;
+      _w.getParseWarnings()
+          .add(
+              new ParseWarning(
+                  line, lineText, unrecToken.getParserContext(), "This syntax is unrecognized"));
+    } else {
+      String msg = String.format("Unrecognized Line: %d: %s", line, lineText);
+      _w.redFlag(msg + " SUBSEQUENT LINES MAY NOT BE PROCESSED CORRECTLY");
+    }
+  }
+
+  @Override
+  public void exitEveryRule(ParserRuleContext ctx) {
+    tryProcessSilentSyntax(ctx);
+  }
+}

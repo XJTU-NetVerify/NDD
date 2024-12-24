@@ -1,0 +1,28 @@
+!BATFISH_FORMAT: a10_acos
+hostname service_group_warn
+!
+! Just needed for a valid ref below
+slb server SERVER1 10.0.0.1
+  port 80 tcp
+!
+!
+slb service-group SG1 tcp
+  health-check UNDEFINED
+  min-active-member 0
+  min-active-member 1025
+  member SERVER_UNDEF 80
+  member SERVER1 80
+    ! Bad priorities
+    priority 0
+    priority 17
+  ! ACOS v2 syntax, bad port
+  member SERVER1:65536
+  member SERVER1:
+  member SERVER1
+!
+! Cannot change type / protocol
+slb service-group SG1 udp
+!
+! Cannot create new group without type / protocol
+slb service-group SG2
+!

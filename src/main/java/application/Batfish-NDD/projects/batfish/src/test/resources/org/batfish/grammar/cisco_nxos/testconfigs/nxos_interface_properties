@@ -1,0 +1,146 @@
+!RANCID-CONTENT-TYPE: cisco-nx
+!
+hostname nxos_interface_properties
+!
+ip access-list acl_in
+ip access-list acl_out
+
+policy-map type qos pm_qos_in
+policy-map type qos pm_qos_out
+
+policy-map type queuing pm_queuing_in
+policy-map type queuing pm_queuing_out
+
+vrf context management
+
+interface Ethernet1/1
+  no cdp enable
+  no shutdown
+  no switchport
+  no ip redirects
+  no ipv6 redirects
+  bandwidth 10000
+  no bfd
+  bfd interval 250 min_rx 250 multiplier 3
+  bfd neighbor src-ip 192.0.2.1 dest-ip 192.0.2.2
+  delay 10
+  description here is a description with punctuation! and IP address 1.2.3.4/24 and trailing whitespace    
+  bfd per-link
+
+  ! parse and ignore
+  fabric database inherit-profile-map 2
+
+  ip access-group acl_in in
+  ip access-group acl_out out
+  ip dhcp relay address 1.2.3.4
+  ip dhcp relay address 1.2.3.5
+  no ip dhcp relay information trusted
+  no ip dhcp smart-relay
+  no ip dhcp relay subnet-broadcast
+  ip flow monitor FOO input sampler BAR
+  ip ospf authentication-key 3 8e008e8d49648110
+  no ip port-unreachable
+  ip proxy-arp
+  ip router eigrp 100
+  ip unreachables
+  ipv6 traffic-filter FOO in
+  ipv6 traffic-filter BAR out
+  no link debounce
+  no lldp receive
+  mac-address 1234.5678.9abc
+  mtu 9216
+  packet latency threshold 8
+  service-policy type qos input pm_qos_in
+  service-policy type qos output pm_qos_out
+  service-policy type queuing input pm_queuing_in
+  service-policy type queuing output pm_queuing_out
+  snmp trap link-status
+  udld aggressive
+  vpc peer-link
+  vpc 1101
+  no vtp
+  ip forward
+!
+
+interface Ethernet1/2
+  no autostate
+  autostate
+  description this desc should be lost.
+  no description
+  no ip proxy-arp
+  no snmp trap link-status
+  udld disable
+  no ip forward
+  switchport
+  switchport access vlan 5
+  no switchport access vlan 7
+
+interface Ethernet1/3
+  autostate
+  no autostate
+  bandwidth inherit 10000
+  udld enable
+
+interface Ethernet100/100
+  description only for unused syntax, no tests
+  bandwidth inherit
+  no bandwidth inherit
+  no beacon
+  no bfd echo
+  carrier-delay msec 100
+  flowcontrol receive off
+  flowcontrol send off
+  hardware multicast hw-hash
+  no hardware multicast hw-hash
+  no hardware vethernet mac filtering per-vlan
+  no hsrp bfd
+  hsrp version 2
+  hsrp delay minimum 300
+  hsrp delay minimum 300 reload 300
+  hsrp delay reload 300
+  hsrp delay reload 300 minimum 300
+  no hsrp use-bia
+  ip arp timeout 2400
+  ip arp gratuitous update
+  ip arp gratuitous request
+  ip directed-broadcast
+  ip port access-group AG in
+  ip verify unicast source reachable-via any
+  ipv6 mld version 2
+  ipv6 mld robustness-variable 2
+  ipv6 mld query-interval 125
+  ipv6 nd suppress-ra
+  ipv6 pim sparse-mode
+  lacp fast-select-hot-standby
+  link debounce time 100
+  lldp transmit
+  lldp receive
+  load-interval counter 1 60
+  load-interval counter 2 300
+  no load-interval counter 3
+  logging event port link-status default
+  logging event port trunk-status default
+  no logging event port link-status
+  no mac-address
+  no management
+  mdix auto
+  medium broadcast
+  negotiate auto
+  no ospfv3 passive-interface
+  no port-channel port load-defer
+  priority-flow-control mode auto
+  no spanning-tree bpdufilter
+  storm-control broadcast level 100.00
+  storm-control multicast level 100.00
+  storm-control unicast level 100.00
+  no storm-control action
+  no switchport access vlan
+  no switchport block multicast
+  no switchport block unicast
+  no switchport host
+  no switchport
+  no udld disable
+  vtp
+
+interface mgmt0
+  vrf member management
