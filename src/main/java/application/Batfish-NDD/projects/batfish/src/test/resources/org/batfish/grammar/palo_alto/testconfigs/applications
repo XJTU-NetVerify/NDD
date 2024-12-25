@@ -1,0 +1,11 @@
+set deviceconfig system hostname applications
+
+set config shared content-preview application ed137-ptt-off-squ-off references Eurocontrol link https://global.ihs.com/doc_detail.cfm?&amp;csf=TIA&amp;document_name=EUROCAE%20ED%20137&amp;item_s_key=00536715
+
+set config devices localhost.localdomain vsys vsys1 application app1
+# `config devices localhost.localdomain` is implied
+set vsys vsys1 application app2 description "this is a description"
+set vsys vsys1 application "app w spaces" description "this is another description"
+
+set vsys vsys1 rulebase security rules rule1 application undefined
+set vsys vsys1 rulebase security rules rule2 application app2

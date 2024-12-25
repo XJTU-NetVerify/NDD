@@ -1,0 +1,11 @@
+{
+    "name": "default",
+    "roleDimensionMappings": [
+        {
+            "regex": "as.(.*).+"
+        },
+        {
+            "regex": "(.*).+"
+        }
+    ]
+}

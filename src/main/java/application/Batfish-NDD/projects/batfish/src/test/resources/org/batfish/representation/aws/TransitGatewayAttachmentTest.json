@@ -1,0 +1,90 @@
+{
+  "TransitGatewayAttachments": [
+    {
+      "TransitGatewayAttachmentId": "tgw-attach-07f5ec59e9f540021",
+      "TransitGatewayId": "tgw-044be4464fcc69aff",
+      "TransitGatewayOwnerId": "554773406868",
+      "ResourceOwnerId": "554773406868",
+      "ResourceType": "vpc",
+      "ResourceId": "vpc-0404e08ceddf7f650",
+      "State": "modifying",
+      "Association": {
+        "TransitGatewayRouteTableId": "tgw-rtb-0fa40c8df355dce6e",
+        "State": "associated"
+      },
+      "CreationTime": "2019-11-29T18:59:04.000Z",
+      "Tags": [
+        {
+          "Key": "Name",
+          "Value": "tgw-vpcA"
+        }
+      ]
+    },
+    {
+      "TransitGatewayAttachmentId": "tgw-attach-0ae2696617bb06fb4",
+      "TransitGatewayId": "tgw-044be4464fcc69aff",
+      "TransitGatewayOwnerId": "554773406868",
+      "ResourceOwnerId": "554773406868",
+      "ResourceType": "vpc",
+      "ResourceId": "vpc-00a31ce9d0c06675c",
+      "State": "available",
+      "Association": {
+        "TransitGatewayRouteTableId": "tgw-rtb-0fa40c8df355dce6e",
+        "State": "associated"
+      },
+      "CreationTime": "2019-11-29T19:01:17.000Z",
+      "Tags": [
+        {
+          "Key": "Name",
+          "Value": "tgw-vpcB"
+        }
+      ]
+    },
+    {
+      "CreationTime": "2020-05-03 01:39:10+00:00",
+      "ResourceId": "vpc-0de868624d5f787db",
+      "ResourceOwnerId": "554773406868",
+      "ResourceType": "vpc",
+      "State": "available",
+      "Tags": [
+        {
+          "Key": "Name",
+          "Value": "tgw-bat-vpc-fish-att"
+        }
+      ],
+      "TransitGatewayAttachmentId": "tgw-attach-0ce5cf730c95980d9",
+      "TransitGatewayId": "tgw-01e19888e3ba041ac",
+      "TransitGatewayOwnerId": "554773406868"
+    },
+    {
+      "Association": {
+        "State": "associated",
+        "TransitGatewayRouteTableId": "tgw-rtb-0dce4e83c56c46fa9"
+      },
+      "CreationTime": "2020-04-15 06:05:26+00:00",
+      "ResourceId": "a0cb33f1-da2c-4b16-94b9-09cf843d672f",
+      "ResourceOwnerId": "094218548868",
+      "ResourceType": "direct-connect-gateway",
+      "State": "available",
+      "Tags": [],
+      "TransitGatewayAttachmentId": "tgw-attach-0dbe0fb191f73f405",
+      "TransitGatewayId": "tgw-0984f045a02daba60",
+      "TransitGatewayOwnerId": "094218548868"
+    },
+    {
+      "Association": {
+        "State": "associated",
+        "TransitGatewayRouteTableId": "tgw-rtb-000baae357fa2f403"
+      },
+      "CreationTime": "2020-05-06 18:44:27+00:00",
+      "ResourceId": "tgw-0cacbf5ed9fe034e7",
+      "ResourceOwnerId": "028403472736",
+      "ResourceType": "peering",
+      "State": "available",
+      "Tags": [],
+      "TransitGatewayAttachmentId": "tgw-attach-084b68f4a40b12383",
+      "TransitGatewayId": "tgw-074cc11880f74d29a",
+      "TransitGatewayOwnerId": "951601349076"
+    }
+  ]
+}

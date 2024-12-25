@@ -1,0 +1,18 @@
+#
+set system host-name juniper-condition
+#
+set policy-options condition c1 if-route-exists 1.0.0.0/24
+set policy-options condition c1 if-route-exists table inet.0
+set policy-options condition c2 if-route-exists 2.0.0.0/24
+set policy-options condition c2 if-route-exists table ri2.inet.0
+#
+set routing-instances ri2 instance-type vrf
+set policy-options policy-statement p1 term t1 from condition c1
+set policy-options policy-statement p1 term t1 then accept
+set policy-options policy-statement p1 term t2 then reject
+
+set interfaces xe-0/0/1 unit 0 family inet address 1.0.0.1/24
+
+set routing-options autonomous-system 1
+set routing-options router-id 1.0.0.1
+set protocols bgp group g neighbor 1.0.0.2

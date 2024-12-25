@@ -1,0 +1,23 @@
+!
+hostname pim
+!
+router pim
+ rp-address 137.164.17.1
+ address-family ipv4
+  rp-address 137.164.16.1 override
+  rpf-vector
+  log neighbor changes
+  interface Bundle-Ether5
+   bsr-border
+   dr-priority 200
+  !
+  interface Bundle-Ether6
+   bsr-border
+   disable
+  !
+  interface TenGigE0/2/0/0
+  !
+  interface TenGigE0/2/0/1
+ !
+!
+

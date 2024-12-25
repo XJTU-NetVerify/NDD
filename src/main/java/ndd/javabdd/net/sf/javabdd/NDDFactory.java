@@ -1,6 +1,5 @@
 package ndd.javabdd.net.sf.javabdd;
 
-import com.sun.istack.internal.NotNull;
 import jdd.util.Configuration;
 import jdd.util.Options;
 
@@ -18,6 +17,8 @@ import java.util.Collection;
 import java.util.LinkedList;
 
 public class NDDFactory extends BDDFactory {
+
+    public static int mkCount = 0;
 
     public void free() {
         bddEngine = null;
@@ -55,13 +56,6 @@ public class NDDFactory extends BDDFactory {
     private final NDD TRUE = new NDD();
     private final NDD FALSE = new NDD();
 
-//    public int[] vars;
-//    public bdd[] ndds;
-//
-//    public int[] upperBound;
-//    public double[] div;
-//    public int max;
-
     private NDDFactory(int nddTableSize, int bddTableSize, int bddCacheSize) {
         NDD_TABLE_SIZE = nddTableSize;
         CACHE_SIZE = NDD_TABLE_SIZE / CACHE_RATIO;
@@ -85,10 +79,58 @@ public class NDDFactory extends BDDFactory {
         Options.verbose = true;
     }
 
+    private NDDFactory(int bddTableSize, int bddCacheSize) {
+        BDD_TABLE_SIZE = bddTableSize;
+        BDD_CACHE_SIZE = bddCacheSize;
+
+        fieldNum = -1;
+        maxVariablePerField = new ArrayList<>();
+        satCountDiv = new ArrayList<>();
+        bddVarsPerField = new ArrayList<>();
+        bddNotVarsPerField = new ArrayList<>();
+        nddVarsPerField = new ArrayList<>();
+        nddNotVarsPerField = new ArrayList<>();
+        temporarilyProtect = new HashSet<>();
+
+        Options.verbose = true;
+    }
+
+    public void showStatus() {
+        System.out.println("=================================");
+        System.out.println("NDD node count: " + mkCount);
+        System.out.println("BDD node count: " + bddEngine.mkCount);
+        System.out.println("BDD show status: ");
+        bddEngine.showStats();
+        System.out.println("=================================");
+    }
+
+    /**
+     * init for batfish cuz cannot modify the parameters pass to factory
+     * will use @setVarNum lazily to initialize nodetable and declare fields
+     * @param bddTableSize
+     * @param bddCacheSize
+     * @return default factory with only constrain setted
+     */
+    public static BDDFactory init(int bddTableSize, int bddCacheSize) {
+        return new NDDFactory(bddTableSize, bddCacheSize);
+    }
+
+    public static BDDFactory init(int nddTableSize, int bddTableSize, int bddCacheSize) {
+        return new NDDFactory(nddTableSize, bddTableSize, bddCacheSize);
+    }
+
     public static BDDFactory init(ArrayList<Integer> fields, int nddTableSize, int bddTableSize, int bddCacheSize) {
         NDDFactory f = new NDDFactory(nddTableSize, bddTableSize, bddCacheSize);
         for (int i = 0; i < fields.size(); i++) {
             f.declareField(fields.get(i));
+        }
+        return f;
+    }
+
+    public static BDDFactory init(int[] fields, int nddTableSize, int bddTableSize, int bddCacheSize) {
+        NDDFactory f = new NDDFactory(nddTableSize, bddTableSize, bddCacheSize);
+        for (int i = 0; i < fields.length; i++) {
+            f.declareField(fields[i]);
         }
         return f;
     }
@@ -183,101 +225,46 @@ public class NDDFactory extends BDDFactory {
         return nodeTable.getCurrentSize();
     }
 
-//    public int setVarNum(int[] field, int maxSize, int cacheSize) {
-//        /*
-//         * maximum of field[] -> jdd
-//         * sum -> NDD
-//         * size of field[] -> table initialize
-//         */
-//        int max = 0;
-//        int num = 0;
-//        int size = field.length;
-//        for (int i = 0; i < size; i++) {
-//            if (field[i] > max)
-//                max = field[i];
-//            num += field[i];
-//        }
-//        if (num > Integer.MAX_VALUE / 2)
-//            throw new BDDException();
-//
-//        table = new NodeTable(size, maxSize, cacheSize);
-//        setFieldBoundDiv(max, field);
-//
-//        int old = bdd.numberOfVariables();
-//        int oldSize = vars.length;
-//        int newSize = oldSize;
-//        while (num > newSize) {
-//            newSize *= 2;
-//        }
-//        if (oldSize != newSize) {
-//            int[] oldVars = vars;
-//            bdd[] oldBdds = ndds;
-//            // should be max
-//            vars = new int[newSize];
-//            ndds = new bdd[newSize];
-//            System.arraycopy(oldVars, 0, vars, 0, old);
-//            System.arraycopy(oldBdds, 0, ndds, 0, oldBdds.length);
-//        }
-//        for (int k = 0; k < num; k++) {
-//            if (k < max) {
-//                vars[k] = bdd.createVar();
-//                bdd.ref(vars[k]);
-//            }
-//
-//            // get field number using upperBound (k start from 0)
-//            int f = 0;
-//            int offset = 0;
-//            for (int i = 0; i < upperBound.length; i++) {
-//                if (upperBound[i] > k) {
-//                    // find the first upperBound upper more than k
-//                    // then the i equals NDD field
-//                    // and field start from 0
-//                    f = i;
-//                    // out of bound if using k - upperBound[i - 1] as offset
-//                    offset = field[i] - (upperBound[i] - k);
-//                    break;
-//                }
-//            }
-//
-//            // jdd.BDD align right in vars
-//            // create edges: vars[start] -> NDDTrue
-//            HashMap<NDD, Integer> e = new HashMap<>();
-//            int start = max - field[f] + offset;
-//            e.put(NDDTrue, vars[start]);
-//
-//            ndds[k] = new bdd(f, e);
-//            // ref in bdd initialization
-//            // table.ref(ndds[k]._index);
-//        }
-//        return old;
-//    }
-//
-//    /*
-//     * num: sum of field[]
-//     */
-//    public void setFieldBoundDiv(int max, int[] field) {
-//        this.max = max;
-//        int size = field.length;
-//        fieldNum = size;
-//
-//        upperBound = new int[size];
-//        upperBound[0] = field[0];
-//        for (int i = 1; i < size; i++) {
-//            upperBound[i] = upperBound[i - 1] + field[i];
-//        }
-//
-//        div = new double[size];
-//        for (int i = 0; i < size; i++) {
-//            div[i] = Math.pow(2.0, max - field[i]);
-//        }
-//    }
+    /**
+     * lazy declare fields in NDD
+     * @param {fields} can be int[] or arraylist
+     */
+    public void setVarNum(int[] fields, int nddTableSize) {
+        NDD_TABLE_SIZE = nddTableSize;
+        CACHE_SIZE = NDD_TABLE_SIZE / CACHE_RATIO;
+        nodeTable = new NodeTable<>(NDD_TABLE_SIZE, BDD_TABLE_SIZE, BDD_CACHE_SIZE);
+        bddEngine = nodeTable.getBddEngine();
+
+        notCache = new OperationCache<>(CACHE_SIZE, 2);
+        andCache = new OperationCache<>(CACHE_SIZE, 3);
+        orCache = new OperationCache<>(CACHE_SIZE, 3);
+
+        for (int field : fields) {
+            declareField(field);
+        }
+    }
+
+    public void setVarNum(ArrayList<Integer> fields, int nddTableSize) {
+        NDD_TABLE_SIZE = nddTableSize;
+        CACHE_SIZE = NDD_TABLE_SIZE / CACHE_RATIO;
+        nodeTable = new NodeTable<>(NDD_TABLE_SIZE, BDD_TABLE_SIZE, BDD_CACHE_SIZE);
+        bddEngine = nodeTable.getBddEngine();
+
+        notCache = new OperationCache<>(CACHE_SIZE, 2);
+        andCache = new OperationCache<>(CACHE_SIZE, 3);
+        orCache = new OperationCache<>(CACHE_SIZE, 3);
+
+        for (Integer field : fields) {
+            declareField(field);
+        }
+    }
 
     @Override
     public BDD ithVar(int var) {
         // find var in field i
         int i = 0;
         for ( ; i < maxVariablePerField.size(); i++) {
-            if (maxVariablePerField.get(i) > var) {
+            if (maxVariablePerField.get(i) >= var) {
                 break;
             }
         }
@@ -1145,11 +1132,6 @@ public class NDDFactory extends BDDFactory {
             return this == getTrue() || this == getFalse();
         }
 
-        @Override
-        public boolean equals(Object ndd) {
-            return this == ndd;
-        }
-
         private void minassignmentbits_rec(BitSet set) {
             if (isFalse() || isTrue()) {
                 return;
@@ -1227,6 +1209,9 @@ public class NDDFactory extends BDDFactory {
         public NDD mk(int field, HashMap<NDD, Integer> edges) {
             NDD node = nodeTable.get(field).get(edges);
             if (node == null) {
+                // update mkCount to show status
+                mkCount++;
+
                 // create a new node
                 // 1. add ref count of all descendants
                 Iterator<NDD> iterator = edges.keySet().iterator();
@@ -1460,7 +1445,7 @@ public class NDDFactory extends BDDFactory {
          * @param operand1 The only operand of a unary operation.
          * @return The hash value.
          */
-        private int goodHash(@NotNull T operand1) {
+        private int goodHash(T operand1) {
             return Math.abs(operand1.hashCode()) % cacheSize;
         }
 
@@ -1470,7 +1455,7 @@ public class NDDFactory extends BDDFactory {
          * @param operand2 The second operand of a binary operation.
          * @return The hash value.
          */
-        private int goodHash(@NotNull T operand1, @NotNull T operand2) {
+        private int goodHash(T operand1, T operand2) {
             return (int) (Math.abs((long) operand1.hashCode() + (long) operand2.hashCode()) % cacheSize);
         }
 
@@ -1502,63 +1487,16 @@ public class NDDFactory extends BDDFactory {
         }
     }
 
-    /*
+    /**
      * dynamically set var num
+     * do not use setVarNum(int) for NDD cannot support
      */
     @Override
     public int setVarNum(int num) {
         if (num > Integer.MAX_VALUE / 2)
             throw new BDDException();
 
-        int k = maxVariablePerField.get(fieldNum) + 1;
-//        int newNodeCount = num - k;
-//        assert newNodeCount <= vars.length;
-//        fieldNum++;
-//
-//        // grow upperBound
-//        int[] oldUpperBound = upperBound;
-//        upperBound = new int[fieldNum];
-//        System.arraycopy(oldUpperBound, 0, upperBound, 0, fieldNum - 1);
-//        upperBound[fieldNum - 1] = num - 1;
-//        // grow div
-//        // TODO: recompute div
-//        double[] oldDiv = div;
-//        div = new double[fieldNum];
-//        System.arraycopy(oldDiv, 0, div, 0, fieldNum - 1);
-//        div[fieldNum - 1] = 0;
-//
-//        // grow vars and ndds
-//        int oldSize = vars.length;
-//        int newSize = oldSize;
-//        while (num > newSize) {
-//            newSize *= 2;
-//        }
-//        if (oldSize != newSize) {
-//            int[] oldVars = vars;
-//            bdd[] oldBdds = ndds;
-//            // should be max
-//            vars = new int[newSize];
-//            ndds = new bdd[newSize];
-//            System.arraycopy(oldVars, 0, vars, 0, oldVars.length);
-//            System.arraycopy(oldBdds, 0, ndds, 0, oldBdds.length);
-//        }
-//
-//        // never use field to judge NDDTrue or False
-//        // no need to set NDDTrue and NDDFalse field++
-//        // NDDTrue = new NDD();
-//        // NDDFalse = new NDD();
-//
-//        table.growTable();
-//        for (int i = 0; i < newNodeCount; i++) {
-//            // jdd.BDD align right in vars
-//            // create edges: vars[start] -> NDDTrue
-//            HashMap<NDD, Integer> e = new HashMap<>();
-//            int start = vars.length - newNodeCount + i;
-//            e.put(NDDTrue, vars[start]);
-//
-//            ndds[k + i] = new bdd(fieldNum - 1, e);
-//        }
-        return k;
+        return maxVariablePerField.get(fieldNum) + 1;
     }
 
     public NDD toNDD(int a) {
@@ -1678,7 +1616,7 @@ public class NDDFactory extends BDDFactory {
     }
 
     private void get_boundary_tree(int a, HashMap<Integer, HashSet<Integer>> boundary_tree,
-                                   ArrayList<HashSet<Integer>> boundary_points) {
+            ArrayList<HashSet<Integer>> boundary_points) {
         int start_level;
         start_level = bdd_getField(a);
         for(int curr = 0; curr < fieldNum; curr++)
@@ -1773,6 +1711,12 @@ public class NDDFactory extends BDDFactory {
     public int setCacheRatio(int x) {
         int old_cache_ratio = CACHE_RATIO;
         if (x <= 0) {
+            return old_cache_ratio;
+        }
+        // default factory without initialization
+        // set new cache ratio and return
+        if (fieldNum < 0) {
+            CACHE_RATIO = x;
             return old_cache_ratio;
         }
         int new_cache_size = NDD_TABLE_SIZE / x;

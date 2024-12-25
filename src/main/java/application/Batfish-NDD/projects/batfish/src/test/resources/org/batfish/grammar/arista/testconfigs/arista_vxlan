@@ -1,0 +1,20 @@
+!RANCID-CONTENT-TYPE: arista
+!
+hostname arista_vxlan
+!
+vrf instance TENANT
+vrf instance VRF_1
+vrf instance VRF_2
+!
+interface Vlan1
+  vrf VRF_1
+!
+interface Vlan2
+  vrf VRF_2
+!
+interface Vxlan1
+  vxlan vrf TENANT vni 10000
+  arp reply relay
+  vxlan virtual-router encapsulation mac-address mlag-system-id
+  vxlan vlan 1 vni 10001
+  vxlan vlan 2 vni 10002

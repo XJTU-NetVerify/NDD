@@ -1,0 +1,6 @@
+!RANCID-CONTENT-TYPE: cisco-nx
+!
+hostname nxos_bgp_nh_unchanged
+!
+route-map NHIP-UNCHANGED permit 10
+  set ip next-hop unchanged

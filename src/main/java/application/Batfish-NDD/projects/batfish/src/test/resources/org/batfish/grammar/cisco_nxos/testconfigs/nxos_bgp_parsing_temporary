@@ -1,0 +1,51 @@
+!RANCID-CONTENT-TYPE: cisco-nx
+!
+hostname nxos_bgp_parsing_temporary
+feature bgp
+!
+router bgp 1
+  bestpath as-path multipath-relax
+  bestpath compare-routerid
+  enforce-first-as
+  event-history periodic
+  event-history events
+  event-history cli
+  fast-external-fallover
+  address-family ipv4 unicast
+    aggregate-address 10.0.0.0/8 attribute-map ATTR_MAP
+    client-to-client reflection
+    dampen-igp-metric 600
+    distance 20 200 220
+    redistribute direct route-map BLOBB
+    maximum-paths 32
+    maximum-paths ibgp 32
+    maximum-paths mixed 1
+    network 1.2.3.0/24 route-map BLIBB
+    nexthop trigger-delay critical 3000 non-critical 10000
+  address-family ipv6 unicast
+     network ::ffff:1.2.3.0/120 route-map BLIB
+  template peer PEER_BLLF
+    remote-as 12345
+    dynamic-capability
+    timers 4 12
+    address-family ipv4 unicast
+      next-hop-third-party
+      route-map IN_BBB in
+      route-map EG_CCC out
+      send-community both
+      soft-reconfiguration inbound
+      advertise local-labeled-route
+  template peer-policy PEER_POLICY
+    next-hop-self
+    soft-reconfiguration inbound
+  template peer-session PEER_SESSION
+    remote-as 12345
+    dynamic-capability
+    timers 60 180
+  neighbor 1.1.1.1
+    bfd
+    inherit peer PEER_BLLF
+  neighbor 1.1.1.2
+    no bfd
+    inherit peer PEER_BLLF
+!

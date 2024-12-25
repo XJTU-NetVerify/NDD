@@ -1,0 +1,11 @@
+!RANCID-CONTENT-TYPE: arista
+!
+hostname arista_ospf
+!
+interface Ethernet1
+  ip ospf priority 150
+!
+router ospf 1
+ no default-information originate
+!
+

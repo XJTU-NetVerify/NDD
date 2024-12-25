@@ -1,0 +1,42 @@
+!RANCID-CONTENT-TYPE: arista
+!
+hostname arista_interface
+!
+interface Ethernet1
+  !! New vrf syntax, EOS 4.23 and later
+  no switchport
+  vrf VRF_1
+  encapsulation dot1q vlan 7
+  ip address 1.1.1.1/31
+  ip ospf priority 150
+  no queue-monitor length
+  ptp enable
+  ptp sync interval 1
+!
+interface Ethernet2
+  !! Old vrf syntax, before EOS 4.23
+  no switchport
+  vrf forwarding VRF_2
+  ip address 1.1.1.2/31
+!
+interface Recirc-Channel1
+   description Arista Vxlan Encap Channel
+   no switchport
+   switchport recirculation features vxlan
+!
+interface UnconnectedEthernet5
+  description Arista Vxlan ReCirculation Channel
+  traffic-loopback source system device mac
+  channel-group recirculation 1
+!
+interface Ethernet3
+  !! Unconfigured iface should be up, in access mode, with vlan 1.
+!
+interface Ethernet4
+  !! Interface with subinterfaces just needs no switchport
+  no switchport
+interface Ethernet4.400
+  !! Interface with subinterfaces just needs no switchport
+  encapsulation dot1q vlan 400
+  ip address 4.4.4.4/24
+  ip address 5.5.5.5/32 secondary

@@ -1,0 +1,33 @@
+!RANCID-CONTENT-TYPE: cisco-nx
+!
+hostname nxos_ntp
+!
+
+ip access-list acl_peer
+ip access-list acl_query_only
+ip access-list acl_serve
+ip access-list acl_serve_only
+
+ntp access-group match-all
+ntp access-group peer acl_peer
+ntp access-group query-only acl_query_only
+ntp access-group serve acl_serve
+ntp access-group serve-only acl_serve_only
+
+ntp authenticate
+ntp authentication-key 1 md5 012345678Abz 7
+
+ntp commit
+ntp distribute
+
+ntp peer 192.168.0.1
+ntp peer 192.168.0.2
+
+ntp server 192.0.2.1
+ntp server 192.0.2.2 key 12345
+ntp server 192.0.2.2 maxpoll 10
+ntp server 192.0.2.2 minpoll 10
+ntp server 192.0.2.3 use-vrf management key 12345 minpoll 10 maxpoll 10
+ntp server 192.0.2.4 prefer
+
+ntp source-interface mgmt0

@@ -1,0 +1,92 @@
+config system global
+    set hostname "firewall_policy_warn"
+end
+config system interface
+    edit "port10"
+        set vdom "root"
+        set type physical
+        set ip 10.0.10.1/24
+    next
+    edit "port20"
+        set vdom "root"
+        set type physical
+        set ip 10.0.20.1/24
+    next
+end
+config firewall service custom
+    edit "service10"
+        set tcp-portrange 10
+    next
+    edit "service20"
+        set tcp-portrange 20
+    next
+end
+config firewall address
+    edit addr10
+        set subnet 10.0.10.0 255.255.255.0
+    next
+    edit addr20
+        set subnet 10.0.20.0 255.255.255.0
+    next
+end
+config firewall policy
+    edit 4294967295
+        set action accept
+        set name "this name is too long to use as a firewall policy name"
+        set srcintf port1
+        set dstintf port2
+        set srcaddr addr1
+        set dstaddr addr2
+        set service service1
+        set status enable
+        append srcintf port3
+        append dstintf port4
+        append srcaddr addr3
+        append dstaddr addr4
+        append service service2
+    next
+    edit not_a_number
+    next
+    edit 1
+        # any should be dropped
+        set srcintf any port10
+        # any should _not_ be dropped
+        set dstintf any port20
+        set service service20
+        # Line should be rejected
+        set service service10 ALL
+        # all should be dropped
+        set srcaddr addr10 all
+        # all should be dropped
+        set dstaddr addr20 all
+    next
+    edit 1
+        # this should be allowed even though properties are missing because
+        # first edit block already sets those properties for policy 1
+        set srcintf port10
+    next
+    edit 2
+        # This policy shouldn't be created because you can't leave out service
+        set srcintf port10
+        set dstintf port20
+        set srcaddr addr10
+        set dstaddr addr20
+    next
+    edit 3
+        # This policy shouldn't be created action ipsec isn't supported
+        set action ipsec
+        set srcintf port10
+        set dstintf port20
+        set srcaddr addr10
+        set dstaddr addr20
+        set service service10
+    next
+    # Non-existent names
+    move 3 before 99999
+    move 99999 before 3
+    clone 99999 to 99998
+    # Invalid name
+    clone 3 to foobar
+    # To-target already exists
+    clone 3 to 1
+end

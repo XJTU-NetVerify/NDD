@@ -1,0 +1,27 @@
+#RANCID-CONTENT-TYPE: juniper
+system {
+  host-name a.example.com;
+}
+interfaces xe-0/0/0 {
+  unit 0 {
+    unrecognized syntax;
+    description "this description has quotes";
+  }
+}
+protocols {
+  bgp {
+    # traceoptions should be silently ignored
+    traceoptions {
+      file update;
+    }
+  }
+  isis {
+    interface ge-0/0/0.0 {
+      level 2 {
+        # priority 65 unsupported for now
+        priority 65;
+      }
+    }
+  }
+}
+set routing-options resolution rib inet.4 import policy1

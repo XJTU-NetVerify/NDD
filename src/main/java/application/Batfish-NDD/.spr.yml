@@ -1,0 +1,11 @@
+githubRepoOwner: batfish
+githubRepoName: batfish
+githubHost: github.com
+requireChecks: true
+requireApproval: false
+githubRemote: origin
+githubBranch: master
+remoteBranches: []
+mergeMethod: squash
+mergeQueue: false
+forceFetchTags: false

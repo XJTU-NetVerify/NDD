@@ -1,0 +1,51 @@
+!RANCID-CONTENT-TYPE: cisco-nx
+!
+hostname nxos_class_map
+!
+mac access-list acl1
+!
+class-map type control-plane match-any cm_cp
+  match access-group name acl1
+  match exception fcoe-fib-miss
+  match exception glean
+  match exception ip icmp unreachable
+  match exception ip multicast directly-connected-sources
+  match exception ip option
+  match exception ipv6 icmp unreachable
+  match exception ipv6 multicast directly-connected-sources
+  match exception ipv6 option
+  match exception mtu-failure
+  match exception multicast dest-miss
+  match exception multicast directly-connected-sources
+  match exception multicast ipv6-dest-miss
+  match exception multicast ipv6-rpf-failure
+  match exception multicast ipv6-sg-rpf-failure
+  match exception multicast rpf-failure
+  match exception multicast sg-rpf-failure
+  match exception nat-flow
+  match exception ttl-failure
+  match protocol arp
+  match protocol mpls
+  match protocol mpls exp 6
+  match protocol mpls router-alert
+  match redirect arp-inspect
+  match redirect dhcp-snoop
+
+class-map type network-qos cm_network_qos
+  description some network-qos class
+  match cos 1-2,4
+  match protocol fcoe
+  match qos-group 3
+
+class-map type qos match-any cm_qos
+  match access-group name acl1
+  match dscp 18,20,22
+  match precedence 3-4
+
+!! You cannot override these, but this is the head of `show run all | sec class-map`
+class-map type queuing match-any c-out-q-default
+  match qos-group 0
+class-map type queuing match-any c-out-8q-q7
+  match qos-group 7
+class-map type queuing match-any c-out-8q-q6
+  match qos-group 6

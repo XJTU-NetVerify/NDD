@@ -1,0 +1,67 @@
+!RANCID-CONTENT-TYPE: cisco-xr
+!
+hostname ospf-distribute-list
+!
+interface GigabitEthernet0/0/0/1
+ no shutdown
+!
+interface GigabitEthernet0/0/0/2
+ no shutdown
+!
+interface GigabitEthernet0/0/0/3
+ no shutdown
+!
+interface GigabitEthernet0/0/0/4
+ no shutdown
+!
+interface GigabitEthernet0/0/0/5
+ no shutdown
+!
+interface GigabitEthernet0/0/0/6
+ no shutdown
+!
+ipv4 access-list ACL1
+ permit tcp host 1.1.1.0 host 255.255.255.0
+ipv4 access-list ACL2
+ permit tcp host 2.2.2.0 host 255.255.255.0
+ipv4 access-list ACL3
+ permit tcp host 3.3.3.0 host 255.255.255.0
+!
+route-policy RP
+end-policy
+!
+router ospf 1
+  router-id 1.1.1.1
+  ! ACL in will get overridden.
+  distribute-list ACL in
+  distribute-list route-policy RP in
+  distribute-list ACL2 out
+  area 1
+    interface GigabitEthernet0/0/0/1
+!
+router ospf 2
+  router-id 2.2.2.2
+  distribute-list ACL3 in
+  area 2
+    interface GigabitEthernet0/0/0/2
+!
+router ospf 3
+  router-id 3.3.3.3
+  distribute-list ACL1 in
+  # Inherits from router level
+  area 3
+    interface GigabitEthernet0/0/0/3
+  # Inherits from area level, overrides router level
+  area 4
+    distribute-list ACL2 in
+    interface GigabitEthernet0/0/0/4
+  # Uses interface settings, overrides router level
+  area 5
+    interface GigabitEthernet0/0/0/5
+      distribute-list ACL3 in
+  # Uses interface settings, overrides router and area levels
+  area 6
+    distribute-list ACL2 in
+    interface GigabitEthernet0/0/0/6
+      distribute-list ACL3 in
+!

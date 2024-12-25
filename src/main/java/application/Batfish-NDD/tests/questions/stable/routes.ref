@@ -1,0 +1,108 @@
+{
+  "class" : "org.batfish.question.routes.RoutesQuestion",
+  "network" : "1.1.1.0/24",
+  "nodes" : "n1",
+  "prefixMatchType" : "LONGEST_PREFIX_MATCH",
+  "protocols" : "igp",
+  "rib" : "MAIN",
+  "vrfs" : "default",
+  "differential" : false,
+  "includeOneTableKeys" : true,
+  "instance" : {
+    "description" : "Returns routing tables.",
+    "instanceName" : "qname",
+    "longDescription" : "Shows routes for specified RIB, VRF, and node(s).",
+    "orderedVariableNames" : [
+      "nodes",
+      "network",
+      "prefixMatchType",
+      "protocols",
+      "vrfs",
+      "rib"
+    ],
+    "tags" : [
+      "dataplane",
+      "routing"
+    ],
+    "variables" : {
+      "network" : {
+        "description" : "Return routes for networks matching this prefix",
+        "displayName" : "Network",
+        "optional" : true,
+        "type" : "prefix",
+        "value" : "1.1.1.1/24"
+      },
+      "nodes" : {
+        "description" : "Return routes on nodes matching this specifier",
+        "displayName" : "Nodes",
+        "optional" : true,
+        "type" : "nodeSpec",
+        "value" : "n1"
+      },
+      "prefixMatchType" : {
+        "allowedValues" : [
+          "EXACT",
+          "LONGER_PREFIXES",
+          "LONGEST_PREFIX_MATCH",
+          "SHORTER_PREFIXES"
+        ],
+        "description" : "Use this prefix matching criterion: EXACT, LONGEST_PREFIX_MATCH, LONGER_PREFIXES, SHORTER_PREFIXES",
+        "displayName" : "Prefix match type",
+        "optional" : true,
+        "type" : "string",
+        "value" : "LONGEST_PREFIX_MATCH",
+        "values" : [
+          {
+            "name" : "EXACT"
+          },
+          {
+            "name" : "LONGEST_PREFIX_MATCH"
+          },
+          {
+            "name" : "LONGER_PREFIXES"
+          },
+          {
+            "name" : "SHORTER_PREFIXES"
+          }
+        ]
+      },
+      "protocols" : {
+        "description" : "Return routes for protocols matching this specifier",
+        "displayName" : "Protocols",
+        "optional" : true,
+        "type" : "routingProtocolSpec",
+        "value" : "igp"
+      },
+      "rib" : {
+        "allowedValues" : [
+          "bgp",
+          "evpn",
+          "main"
+        ],
+        "description" : "Only return routes from a given protocol RIB",
+        "displayName" : "RIB",
+        "optional" : true,
+        "type" : "string",
+        "value" : "main",
+        "values" : [
+          {
+            "name" : "main"
+          },
+          {
+            "name" : "bgp"
+          },
+          {
+            "name" : "evpn"
+          }
+        ]
+      },
+      "vrfs" : {
+        "description" : "Return routes on VRFs matching this name or regex",
+        "displayName" : "VRFs",
+        "optional" : true,
+        "type" : "vrf",
+        "value" : "default"
+      }
+    }
+  }
+}

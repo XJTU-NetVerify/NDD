@@ -1,0 +1,8 @@
+!RANCID-CONTENT-TYPE: cisco-nx
+!
+hostname nxos_ntp
+!
+no ntp allow control
+no ntp passive
+ntp server 10.1.2.3 use-vrf management key 12345 minpoll 10 maxpoll 10
+!
