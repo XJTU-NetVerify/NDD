@@ -185,8 +185,9 @@ public class OperationCache<T> {
      */
     // invalidate all entries in the cache during garbage collections of the node table
     public void clearCache() {
-        for (int i = 0; i < cacheSize; i++) {
-            invalidateEntry(i);
-        }
+//        for (int i = 0; i < cacheSize; i++) {
+//            invalidateEntry(i);
+//        }
+        cache = new Object [cacheSize * entrySize];
     }
 }

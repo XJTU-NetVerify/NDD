@@ -9,6 +9,7 @@ import java.util.Set;
 
 import jdd.bdd.BDD;
 import jdd.bdd.Permutation;
+import ndd.jdd.utils.DecomposeBDD;
 
 // todo: recheck the logic of ref and deref
 public class BDDVectors {
@@ -558,29 +559,14 @@ public class BDDVectors {
         return result;
     }
 
-    private static int bddGetField(int a) {
-        if (a == BDD_FALSE || a == BDD_TRUE) {
-            return fieldNum;
-        }
-        int varA = bddEngine.getVar(a);
-        int currentField = 0;
-        while (currentField < fieldNum) {
-            if (varA <= maxVariablePerField.get(currentField)) {
-                break;
-            }
-            currentField++;
-        }
-        return currentField;
-    }
-
     private static BDDVectors toBDDVectorsRec(int a) {
         // decomposed: from -> {to -> bdd}
-        HashMap<Integer, HashMap<Integer, Integer>> decomposed = decompose(a);
+        HashMap<Integer, HashMap<Integer, Integer>> decomposed = DecomposeBDD.decompose(a, bddEngine, maxVariablePerField);
 
         ArrayList<Integer> tempBDDVector = new ArrayList<>();
         Set<ArrayList<Integer>> bddVectors = new HashSet<>();
 
-        for (int i = 0; i < bddGetField(a); i++) {
+        for (int i = 0; i < DecomposeBDD.bddGetField(a); i++) {
             tempBDDVector.add(BDD_TRUE);
         }
 
@@ -634,7 +620,7 @@ public class BDDVectors {
         for (Map.Entry<Integer, Integer> entry : map.entrySet()) {
             int to = entry.getKey();
             int perFieldBDD = entry.getValue();
-            int middleFieldNum = bddGetField(to) - bddGetField(from) - 1;
+            int middleFieldNum = DecomposeBDD.bddGetField(to) - DecomposeBDD.bddGetField(from) - 1;
             bddVector.add(bddEngine.ref(perFieldBDD));
             for (int i = 0; i < middleFieldNum; i++) {
                 bddVector.add(BDD_TRUE);
@@ -646,93 +632,6 @@ public class BDDVectors {
                 bddVector.remove(bddVector.size() - 1);
             }
         }
-    }
-
-    private static HashMap<Integer, HashMap<Integer, Integer>> decompose(int a) {
-        HashMap<Integer, HashMap<Integer, Integer>> decomposedBDD = new HashMap<Integer, HashMap<Integer, Integer>>();
-        if (a == BDD_FALSE) {
-        } else if (a == BDD_TRUE) {
-            HashMap<Integer, Integer> map = new HashMap<>();
-            map.put(BDD_TRUE, BDD_TRUE);
-            decomposedBDD.put(BDD_TRUE, map);
-        } else {
-            HashMap<Integer, HashSet<Integer>> boundaryTree = new HashMap<>();
-            ArrayList<HashSet<Integer>> boundaryPoints = new ArrayList<>();
-            getBoundaryTree(a, boundaryTree, boundaryPoints);
-
-            for (int currentField = 0; currentField < fieldNum - 1; currentField++) {
-                for (int from : boundaryPoints.get(currentField)) {
-                    decomposedBDD.put(from, new HashMap<>());
-                    for (int to : boundaryTree.get(from)) {
-                        int perFieldBDD = bddEngine.ref(constructPerFieldBDD(from, to, from));
-                        decomposedBDD.get(from).put(to, perFieldBDD);
-                    }
-                }
-            }
-
-            for (int from : boundaryPoints.get(fieldNum - 1)) {
-                decomposedBDD.put(from, new HashMap<Integer, Integer>());
-                decomposedBDD.get(from).put(BDD_TRUE, bddEngine.ref(from));
-            }
-        }
-        return decomposedBDD;
-    }
-
-    private static void getBoundaryTree(int a, HashMap<Integer, HashSet<Integer>> boundaryTree,
-                                          ArrayList<HashSet<Integer>> boundaryPoints) {
-        int startField = bddGetField(a);
-        for (int i = 0; i < fieldNum; i++) {
-            boundaryPoints.add(new HashSet<Integer>());
-        }
-        boundaryPoints.get(startField).add(a);
-        if (startField == fieldNum - 1) {
-            boundaryTree.put(a, new HashSet<Integer>());
-            boundaryTree.get(a).add(BDD_TRUE);
-        } else {
-            for (int currentField = startField; currentField < fieldNum; currentField++) {
-                for (int from : boundaryPoints.get(currentField)) {
-                    detectBoundaryPoints(from, from, boundaryTree, boundaryPoints);
-                }
-            }
-        }
-    }
-
-    private static void detectBoundaryPoints(int from, int current, HashMap<Integer, HashSet<Integer>> boundaryTree,
-                                              ArrayList<HashSet<Integer>> boundaryPoints) {
-        if (current == BDD_FALSE) {
-            return;
-        }
-
-        if (bddGetField(from) != bddGetField(current)) {
-            if (!boundaryTree.containsKey(from)) {
-                boundaryTree.put(from, new HashSet<Integer>());
-            }
-            boundaryTree.get(from).add(current);
-            if (current != BDD_TRUE) {
-                boundaryPoints.get(bddGetField(current)).add(current);
-            }
-            return;
-        }
-
-        detectBoundaryPoints(from, bddEngine.getLow(current), boundaryTree, boundaryPoints);
-        detectBoundaryPoints(from, bddEngine.getHigh(current), boundaryTree, boundaryPoints);
-    }
-
-    // return per field bdd without ref
-    private static int constructPerFieldBDD(int from, int to, int current) {
-        if (bddGetField(from) != bddGetField(current)) {
-            if (to == current)
-                return BDD_TRUE;
-            else
-                return BDD_FALSE;
-        }
-
-        int new_low = bddEngine.ref(constructPerFieldBDD(from, to, bddEngine.getLow(current)));
-        int new_high = bddEngine.ref(constructPerFieldBDD(from, to, bddEngine.getHigh(current)));
-        int result = bddEngine.mk(bddEngine.getVar(current), new_low, new_high);
-        bddEngine.deref(new_low);
-        bddEngine.deref(new_high);
-        return result;
     }
 
     public static int toZero(BDDVectors n) {

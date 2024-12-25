@@ -1,8 +1,10 @@
 package ndd.jdd.diagram;
 
+import javafx.util.Pair;
 import jdd.bdd.BDD;
 import ndd.jdd.cache.OperationCache;
 import ndd.jdd.nodetable.NodeTable;
+import ndd.jdd.utils.DecomposeBDD;
 
 import java.util.*;
 
@@ -21,17 +23,17 @@ public class NDD {
     /**
      * The ndd node table.
      */
-    private static NodeTable<Integer> nodeTable;
+    private static NodeTable nodeTable;
 
     /**
      * The internal bdd engine.
      */
-    private static BDD bddEngine;
+    protected static BDD bddEngine;
 
     /**
      * The number of fields.
      */
-    private static int fieldNum;
+    protected static int fieldNum;
 
     /**
      * The max id of bits for each field.
@@ -88,7 +90,7 @@ public class NDD {
      * @param bddCacheSize The max size of bdd operation cache.
      */
     public static void initNDD(int nddTableSize, int bddTableSize, int bddCacheSize) {
-        nodeTable = new NodeTable<>(nddTableSize, bddTableSize, bddCacheSize);
+        nodeTable = new NodeTable(nddTableSize, bddTableSize, bddCacheSize);
         bddEngine = nodeTable.getBddEngine();
         fieldNum = -1;
         maxVariablePerField = new ArrayList<>();
@@ -140,16 +142,20 @@ public class NDD {
             bddVars[i] = bddEngine.ref(bddEngine.createVar());
             bddNotVars[i] = bddEngine.ref(bddEngine.not(bddVars[i]));
             HashMap<NDD, Integer> edges = new HashMap<>();
-            edges.put(NDD.getTrue(), bddEngine.ref(bddVars[i]));
-            nddVars[i] = NDD.ref(NDD.mk(fieldNum, edges));
+            edges.put(getTrue(), bddEngine.ref(bddVars[i]));
+            nddVars[i] = ref(mk(fieldNum, edges));
             edges = new HashMap<>();
-            edges.put(NDD.getTrue(), bddEngine.ref(bddNotVars[i]));
-            nddNotVars[i] = NDD.ref(NDD.mk(fieldNum, edges));
+            edges.put(getTrue(), bddEngine.ref(bddNotVars[i]));
+            nddNotVars[i] = ref(mk(fieldNum, edges));
         }
         bddVarsPerField.add(bddVars);
         bddNotVarsPerField.add(bddNotVars);
         nddVarsPerField.add(nddVars);
         nddNotVarsPerField.add(nddNotVars);
+        return fieldNum;
+    }
+
+    public static int getFieldNum() {
         return fieldNum;
     }
 
@@ -180,6 +186,10 @@ public class NDD {
         notCache.clearCache();
         andCache.clearCache();
         orCache.clearCache();
+    }
+
+    public static BDD getBDDEngine() {
+        return bddEngine;
     }
 
     /**
@@ -237,7 +247,7 @@ public class NDD {
      * @param descendant The descendant of the edge to be inserted.
      * @param labelBDD The label of the edge to be inserted.
      */
-    private static void addEdge(HashMap<NDD, Integer> edges, NDD descendant, int labelBDD) {
+    protected static void addEdge(HashMap<NDD, Integer> edges, NDD descendant, int labelBDD) {
         // omit the edge pointing to terminal node FALSE
         if (descendant.isFalse()) {
             bddEngine.deref(labelBDD);
@@ -310,8 +320,8 @@ public class NDD {
                  * we can let A operate with a pseudo node
                  * with only edge labelled by true and pointing to B
                  */
-                NDD subRet = andRec(entryA.getKey(), b);
-                addEdge(edges, subRet, bddEngine.ref(entryA.getValue()));
+                NDD subResult = andRec(entryA.getKey(), b);
+                addEdge(edges, subResult, bddEngine.ref(entryA.getValue()));
             }
         }
         // try to create or reuse node
@@ -370,12 +380,11 @@ public class NDD {
                     int intersect = bddEngine.ref(bddEngine.and(entryA.getValue(), entryB.getValue()));
                     if (intersect != 0) {
                         // update residual
-                        int oldResidual = residualA.get(entryA.getKey());
                         int notIntersect = bddEngine.ref(bddEngine.not(intersect));
+                        int oldResidual = residualA.get(entryA.getKey());
                         residualA.put(entryA.getKey(), bddEngine.andTo(oldResidual, notIntersect));
                         oldResidual = residualB.get(entryB.getKey());
-                        residualB.put(entryB.getKey(),
-                                bddEngine.andTo(oldResidual, notIntersect));
+                        residualB.put(entryB.getKey(), bddEngine.andTo(oldResidual, notIntersect));
                         bddEngine.deref(notIntersect);
                         // the descendant of the new edge
                         NDD subResult = orRec(entryA.getKey(), entryB.getKey());
@@ -394,9 +403,9 @@ public class NDD {
                     addEdge(edges, entryA.getKey(), bddEngine.ref(entryA.getValue()));
                 }
             }
-            for (Map.Entry<NDD, Integer> entry_b : residualB.entrySet()) {
-                if (entry_b.getValue() != 0) {
-                    addEdge(edges, entry_b.getKey(), bddEngine.ref(entry_b.getValue()));
+            for (Map.Entry<NDD, Integer> entryB : residualB.entrySet()) {
+                if (entryB.getValue() != 0) {
+                    addEdge(edges, entryB.getKey(), bddEngine.ref(entryB.getValue()));
                 }
             }
         } else {
@@ -514,7 +523,7 @@ public class NDD {
         NDD result = FALSE;
         if (a.field == field) {
             for (NDD next : a.edges.keySet()) {
-                result = NDD.orRec(result, next);
+                result = orRec(result, next);
             }
         } else {
             HashMap<NDD, Integer> edges = new HashMap<>();
@@ -596,9 +605,156 @@ public class NDD {
     }
 
     /**
+     * Encode an NDD of a prefix with no temporary NDD nodes created.
+     * @param prefixBinaryReverse The binary prefix in reverse order, e.g., [0, 1, 0, 1] for 10.
+     * @param field The field of the prefix.
+     * @return An ndd node encoding the prefix.
+     */
+    public static NDD encodePrefix(int[] prefixBinaryReverse, int field) {
+        if (prefixBinaryReverse.length == 0) {
+            return TRUE;
+        }
+
+        int prefixBDD = encodePrefixBDD(prefixBinaryReverse, field);
+
+        HashMap<NDD, Integer> edges = new HashMap<>();
+        edges.put(TRUE, prefixBDD);
+        return mk(field, edges);
+    }
+
+    public static NDD encodePrefixs(ArrayList<int[]> prefixsBinaryReverse, int field) {
+        int prefixsBDD = 0;
+        for (int[] prefix : prefixsBinaryReverse) {
+            prefixsBDD = bddEngine.orTo(prefixsBDD, encodePrefixBDD(prefix, field));
+        }
+        HashMap<NDD, Integer> edges = new HashMap<>();
+        edges.put(TRUE, prefixsBDD);
+        return mk(field, edges);
+    }
+
+    public static int encodePrefixBDD(int[] prefixBinaryReverse, int field) {
+        if (prefixBinaryReverse.length == 0) {
+            return 1;
+        }
+
+        int[] vars = bddVarsPerField.get(field);
+        int[] notVars = bddNotVarsPerField.get(field);
+        int prefixBDD = 1;
+        for (int i = 0; i < prefixBinaryReverse.length; i++) {
+            int index = vars.length - prefixBinaryReverse.length + 1;
+            int currentBit = prefixBinaryReverse[i] == 1 ? vars[index] : notVars[index];
+            if (i == 0) {
+                prefixBDD = bddEngine.ref(currentBit);
+            } else {
+                prefixBDD = bddEngine.andTo(prefixBDD, currentBit);
+            }
+        }
+        return prefixBDD;
+    }
+
+    // <field, bdd>, entries in perFieldBDD must follow the order with field asc
+    public static NDD encodeACL(ArrayList<Pair<Integer, Integer>> perFieldBDD) {
+        NDD result = TRUE;
+        for (int i = perFieldBDD.size() - 1; i >= 0; i--) {
+            if (perFieldBDD.get(i).getValue() != 1) {
+                HashMap<NDD, Integer> edges = new HashMap<>();
+                edges.put(result, perFieldBDD.get(i).getValue());
+                result = mk(perFieldBDD.get(i).getKey(), edges);
+            }
+        }
+        return result;
+    }
+
+
+    public static NDD toNDD(int a, int field) {
+        return toNDDFunc(a, field);
+    }
+
+    private static NDD toNDDFunc(int a, int field)
+    {
+        if(a == 1) {
+            return TRUE;
+        } else {
+            HashMap<NDD, Integer> edges = new HashMap<>();
+            edges.put(TRUE, a);
+            return mk(field, edges);
+        }
+    }
+
+    public static NDD toNDD(int a) {
+        return toNDDFunc(a);
+    }
+
+    private static NDD toNDDFunc(int a)
+    {
+        HashMap<Integer, HashMap<Integer, Integer>> decomposed = DecomposeBDD.decompose(a, bddEngine, maxVariablePerField);
+        HashMap<Integer, NDD> converted = new HashMap<>();
+        converted.put(1, TRUE);
+        while(decomposed.size() != 0)
+        {
+            Set<Integer> finished = converted.keySet();
+            for(Map.Entry<Integer, HashMap<Integer, Integer>> entry : decomposed.entrySet())
+            {
+                if(finished.containsAll(entry.getValue().keySet()))
+                {
+                    int field = DecomposeBDD.bddGetField(entry.getKey());
+                    HashMap<NDD, Integer> map = new HashMap<>();
+                    for(Map.Entry<Integer, Integer> entry1 : entry.getValue().entrySet())
+                    {
+                        map.put(converted.get(entry1.getKey()), bddEngine.ref(entry1.getValue()));
+                    }
+                    NDD n = mk(field, map);
+                    converted.put(entry.getKey(), n);
+                    decomposed.remove(entry.getKey());
+                    break;
+                }
+            }
+        }
+        for(HashMap<Integer, Integer> map : decomposed.values())
+        {
+            for(Integer pred : map.values())
+            {
+                bddEngine.deref(pred);
+            }
+        }
+        return converted.get(a);
+    }
+
+    public static ArrayList<int[]> toArray(NDD curr) {
+        ArrayList<int[]> array = new ArrayList<>();
+        int[] vec = new int[fieldNum];
+        toArrayRec(curr, array, vec, 0);
+        return array;
+    }
+
+    private static void toArrayRec(NDD curr, ArrayList<int[]> array, int[] vec, int currField) {
+        if (curr.isFalse()) {
+        } else if (curr.isTrue()) {
+            for (int i = currField; i < fieldNum; i++) {
+                vec[i] = 1;
+            }
+            int[] temp = new int[fieldNum];
+            for (int i = 0; i < fieldNum; i++) {
+                temp[i] = vec[i];
+            }
+            array.add(temp);
+        } else {
+            for (int i = currField; i < curr.field; i++) {
+                vec[i] = 1;
+            }
+            Iterator iter = curr.edges.entrySet().iterator();
+            while (iter.hasNext()) {
+                Map.Entry<NDD, Integer> entry = (Map.Entry<NDD, Integer>) iter.next();
+                vec[curr.field] = entry.getValue();
+                toArrayRec(entry.getKey(), array, vec, curr.field + 1);
+            }
+        }
+    }
+
+    /**
      * The field of the node.
      */
-    private int field;
+    protected int field;
 
     /**
      * All the edges of the node.
@@ -702,14 +858,15 @@ public class NDD {
      * @return The ndd node.
      */
     public static NDD mk(int field, HashMap<NDD, Integer> edges) {
-        if (edges.size() == 0) {
-            // Since NDD omits all edges pointing to FALSE, the empty edge represents FALSE.
-            return getFalse();
-        } else if (edges.size() == 1 && edges.values().iterator().next() == 1) {
-            // Omit nodes with the only edge labeled by BDD TRUE.
-            return edges.keySet().iterator().next();
-        } else {
-            return nodeTable.mk(field, edges);
+        return nodeTable.mk(field, edges);
+    }
+
+    public static int nodeCount() {
+        ArrayList<HashMap<HashMap<NDD, Integer>, NDD>> tables = nodeTable.getNodeTable();
+        int nodeCount = 0;
+        for (HashMap<HashMap<NDD, Integer>, NDD> table : tables) {
+            nodeCount += table.size();
         }
+        return nodeCount;
     }
 }
