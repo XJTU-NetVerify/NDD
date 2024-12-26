@@ -1,4 +1,0 @@
-- `/ndd` contains 2 versions of NDD, based on `jdd` and `javaBDD` respectively.
-- `/vector` contains an implementation of BDD Vector, which is compared with NDD in our experiments.
-- `application` contains some applications (such as network verifications) supported by BDD and NDD.
-- `experiments` compare the performance of BDD, BDD Vector and NDD.
