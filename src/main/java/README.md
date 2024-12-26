@@ -1,4 +1,4 @@
-- 'jdd': `jdd` library with implementation of `minAssignment` and `mk count` in node table.
+- `jdd`: `jdd` library with implementation of `minAssignment` and `mk count` in node table.
 - `ndd`: 2 versions of NDD, based on `jdd` and `javaBDD` respectively.
 - `vector`: an implementation of BDD Vector, which is a simplified version of the implementation that only references the idea of dividing domains in NDD, and also compared with NDD in our experiments.
 - `application`: some applications (such as network verifications) supported by BDD and NDD.
