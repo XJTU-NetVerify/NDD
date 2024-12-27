@@ -211,7 +211,7 @@ public class Configuration {
 	public final static int AUTOMATA_STATES_BDD = 0, AUTOMATA_STATES_MIXEDRADIX = 1;
 	/**
 	 * this variable decides what type of state sets are used for storing large
-	 * sets of states in jdd.des.automata package
+	 * sets of states in jndd.des.automata package
 	 *
 	 * @see jdd.des.automata.ReachabilityTool
 	 * @see jdd.des.automata.AutomataComposer

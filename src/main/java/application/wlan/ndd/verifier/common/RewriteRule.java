@@ -2,7 +2,7 @@ package application.wlan.ndd.verifier.common;
 
 import java.util.ArrayList;
 
-import ndd.jdd.diagram.NDD;
+import org.ants.jndd.diagram.NDD;
 
 public class RewriteRule {
 	

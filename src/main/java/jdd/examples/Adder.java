@@ -180,7 +180,7 @@ public class Adder
 			}
 		}
 
-		JDDConsole.out.println("Usage: java jdd.examples.Adder [-t] [-d] [-v] <number of bits>");
+		JDDConsole.out.println("Usage: java jndd.examples.Adder [-t] [-d] [-v] <number of bits>");
 		JDDConsole.out.println("\t -t    test adder (slow)");
 		JDDConsole.out.println("\t -d    dump BDD size");
 		JDDConsole.out.println("\t -v    be verbose");

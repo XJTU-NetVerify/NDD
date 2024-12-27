@@ -1,4 +1,0 @@
-@ParametersAreNonnullByDefault
-package org.batfish.vendor.check_point_gateway.representation;
-
-import javax.annotation.ParametersAreNonnullByDefault;

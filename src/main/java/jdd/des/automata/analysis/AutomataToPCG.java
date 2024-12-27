@@ -20,7 +20,7 @@ import java.util.*;
 public class AutomataToPCG {
 	public static void main(String [] args) {
 		if(args.length == 0) {
-			System.err.println("Usage: java jdd.des.automata.analysis.AutomataToPCG <automata XML files>");
+			System.err.println("Usage: java jndd.des.automata.analysis.AutomataToPCG <automata XML files>");
 			System.exit(3);
 		}
 

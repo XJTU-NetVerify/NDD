@@ -1,4 +1,0 @@
-#
-set system host-name juniper-overlay-ecmp
-#
-set forwarding-options vxlan-routing overlay-ecmp

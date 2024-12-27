@@ -1,5 +1,0 @@
-net del all
-#
-net add hostname custom_hostname
-#
-net commit

@@ -1,6 +1,0 @@
-!
-hostname nexus
-!
-configure session blah
-commit
-!

@@ -161,7 +161,7 @@ public class Chi2Test {
 
 	/**
 	 *
-	 * Get the distribution vector
+	 * Get the distribution experiment.vector
 	 *
 	 */
 	public int [] getDistibution() {

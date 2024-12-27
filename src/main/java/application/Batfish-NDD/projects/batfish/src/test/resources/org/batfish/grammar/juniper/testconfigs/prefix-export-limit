@@ -1,4 +1,0 @@
-#
-set system host-name prefix-export-limit
-#
-set protocols ospf prefix-export-limit 50

@@ -1,9 +1,0 @@
-!RANCID-CONTENT-TYPE: cisco-nx
-!
-hostname nxos_lacp
-!
-feature lacp
-!
-lacp system-priority 32768
-lacp system-mac aaaa.bbbb.cccc role primary
-!

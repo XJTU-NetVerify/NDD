@@ -8,7 +8,7 @@ public class GraphTutorial extends TutorialHelper{
 		super("Graph");
 
 		h2("Graph Tutorial");
-		JDDConsole.out.println("This tutorial explains basics of the Graph API, which is found in jdd.graph.*");
+		JDDConsole.out.println("This tutorial explains basics of the Graph API, which is found in jndd.graph.*");
 
 		h3("Introduction");
 		JDDConsole.out.println("Graph API contains a simple set of data structures and algorithms for graph based operations.");
@@ -146,12 +146,12 @@ public class GraphTutorial extends TutorialHelper{
 	h3("Simple graph algorithms");
 
 	JDDConsole.out.println("<i>SimpleAlgorithms</i> contains a set of basic graph operations, such as<br>");
-	showClass("jdd.graph.SimpleAlgorithms");
+	showClass("jndd.graph.SimpleAlgorithms");
 
 
 	JDDConsole.out.println("<p>Some other simple operations are found in <i>GraphOperation</i>. " +
 		"Currently we support:");
-	showClass("jdd.graph.GraphOperation");
+	showClass("jndd.graph.GraphOperation");
 
 
 
@@ -160,19 +160,19 @@ public class GraphTutorial extends TutorialHelper{
 	h3("Approximative algorithms");
 	JDDConsole.out.println("<i>ApproximationAlgorithms</i> contains a set of graph algorithms that are fast but not optimal."+
 		"Following algorithms is currently present:<br>");
-	showClass("jdd.graph.ApproximationAlgorithms");
+	showClass("jndd.graph.ApproximationAlgorithms");
 
 
 
 
 	h3("Shortest-path algorithms");
 	JDDConsole.out.println("<i>ShortestPath</i> contains the following shortest-path algorithms");
-	showClass("jdd.graph.ShortestPath");
+	showClass("jndd.graph.ShortestPath");
 
 
 	h3("Minimum spanning tree algorithms");
 	JDDConsole.out.println("<i>MinimumSpanningTree</i> contains the following minimum spanning-tree algorithms:");
-	showClass("jdd.graph.MinimumSpanningTree");
+	showClass("jndd.graph.MinimumSpanningTree");
 
 	h3("Maximum-flow algorithms");
 	JDDConsole.out.println("<i>MaximumFlow</i> will contain max-flow algorithms in near future");
@@ -180,13 +180,13 @@ public class GraphTutorial extends TutorialHelper{
 
 	h3("Strongly connected component");
 	JDDConsole.out.println("<i>StronglyConnectedComponent</i> implements the SCC algorithms of Tarjan and (soon) Nuutila.");
-	showClass("jdd.graph.StronglyConnectedComponent");
+	showClass("jndd.graph.StronglyConnectedComponent");
 
 
 	h3("Weak topological ordering ");
 	JDDConsole.out.println("<i>WeakTopologicalOrdering</i> implements the WTO algorithm of Bourdoncle.<br>" +
 		"It is very similar to the SCO algorithm of Tarjan");
-	showClass("jdd.graph.WeakTopologicalOrdering");
+	showClass("jndd.graph.WeakTopologicalOrdering");
 
 
 	h3("GraphIO");

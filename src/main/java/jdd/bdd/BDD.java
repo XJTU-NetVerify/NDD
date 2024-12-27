@@ -8,7 +8,7 @@
 //    test-and-invalidate caches when the load-factor is so low??
 //
 // 2. BDDTrace does very bad on dme1.trace, it stopps at "and(lv_1870, lv_1877); % 17867" !!!
-//     (check it out in the jdd.internal.bug package)
+//     (check it out in the jndd.internal.bug package)
 //
 // 3. possible bug: if the number of variables is changed, do we need to clear the sat_cache??
 //
@@ -266,7 +266,7 @@ public class BDD extends NodeTable {
 	}
 
 	/**
-	 * returns an unary minterm based on a vector of boolean assignments.<br>
+	 * returns an unary minterm based on a experiment.vector of boolean assignments.<br>
 	 * for example <i>minterm([true, false]) </i> will return <i>NOT v1 and v2</i>.
 	 * @see #minterm
 	 */
@@ -284,7 +284,7 @@ public class BDD extends NodeTable {
 
 	/**
 	 * <b>developement code</b>, do not use!<br>
-	 * returns a unary minterm based on a vector of boolean assignments.<br>
+	 * returns a unary minterm based on a experiment.vector of boolean assignments.<br>
 	 * for example <i>minterm([true, false]) </i> will return <i>NOT v1 and v2</i>.
 	 * @see #minterm
 	 */
@@ -1008,7 +1008,7 @@ public class BDD extends NodeTable {
 
 	/** 3. internal recursive function for relProd: this versions is optimized and made unreadable :( */
 	// XXX: there is a bug in here somewehere makring the algo to not terminate
-	//      * we can re-produce the bug with code in the jdd.internal.bugs package
+	//      * we can re-produce the bug with code in the jndd.internal.bugs package
 	//      * the line with and_rec seems never to get called in this particular example
 	//         (NOTE: this is ok, since the very last variable is quantified, so we wont ever end at and_rec())
 	//      * we know that this is not a faulty cache problem (but relprod_cache hitrate is low, ~ 25 %)
@@ -1060,7 +1060,7 @@ public class BDD extends NodeTable {
 	private int perm_last, perm_var, perm_id;
 
 	/**
-	 * create a Permutation vector for a given variable permutation.<br>
+	 * create a Permutation experiment.vector for a given variable permutation.<br>
 	 * A permutation is used by <tt>replace</tt> to re-label nodes in a BDD.<br>
 	 * <br>
 	 * <b>NOTE:</b> the from and to-cubes must not overlap!
@@ -1424,11 +1424,11 @@ public class BDD extends NodeTable {
 			return u;
 		}
 	}
-	// ---- [oneSat, vector version] -----------------------------------
+	// ---- [oneSat, experiment.vector version] -----------------------------------
 	/**  <pre>
-	 * oneSat(bdd, buffer) returns an int vector
+	 * oneSat(bdd, buffer) returns an int experiment.vector
 	 * x where x[i] is 0/1 or -1 for neg cofactor/pos cofactor and dont care
-	 * if buffer is null, a new vector is created otherwise  buffer is used an returned </pre>
+	 * if buffer is null, a new experiment.vector is created otherwise  buffer is used an returned </pre>
 	 */
 	public int [] oneSat(int bdd, int [] buffer) {
 		if(buffer == null) buffer = new int[num_vars];
@@ -1599,7 +1599,7 @@ public class BDD extends NodeTable {
 		Test.check(jdd.gc() == 0, "should not free g1 (recusrive dep)");
 		jdd.deref(g2);
 
-		// jdd.show_table();
+		// jndd.show_table();
 		Test.check(jdd.gc() == 2, "should free g2 thus also g1 (recusrive dep)");
 		jdd.gc(); // Should free g1 and g2
 
@@ -1776,9 +1776,9 @@ public class BDD extends NodeTable {
 		/*
 		NOT WORKING ANYMORE (new cache structre)
 		// test perm_cache hit first:
-		int hit1 = jdd.replace_cache.getHitRate();
-		jdd.replace( v2v4, perm4); // repeat some operations
-		Test.check(jdd.replace_cache.getHitRate() > hit1, "Replace cache working (?)");
+		int hit1 = jndd.replace_cache.getHitRate();
+		jndd.replace( v2v4, perm4); // repeat some operations
+		Test.check(jndd.replace_cache.getHitRate() > hit1, "Replace cache working (?)");
 		*/
 
 		// test support:

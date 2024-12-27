@@ -1,3 +1,0 @@
-#RANCID-CONTENT-TYPE: juniper
-set system host-name inactive_interface_local_route
-set interfaces ae0 unit 0 family inet address 1.1.1.1/24

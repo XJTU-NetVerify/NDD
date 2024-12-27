@@ -2,8 +2,8 @@
 
 package jdd.internal.profiler;
 
-// import jdd.internal.profiler.stubs.*;
-// import jdd.util.*;
+// import jndd.internal.profiler.stubs.*;
+// import jndd.util.*;
 import java.util.*;
 
 /**

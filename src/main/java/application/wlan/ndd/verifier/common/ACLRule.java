@@ -44,7 +44,7 @@ package application.wlan.ndd.verifier.common;
 
 import java.io.Serializable;
 import jdd.bdd.BDD;
-import ndd.jdd.diagram.NDD;
+import org.ants.jndd.diagram.NDD;
 
 public class ACLRule implements Serializable {
 

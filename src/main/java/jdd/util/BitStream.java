@@ -3,7 +3,7 @@ package jdd.util;
 
 import java.io.*;
 
-/** A bit stream, used by jdd.util.zip classes ??*/
+/** A bit stream, used by jndd.util.zip classes ??*/
 
 public class BitStream {
 	private InputStream rd;

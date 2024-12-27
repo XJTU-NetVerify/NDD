@@ -67,7 +67,7 @@ public class DotTutorial extends TutorialHelper{
 		JDDConsole.out.println("<p>These classes produce, among others, graphs in DOT format which is then " +
 			"converted to a graphic file by starting the DOT utility from a class in JDD called Dot:");
 
-		showClass("jdd.util.Dot");
+		showClass("jndd.util.Dot");
 
 		JDDConsole.out.println("<p><b>It is important to know that a call to Dot.showDot(file) will remove "+
 			"you textual description file (here 'file') from your system! </b>");

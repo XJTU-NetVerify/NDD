@@ -31,7 +31,7 @@ public class BDDUtil {
 	}
 
 	/**
-	 * encode the number as a boolean vector, starting from the given index.
+	 * encode the number as a boolean experiment.vector, starting from the given index.
 	 * must use the same encoding as numberToBDD!
 	 *
 	 * @see #numberToBDD

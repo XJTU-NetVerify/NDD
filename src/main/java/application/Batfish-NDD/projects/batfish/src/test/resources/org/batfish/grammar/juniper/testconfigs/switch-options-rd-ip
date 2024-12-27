@@ -1,5 +1,0 @@
-#
-set system host-name switch-options-rd-ip
-#
-set switch-options route-distinguisher 14.14.14.14:7999
-#

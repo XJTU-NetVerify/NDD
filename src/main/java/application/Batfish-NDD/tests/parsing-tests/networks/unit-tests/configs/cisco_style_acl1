@@ -1,2 +1,0 @@
-ip access-list extended blah
-   permit ip any any

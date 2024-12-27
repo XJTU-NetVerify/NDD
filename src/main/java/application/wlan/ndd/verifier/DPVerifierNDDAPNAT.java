@@ -2,7 +2,7 @@ package application.wlan.ndd.verifier;
 
 import application.wlan.ndd.verifier.apkeep.checker.CheckerNDDAPNAT;
 import application.wlan.ndd.verifier.apkeep.core.NetworkNDDAPNAT;
-import ndd.jdd.diagram.AtomizedNDD;
+import org.ants.jndd.diagram.AtomizedNDD;
 
 import java.io.IOException;
 import java.util.ArrayList;

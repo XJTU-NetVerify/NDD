@@ -1,8 +1,0 @@
-!
-hostname ios_interface
-!
-interface GigabitEthernet1/0/1
- service-policy type control subscriber FOOBAR
- speed nonegotiate
-!
-!

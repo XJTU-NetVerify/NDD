@@ -1,8 +1,6 @@
 package application.wlan.ndd.verifier.apkeep.core;
 
-import java.io.FileWriter;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -14,8 +12,8 @@ import application.wlan.ndd.verifier.apkeep.element.FieldNodeAP;
 import application.wlan.ndd.verifier.apkeep.utils.UtilityTools;
 import application.wlan.ndd.verifier.common.ACLRule;
 import javafx.util.*;
-import ndd.jdd.diagram.AtomizedNDD;
-import ndd.jdd.diagram.NDD;
+import org.ants.jndd.diagram.AtomizedNDD;
+import org.ants.jndd.diagram.NDD;
 
 public class NetworkNDDAP extends NetworkNDDPred {
     public HashMap<String, FieldNodeAP> FieldNodes;

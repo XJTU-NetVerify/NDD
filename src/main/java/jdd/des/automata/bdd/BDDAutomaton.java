@@ -28,10 +28,10 @@ public class BDDAutomaton {
 	private int bdd_delta; 						/** the transition relation T */
 	private int bdd_delta_top;					/** T^ ,  T after event compensation */
 	private int bdd_care_event; 			/** events used in this automaton */
-	private int bdd_care_state; 			/** states used in the state vector */
+	private int bdd_care_state; 			/** states used in the state experiment.vector */
 	private int bdd_keep; 					/** keep for this automaton */
 
-	private int bits, states; /** number of states and bits in the state vector */
+	private int bits, states; /** number of states and bits in the state experiment.vector */
 
 	/**
 	 * initialize the automaton. must be called from an BDDAutomaton object.

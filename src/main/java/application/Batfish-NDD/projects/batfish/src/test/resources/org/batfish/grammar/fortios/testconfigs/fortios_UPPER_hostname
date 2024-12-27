@@ -1,3 +1,0 @@
-config system global
-  set hostname fortios_UPPER_hostname
-end

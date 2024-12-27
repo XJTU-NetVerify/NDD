@@ -3,7 +3,7 @@ package application.wlan.ndd.verifier.apkeep.checker;
 import application.wlan.ndd.verifier.apkeep.core.NetworkNDDPred;
 import application.wlan.ndd.verifier.apkeep.element.FieldNode;
 import application.wlan.ndd.verifier.common.PositionTuple;
-import ndd.jdd.diagram.NDD;
+import org.ants.jndd.diagram.NDD;
 
 import java.io.FileWriter;
 import java.io.IOException;

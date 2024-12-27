@@ -8,10 +8,10 @@ package jdd.util.sets;
  *
  *
  * <p> This is a good representation for n-tupples in a discrete space.
- * The space is specified during construction with an int-vector of length n,
+ * The space is specified during construction with an int-experiment.vector of length n,
  * defining the number of elements in each subdomain.
  *
- * Each element in the space is represented by an int-vector of length n.
+ * Each element in the space is represented by an int-experiment.vector of length n.
  *
  * @see Set
  * @see jdd.util.mixedradix.MRUniverse

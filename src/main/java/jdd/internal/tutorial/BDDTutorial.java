@@ -126,9 +126,9 @@ public class BDDTutorial extends TutorialHelper{
 		JDDConsole.out.println("You are allowed to apply <i>exists</i> and <i>forall</i> to a BDD tree. ");
 		JDDConsole.out.println("<p>The first thing you need to do is to create the cube of variables to be quantified. ");
 		JDDConsole.out.println("For example, if you would like to compute (forall x(v1v2) ), you may do this:");
-		code("int cube = jdd.ref( jdd.and(v1,v2) );");
+		code("int cube = jndd.ref( jndd.and(v1,v2) );");
 		JDDConsole.out.println("Then you can carry out the quantification:");
-		code("int x2 = jdd.ref( jdd.forall(x,cube) );");
+		code("int x2 = jndd.ref( jndd.forall(x,cube) );");
 		JDDConsole.out.println("Note that we demonstrated the proper use of ref() here. ");
 
 

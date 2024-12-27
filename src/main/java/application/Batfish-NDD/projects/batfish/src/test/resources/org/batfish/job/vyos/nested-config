@@ -1,5 +1,0 @@
-system {
-    config-management {
-        commit-revisions 20
-    }
-}

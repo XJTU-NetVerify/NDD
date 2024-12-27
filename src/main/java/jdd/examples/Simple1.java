@@ -95,7 +95,7 @@ public class Simple1 {
 		// write your own high-level wrapper around this "integer" representation that
 		// takes care of the ref() and deref() stuff.
 		//
-		// Now, if you use the DebugBDD classes from the jdd.bdd.debug packages instead of
+		// Now, if you use the DebugBDD classes from the jndd.bdd.debug packages instead of
 		// the BDD class, it will warn you if you have forgotten to call ref() in the
 		// right places.
 

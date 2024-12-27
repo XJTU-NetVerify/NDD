@@ -1,4 +1,0 @@
-#
-set system host-name storm-control
-#
-set interfaces ae42 unit 0 family ethernet-switching storm-control sc

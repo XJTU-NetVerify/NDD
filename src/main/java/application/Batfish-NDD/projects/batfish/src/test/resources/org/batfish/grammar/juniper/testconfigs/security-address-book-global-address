@@ -1,5 +1,0 @@
-#
-set system host-name security-address-book-global-address
-#
-set security address-book global address NAME 1.1.1.0/24
-#

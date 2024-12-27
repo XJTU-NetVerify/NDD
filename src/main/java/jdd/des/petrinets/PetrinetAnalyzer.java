@@ -2,7 +2,7 @@
 package jdd.des.petrinets;
 
 import jdd.util.*;
-// import jdd.util.math.*;
+// import jndd.util.math.*;
 
 import java.util.*;
 

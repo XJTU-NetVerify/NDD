@@ -1,8 +1,0 @@
-!
-hostname bgp_nsr
-!
-router bgp 2152
- nsr
- timers bgp 10 30
-!
-

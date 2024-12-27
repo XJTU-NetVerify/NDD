@@ -69,7 +69,7 @@ public class AutomataTutorial extends TutorialHelper{
 			);
 
 		h2("I/O");
-		JDDConsole.out.println("As the rest of the JDD, the jdd.automata package has support for "+
+		JDDConsole.out.println("As the rest of the JDD, the jndd.automata package has support for "+
 			"loading and saving to/from XML files. This is done via the AutomataIO class:"
 		);
 
@@ -101,7 +101,7 @@ public class AutomataTutorial extends TutorialHelper{
 		h2("Common operations");
 		JDDConsole.out.println(
 			"The Automaton class is an extension of the more abstract Graph class. "+
-			"As a result, the State class is a subclass of Node and Transition is a subclass of Edge in jdd.graph. "
+			"As a result, the State class is a subclass of Node and Transition is a subclass of Edge in jndd.graph. "
 		);
 		br(); br();
 		JDDConsole.out.println("To traverse the states or transition in an automaton, use the following code:");
@@ -170,9 +170,9 @@ public class AutomataTutorial extends TutorialHelper{
 
 		h2("misc.");
 		JDDConsole.out.println(
-			"The AutomataToPCG class in the jdd.des.automata.analysis package creates " +
+			"The AutomataToPCG class in the jndd.des.automata.analysis package creates " +
 			"process communication graphs from your Automata. You might find it useful. " +
-			"Furthermore, the jdd.des.automata.bdd package contains basic functionality for " +
+			"Furthermore, the jndd.des.automata.bdd package contains basic functionality for " +
 			"BDD encoding of automata."
 			);
 

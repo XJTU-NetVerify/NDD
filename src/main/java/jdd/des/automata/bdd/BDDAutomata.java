@@ -45,7 +45,7 @@ Automaton a1 = a.add("Lets_creat_another_automata");
 
 
 public class BDDAutomata
-	// extends jdd.bdd.debug.DebugBDD
+	// extends jndd.bdd.debug.DebugBDD
 	// extends BDD
 	extends jdd.bdd.debug.ProfiledBDD2
 	{
@@ -57,8 +57,8 @@ public class BDDAutomata
 	private HashMap node_to_automaton_map; /** Map the PCG nodes to automata */
 	private HashMap automaton_to_node_map; /** Map automata to the PCG nodes  */
 	private int event_bits;			/** number of bits to code events */
-	private int state_bits;			/** number of bits in the global state vector Q */
-	private int [] bdd_var_events;	/** bdd vars used in the event vector */
+	private int state_bits;			/** number of bits in the global state experiment.vector Q */
+	private int [] bdd_var_events;	/** bdd vars used in the event experiment.vector */
 	private int bdd_care_events;	/** carefor the events */
 	private int bdd_cube_events;	/** cube for the events */
 	private int bdd_cube_s;			/** cube for the current states */
@@ -92,7 +92,7 @@ public class BDDAutomata
 		Automaton []ordered_automata = ao.getBestOrder();
 
 
-		// 1. allocate state vector, create the state keep, and size of state vector
+		// 1. allocate state experiment.vector, create the state keep, and size of state experiment.vector
 		//    plus the sube for Q and Q'
 		try {
 

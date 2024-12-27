@@ -54,8 +54,8 @@ public class RunTests {
 
 			// BDDs, yikes!
 			jdd.bdd.NodeTable.internal_test();
-			/// REMOVED jdd.bdd.NodeHT.internal_test();
-			// jdd.bdd.Cache.internal_test();
+			/// REMOVED jndd.bdd.NodeHT.internal_test();
+			// jndd.bdd.Cache.internal_test();
 			jdd.bdd.SimpleCache.internal_test();
 			jdd.bdd.OptimizedCache.internal_test();
 			jdd.bdd.DoubleCache.internal_test();
@@ -63,7 +63,7 @@ public class RunTests {
 			jdd.bdd.BDDIO.internal_test();
 
 			// Quasi-reduced BDDs (not finished yet)
-			// jdd.qbdd.QBDD.internal_test();
+			// jndd.qbdd.QBDD.internal_test();
 
 
 			// Zero-supressed BDDs
@@ -118,7 +118,7 @@ public class RunTests {
 
 			// DES language stuff
 			jdd.des.strings.ZDDStrings.internal_test();
-			// jdd.des.strings.AutomataSublanguage.internal_test();
+			// jndd.des.strings.AutomataSublanguage.internal_test();
 
 			// the examples are used as tests too :(
 			jdd.examples.BDDQueens.internal_test();

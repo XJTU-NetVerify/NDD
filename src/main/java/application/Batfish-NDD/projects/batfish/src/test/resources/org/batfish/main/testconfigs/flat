@@ -1,3 +1,0 @@
-####BATFISH FLATTENED JUNIPER CONFIG####
-set system host-name a.example.com
-set routing-options protocols ospf area 0.0.0.0 interface reth0.0 authentication

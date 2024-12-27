@@ -1,5 +1,0 @@
-#
-set system host-name bgp_disable
-#
-set protocols bgp group GROUP peer-as 1
-set protocols bgp disable

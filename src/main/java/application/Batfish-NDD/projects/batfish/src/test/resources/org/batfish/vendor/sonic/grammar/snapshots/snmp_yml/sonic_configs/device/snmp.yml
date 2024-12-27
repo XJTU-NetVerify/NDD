@@ -1,5 +1,0 @@
-snmp_rocommunity: public
-snmp_rocommunity6: public6
-snmp_location: dc
-#note: special character on the next line is deliberate; do not remove.
-

@@ -1,3 +1,0 @@
-####BATFISH FLATTENED JUNIPER CONFIG####
-activate system host-name active_only
-set system host-name active_only

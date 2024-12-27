@@ -9,8 +9,8 @@ import application.wlan.ndd.verifier.DPVerifierNDDAPIncre;
 import application.wlan.ndd.verifier.apkeep.core.*;
 import application.wlan.ndd.verifier.common.ACLRule;
 import javafx.util.*;
-import ndd.jdd.diagram.AtomizedNDD;
-import ndd.jdd.diagram.NDD;
+import org.ants.jndd.diagram.AtomizedNDD;
+import org.ants.jndd.diagram.NDD;
 
 public class FieldNodeAP extends FieldNode {
     public static NetworkNDDAP network = null;

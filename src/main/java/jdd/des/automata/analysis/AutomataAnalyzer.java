@@ -325,7 +325,7 @@ public class AutomataAnalyzer {
 
 	public static void main(String [] args) {
 		if(args.length != 1) {
-			System.err.println("Usage: Java jdd.des.automata.AutomataAnalyzer [ Supremica file.xml> | <Supremica XML-files.zip>]");
+			System.err.println("Usage: Java jndd.des.automata.AutomataAnalyzer [ Supremica file.xml> | <Supremica XML-files.zip>]");
 			System.exit(20);
 		}
 

@@ -818,7 +818,7 @@ public class BDDTrace {
 			if(args.length == 2) {
 				new BDDTrace(args[0], Integer.parseInt(args[1]) );
 			} else if(args.length == 1) new BDDTrace(args[0]);
-			else JDDConsole.out.println("Usage:  java jdd.bdd.BDDTrace file.trace [initial node-base]");
+			else JDDConsole.out.println("Usage:  java jndd.bdd.BDDTrace file.trace [initial node-base]");
 		} catch(IOException exx) {
 			JDDConsole.out.println("FAILED: " + exx.getMessage() );
 			exx.printStackTrace();

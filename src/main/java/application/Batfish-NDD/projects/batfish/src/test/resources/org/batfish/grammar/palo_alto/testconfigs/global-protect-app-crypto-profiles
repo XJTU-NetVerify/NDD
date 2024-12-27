@@ -1,5 +1,0 @@
-set deviceconfig system hostname global-protect-app-crypto-profiles
-#
-set network ike crypto-profiles global-protect-app-crypto-profiles default encryption aes-128-cbc
-set network ike crypto-profiles global-protect-app-crypto-profiles default authentication sha1
-#

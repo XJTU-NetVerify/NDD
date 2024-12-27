@@ -1,5 +1,0 @@
-#
-set system host-name juniper-tcpflags
-#
-set firewall family inet filter foo term bar from tcp-flags ack
-#

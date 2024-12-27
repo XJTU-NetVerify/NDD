@@ -106,7 +106,7 @@ public class ZDDTutorial extends TutorialHelper{
 		h3("The ZDD2 object");
 		JDDConsole.out.println("<p><i>ZDD2</i> contains additional operations for unate cube set algebra. "+
 			"These operations are shown below");
-		showClass("jdd.zdd.ZDD2");
+		showClass("jndd.zdd.ZDD2");
 
 		h3("The ZDDCSP object");
 		JDDConsole.out.println("<p><i>ZDDCSP</i> adds extra ZDD operations for CSP problems. " +
@@ -114,14 +114,14 @@ public class ZDDTutorial extends TutorialHelper{
 			"by Okuno, Minato and Isozaki.");
 
 		JDDConsole.out.println("<p>The new operations are:");
-		showClass("jdd.zdd.ZDDCSP");
+		showClass("jndd.zdd.ZDDCSP");
 
 		h3("The ZDDGraph object");
 		JDDConsole.out.println("<p><i>ZDDGraph</i> is intended to [in near future] include common ZDD operations used in graph algorithms, " +
 			"as explained in Coudert's paper.");
 
 		JDDConsole.out.println("<p>The graph-operations we are working on are:");
-		showClass("jdd.zdd.ZDDGraph");
+		showClass("jndd.zdd.ZDDGraph");
 
 		h3("Additional Z-BDD objects");
 		JDDConsole.out.println("<p>There are several additional Z-BDD objects that are currently not documented in the API.");

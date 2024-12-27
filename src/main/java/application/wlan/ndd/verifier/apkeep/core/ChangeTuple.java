@@ -1,6 +1,6 @@
 package application.wlan.ndd.verifier.apkeep.core;
 
-import ndd.jdd.diagram.NDD;
+import org.ants.jndd.diagram.NDD;
 
 import java.util.HashSet;
 

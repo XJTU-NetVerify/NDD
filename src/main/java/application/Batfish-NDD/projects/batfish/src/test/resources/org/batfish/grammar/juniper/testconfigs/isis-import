@@ -1,6 +1,0 @@
-#
-set system host-name isis-import
-#
-set protocols isis import ISIS-ROUTE
-#
-set policy-options policy-statement ISIS-ROUTE term ISIS-TERM from tag2 1000

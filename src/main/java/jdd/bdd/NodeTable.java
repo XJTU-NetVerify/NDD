@@ -394,7 +394,7 @@ public class NodeTable implements Serializable{
 		debugers.add(d);
 		Collection v = new LinkedList();
 
-		// at this level, we wont do anything with the returned vector.
+		// at this level, we wont do anything with the returned experiment.vector.
 		// the sub-classes will do that.
 
 		return v;

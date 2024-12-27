@@ -6,8 +6,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
-import java.util.List;
-import java.util.Set;
 
 import application.wlan.ndd.verifier.apkeep.core.*;
 import application.wlan.ndd.verifier.apkeep.utils.*;
@@ -16,8 +14,7 @@ import application.wlan.ndd.verifier.common.BDDACLWrapper;
 import application.wlan.ndd.verifier.common.ForwardingRule;
 import application.wlan.ndd.verifier.common.RewriteRule;
 import javafx.util.*;
-import jdd.bdd.BDD;
-import ndd.jdd.diagram.NDD;
+import org.ants.jndd.diagram.NDD;
 
 public class FieldNode {
     public static NetworkNDDPred network = null;

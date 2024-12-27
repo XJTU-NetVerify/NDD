@@ -6,8 +6,7 @@ import java.util.HashSet;
 import java.util.Map;
 
 import javafx.util.*;
-import ndd.jdd.diagram.AtomizedNDD;
-import ndd.jdd.diagram.NDD;
+import org.ants.jndd.diagram.AtomizedNDD;
 
 public class SplitMap {
     public int fieldNum;

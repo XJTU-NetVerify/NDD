@@ -5,8 +5,7 @@ import java.util.*;
 
 import application.wlan.ndd.verifier.apkeep.checker.CheckerNDDPred;
 import application.wlan.ndd.verifier.apkeep.core.NetworkNDDPred;
-import ndd.jdd.diagram.AtomizedNDD;
-import ndd.jdd.diagram.NDD;
+import org.ants.jndd.diagram.AtomizedNDD;
 
 public class DPVerifierNDDPred {
 	public static int check_method = 1; // 0 use set 1 no cache 2 use limited cache

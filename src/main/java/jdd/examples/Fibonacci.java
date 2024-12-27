@@ -59,7 +59,7 @@ public class Fibonacci  {
 
 	public static void main(String [] args) {
 		if(args.length != 1) {
-			System.err.println("Usage: Java jdd.examples.Fibonacci n");
+			System.err.println("Usage: Java jndd.examples.Fibonacci n");
 			System.err.println("      n must be a positive integer.");
 			System.err.println("      if n is too large, you will see a java.lang.StackOverflowError :(");
 		} else {

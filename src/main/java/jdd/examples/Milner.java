@@ -199,6 +199,6 @@ public class Milner extends ProfiledBDD2 {
 			}
 		}
 
-		JDDConsole.out.println("Usage: java jdd.examples.Milner [-v] <number of cyclers>");
+		JDDConsole.out.println("Usage: java jndd.examples.Milner [-v] <number of cyclers>");
 	}
 }

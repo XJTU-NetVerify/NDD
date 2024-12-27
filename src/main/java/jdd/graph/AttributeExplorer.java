@@ -124,7 +124,7 @@ public class AttributeExplorer {
 		for (Enumeration e = g.getNodes().elements() ; e.hasMoreElements() ;) ((Node) e.nextElement()).extra3 = v;
 	}
 
-	/** set "extraindex" to comply with the order in the vector */
+	/** set "extraindex" to comply with the order in the experiment.vector */
 	public static void updateExtraIndex(Graph g) {
 		int c = 0;
 		for (Enumeration e = g.getNodes().elements() ; e.hasMoreElements() ;) ((Node) e.nextElement()).extraindex = c++;
