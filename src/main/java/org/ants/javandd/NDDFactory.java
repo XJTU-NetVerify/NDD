@@ -134,17 +134,6 @@ public class NDDFactory extends BDDFactory {
     }
 
     /**
-     * default init for NDDFactory without field declared
-     * @param nddTableSize
-     * @param bddTableSize
-     * @param bddCacheSize
-     * @return default factory with all parameters setted
-     */
-    public static BDDFactory init(int nddTableSize, int bddTableSize, int bddCacheSize) {
-        return new NDDFactory(nddTableSize, bddTableSize, bddCacheSize);
-    }
-
-    /**
      * default init for NDDFactory
      * @param fields ArrayList<Integer>
      * @param nddTableSize
