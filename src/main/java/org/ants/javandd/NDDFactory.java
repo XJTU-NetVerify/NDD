@@ -3,7 +3,6 @@ package org.ants.javandd;
 import jdd.util.Configuration;
 import jdd.util.Options;
 
-import javax.annotation.Nullable;
 import java.math.BigInteger;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -56,6 +55,14 @@ public class NDDFactory extends BDDFactory {
     private final NDD TRUE = new NDD();
     private final NDD FALSE = new NDD();
 
+    /**
+     * default init for NDDFactory
+     * NDD cache size will be computed based on {@link CACHE_RATIO}
+     * BDD cache size will be setted as {@link bddCacheSize}
+     * @param nddTableSize the size of NDD table. {@link CACHE_SIZE} will be computed based on it
+     * @param bddTableSize
+     * @param bddCacheSize
+     */
     private NDDFactory(int nddTableSize, int bddTableSize, int bddCacheSize) {
         NDD_TABLE_SIZE = nddTableSize;
         CACHE_SIZE = NDD_TABLE_SIZE / CACHE_RATIO;
@@ -76,9 +83,15 @@ public class NDDFactory extends BDDFactory {
         notCache = new OperationCache<>(CACHE_SIZE, 2);
         andCache = new OperationCache<>(CACHE_SIZE, 3);
         orCache = new OperationCache<>(CACHE_SIZE, 3);
+
         Options.verbose = true;
     }
 
+    /**
+     * without initialization of ndd(and node table) and operation cache
+     * @param bddTableSize
+     * @param bddCacheSize
+     */
     private NDDFactory(int bddTableSize, int bddCacheSize) {
         BDD_TABLE_SIZE = bddTableSize;
         BDD_CACHE_SIZE = bddCacheSize;
@@ -95,6 +108,11 @@ public class NDDFactory extends BDDFactory {
         Options.verbose = true;
     }
 
+    /**
+     * NDD node count
+     * BDD node count
+     * BDD operation cache status
+     */
     public void showStatus() {
         System.out.println("=================================");
         System.out.println("NDD node count: " + mkCount);
@@ -105,8 +123,8 @@ public class NDDFactory extends BDDFactory {
     }
 
     /**
-     * init for batfish cuz cannot modify the parameters pass to factory
-     * will use @setVarNum lazily to initialize nodetable and declare fields
+     * init for batfish cuz should not modify the parameters pass to factory
+     * will use {@link setVarNum} lazily to initialize nodetable and declare fields
      * @param bddTableSize
      * @param bddCacheSize
      * @return default factory with only constrain setted
@@ -115,10 +133,25 @@ public class NDDFactory extends BDDFactory {
         return new NDDFactory(bddTableSize, bddCacheSize);
     }
 
+    /**
+     * default init for NDDFactory without field declared
+     * @param nddTableSize
+     * @param bddTableSize
+     * @param bddCacheSize
+     * @return default factory with all parameters setted
+     */
     public static BDDFactory init(int nddTableSize, int bddTableSize, int bddCacheSize) {
         return new NDDFactory(nddTableSize, bddTableSize, bddCacheSize);
     }
 
+    /**
+     * default init for NDDFactory
+     * @param fields ArrayList<Integer>
+     * @param nddTableSize
+     * @param bddTableSize
+     * @param bddCacheSize
+     * @return default factory with all parameters setted
+     */
     public static BDDFactory init(ArrayList<Integer> fields, int nddTableSize, int bddTableSize, int bddCacheSize) {
         NDDFactory f = new NDDFactory(nddTableSize, bddTableSize, bddCacheSize);
         for (int i = 0; i < fields.size(); i++) {
@@ -127,6 +160,14 @@ public class NDDFactory extends BDDFactory {
         return f;
     }
 
+    /**
+     * default init for NDDFactory
+     * @param fields int[]
+     * @param nddTableSize
+     * @param bddTableSize
+     * @param bddCacheSize
+     * @return default factory with all parameters setted
+     */
     public static BDDFactory init(int[] fields, int nddTableSize, int bddTableSize, int bddCacheSize) {
         NDDFactory f = new NDDFactory(nddTableSize, bddTableSize, bddCacheSize);
         for (int i = 0; i < fields.length; i++) {
@@ -135,7 +176,11 @@ public class NDDFactory extends BDDFactory {
         return f;
     }
 
-    // declare a field of 'bitNum' bits
+    /**
+     * declare a field with bitNum bits
+     * @param bitNum the number of bits in the field
+     * @return current field number
+     */
     public int declareField(int bitNum) {
         // 1. update the number of fields
         fieldNum++;
@@ -195,15 +240,31 @@ public class NDDFactory extends BDDFactory {
         orCache.clearCache();
     }
 
+    /**
+     * user should call this method to ref(protect) NDD nodes
+     * call {@link nodeTable#ref()} in Factory source file
+     * @param ndd
+     * @return for call chain
+     */
     public NDD ref(NDD ndd) {
         return nodeTable.ref(ndd);
     }
 
+    /**
+     * user should call this method to deref NDD nodes
+     * call {@link nodeTable#deref()} in Factory source file
+     * @param ndd
+     */
     public void deref(NDD ndd) {
         nodeTable.deref(ndd);
     }
 
-    // create or reuse a new NDD node
+    /**
+     * create or reuse a new NDD node
+     * @param field
+     * @param edges
+     * @return the new NDD node or the reused one
+     */
     public NDD mk(int field, HashMap<NDD, Integer> edges) {
         if (edges.size() == 0) {
             // Since NDD omits all edges pointing to FALSE, the empty edge represents FALSE.
@@ -227,7 +288,7 @@ public class NDDFactory extends BDDFactory {
 
     /**
      * lazy declare fields in NDD
-     * @param {fields} can be int[] or arraylist
+     * @param {fields} can be int[] or ArrayList<Integer>
      */
     public void setVarNum(int[] fields, int nddTableSize) {
         NDD_TABLE_SIZE = nddTableSize;
@@ -259,6 +320,12 @@ public class NDDFactory extends BDDFactory {
         }
     }
 
+    /**
+     * {@bddVarsPerField} stores {field[i]} number of BDD variables for each field
+     * {@nddVarsPerField} stores {field[i]} number of NDD variables for each field
+     * 
+     * @return the {@param var}th ndd variable with its bdd pointed to BDDTrue on edge
+     */
     @Override
     public BDD ithVar(int var) {
         // find var in field i
@@ -281,6 +348,9 @@ public class NDDFactory extends BDDFactory {
         return new bdd(n);
     }
 
+    /**
+     * wrap NDD node as BDD for factory
+     */
     public class bdd extends BDD {
         public NDD _index;
 
@@ -389,7 +459,11 @@ public class NDDFactory extends BDDFactory {
             }
         }
 
-        // TODO: edges array instead of low or high
+        /**
+         * should not use this method
+         * @return the first child node
+         * TODO: edges array instead of low or high
+         */
         @Override
         public BDD high() {
             BDD ret = null;
@@ -405,6 +479,9 @@ public class NDDFactory extends BDDFactory {
             return ret;
         }
 
+        /**
+         * should not use this method
+         */
         @Override
         public BDD low() {
             BDD ret = null;
@@ -413,7 +490,6 @@ public class NDDFactory extends BDDFactory {
                 Map.Entry<NDD, Integer> edge = (Map.Entry<NDD, Integer>) iter.next();
                 BDD child = new bdd(edge.getKey());
                 if (child.isZero()) {
-                    System.out.println("return false");
                     return child;
                 }
                 ret = child;
@@ -478,25 +554,21 @@ public class NDDFactory extends BDDFactory {
             } else if (this.isZero()) {
                 return elseBDD;
             } else {
-                // TODO
-                System.out.println("ite else");
-                return null;
+                throw new BDDException();
             }
         }
 
         @Override
-        public BDD relprod(BDD that, BDD var) { return null; }
+        public BDD relprod(BDD that, BDD var) { throw new BDDException(); }
 
         @Override
-        public BDD compose(BDD g, int var) { return null; }
+        public BDD compose(BDD g, int var) { throw new BDDException(); }
 
         @Override
-        public BDD veccompose(BDDPairing pair) { return null; }
+        public BDD veccompose(BDDPairing pair) { throw new BDDException(); }
 
         @Override
-        public BDD constrain(BDD that) {
-            return null;
-        }
+        public BDD constrain(BDD that) { throw new BDDException(); }
 
         @Override
         public BDD exist(BDD var) {
@@ -505,7 +577,7 @@ public class NDDFactory extends BDDFactory {
 
         @Override
         BDD exist(BDD var, boolean makeNew) {
-            return null;
+            throw new BDDException();
         }
 
         /**
@@ -530,34 +602,25 @@ public class NDDFactory extends BDDFactory {
          * @see BDDDomain#set()
          */
         @Override
-        public BDD project(BDD var) {
-            return null;
-        }
+        public BDD project(BDD var) { throw new BDDException(); }
 
         @Override
-        public BDD forAll(BDD var) { return null; }
+        public BDD forAll(BDD var) { throw new BDDException(); }
 
         @Override
-        public BDD unique(BDD var) { return null; }
+        public BDD unique(BDD var) { throw new BDDException(); }
 
         @Override
-        public BDD restrict(BDD var) { return null;
-        }
+        public BDD restrict(BDD var) { throw new BDDException(); }
 
         @Override
-        public BDD restrictWith(BDD var) {
-            return null;
-        }
+        public BDD restrictWith(BDD var) { throw new BDDException(); }
 
         @Override
-        public BDD simplify(BDD d) {
-            return null;
-        }
+        public BDD simplify(BDD d) { throw new BDDException(); }
 
         @Override
-        public BDD support() {
-            return null;
-        }
+        public BDD support() { throw new BDDException(); }
 
         /**
          * Returns the result of applying the binary operator <tt>opr</tt> to the two BDDs.
@@ -618,14 +681,10 @@ public class NDDFactory extends BDDFactory {
         }
 
         @Override
-        public BDD applyAll(BDD that, BDDOp opr, BDD var) {
-            return null;
-        }
+        public BDD applyAll(BDD that, BDDOp opr, BDD var) { throw new BDDException(); }
 
         @Override
-        public BDD applyEx(BDD that, BDDOp opr, BDD var) {
-            return null;
-        }
+        public BDD applyEx(BDD that, BDDOp opr, BDD var) { throw new BDDException(); }
 
         /**
          * Shorthand for {@code this.applyEx(rel, BDDFactory.and, vars).replace(pair)}, where
@@ -647,14 +706,10 @@ public class NDDFactory extends BDDFactory {
          * @param pair
          */
         @Override
-        public BDD transform(BDD rel, BDDPairing pair) {
-            return null;
-        }
+        public BDD transform(BDD rel, BDDPairing pair) { throw new BDDException(); }
 
         @Override
-        public BDD applyUni(BDD that, BDDOp opr, BDD var) {
-            return null;
-        }
+        public BDD applyUni(BDD that, BDDOp opr, BDD var) { throw new BDDException(); }
 
         @Override
         public BDD satOne() {
@@ -663,9 +718,7 @@ public class NDDFactory extends BDDFactory {
         }
 
         @Override
-        public BDD fullSatOne() {
-            return null;
-        }
+        public BDD fullSatOne() { throw new BDDException(); }
 
         /**
          * Returns a {@link BitSet} containing the smallest possible assignment to this BDD, using
@@ -690,29 +743,27 @@ public class NDDFactory extends BDDFactory {
          * @return one satisfying variable assignment
          */
         @Override
-        public BDD randomFullSatOne(int seed) {
-            return null;
-        }
+        public BDD randomFullSatOne(int seed) { throw new BDDException(); }
 
         @Override
-        public BDD satOne(BDD var, boolean pol) { return null; }
+        public BDD satOne(BDD var, boolean pol) { throw new BDDException(); }
 
         // TODO: need all satify
         @Override
-        public AllSatIterator allsat() { return null; }
+        public AllSatIterator allsat() { throw new BDDException(); }
 
         // TODO: batfish needs?
         @Override
-        public BDD replace(BDDPairing pair) { return null; }
+        public BDD replace(BDDPairing pair) { throw new BDDException(); }
 
         @Override
-        public BDD replaceWith(BDDPairing pair) { return null; }
+        public BDD replaceWith(BDDPairing pair) { throw new BDDException(); }
 
         @Override
-        public int nodeCount() { return 0; }
+        public int nodeCount() { return mkCount; }
 
         @Override
-        public double pathCount() { return 0; }
+        public double pathCount() { throw new BDDException(); }
 
         @Override
         public double satCount() {
@@ -723,7 +774,7 @@ public class NDDFactory extends BDDFactory {
         public int[] varProfile() { return new int[0]; }
 
         @Override
-        public boolean equals(@Nullable Object o) {
+        public boolean equals(Object o) {
             if (!(o instanceof bdd)) {
                 return false;
             }
@@ -1025,8 +1076,7 @@ public class NDDFactory extends BDDFactory {
             } else if (b.isTrue()) {
                 return this;
             }
-            // TODO
-            return null;
+            throw new BDDException();
         }
 
         // calculate the number of solutions of an NDD
@@ -1084,7 +1134,7 @@ public class NDDFactory extends BDDFactory {
                 break;
             }
             if (child == null)
-                return FALSE;        // TODO
+                return FALSE;   // TODO
             int jddSat = bddEngine.oneSat(edge);
             NDD result = child.satOne_rec();
             HashMap<NDD, Integer> newEdge = new HashMap<>();
@@ -1488,15 +1538,17 @@ public class NDDFactory extends BDDFactory {
     }
 
     /**
-     * dynamically set var num
-     * do not use setVarNum(int) for NDD cannot support
+     * dynamically set var num (not recommended)
      */
     @Override
     public int setVarNum(int num) {
         if (num > Integer.MAX_VALUE / 2)
             throw new BDDException();
 
-        return maxVariablePerField.get(fieldNum) + 1;
+        // add a new field
+        declareField(num);
+
+        return 0;
     }
 
     public NDD toNDD(int a) {
