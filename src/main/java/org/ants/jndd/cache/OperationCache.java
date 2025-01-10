@@ -1,6 +1,6 @@
 package org.ants.jndd.cache;
 
-import com.sun.istack.internal.NotNull;
+import javax.validation.constraints.NotNull;
 
 /**
  * Operation cache of NDD.

@@ -37,7 +37,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.NoSuchElementException;
-import javax.annotation.Nullable;
 
 /**
  * Binary Decision Diagrams (BDDs) are used for efficient computation of many common problems. This
@@ -1646,7 +1645,7 @@ public abstract class BDD implements Serializable {
 
   // override so implementations are forced to implement
   @Override
-  public abstract boolean equals(@Nullable Object o);
+  public abstract boolean equals(Object o);
 
   // override so implementations are forced to implement
   @Override

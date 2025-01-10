@@ -176,7 +176,7 @@ public class Checker {
                 }
             }
         }
-        System.out.println(net.bdd_engine.getBDD().table_size);
+//        System.out.println(net.bdd_engine.getBDD().table_size);
     }
 
     public int updateReach(int origin, HashSet<Integer> fw_aps, HashSet<Integer> acl_aps) {
