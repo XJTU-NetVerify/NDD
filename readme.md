@@ -73,17 +73,20 @@ Author:
 
 ## Getting Started
 
-/src/main/java/application/nqueen/NDDSolution.java shows an example solving the NQueens problem by NDD.
+* `jndd`
+
+An [example](/src/main/java/application/nqueen/NDDSolution.java) shows how to solve the NQueens problem by NDD.
 
 ```java
 // init NDD library
 NDD.initNDD(NDD_TABLE_SIZE, 1 + Math.max(1000, (int) (Math.pow(4.4, n - 6)) * 1000), 10000);
 
 // declare ndd fields
-for (int i = 0;i < n;i++) {
+for (int i = 0; i < n; i++) {
 	NDD.declareField(n);
 }
 
+// constraints
 NDD[] orBatch = new NDD[n];
 NDD[][] impBatch = new NDD[n][n];
 
@@ -101,6 +104,7 @@ for (int i = 0; i < n; i++) {
 	}
 }
 
+// result computation
 NDD queen = NDD.getTrue();
 
 for (int i = 0; i < n; i++) {
@@ -115,12 +119,14 @@ for (int i = 0; i < n; i++) {
 }
 
 return NDD.satCount(queen);
-```  
+```
+
+* `JavaNDD`
+
+Library and its usage can be access in [src/main/java/org/ants/javandd](src/main/java/org/ants/javandd/README.md)
   
 ## API Examples
-
-> `JavaNDD` library and its usage can be access in [src/main/java/org/ants/javandd](src/main/java/org/ants/javandd/README.md)
-  
+ 
 Todo: add examples.
   
 - Encode common semantics
