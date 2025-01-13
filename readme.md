@@ -118,6 +118,8 @@ return NDD.satCount(queen);
 ```  
   
 ## API Examples
+
+> `JavaNDD` library and its usage can be access in [src/main/java/org/ants/javandd](src/main/java/org/ants/javandd/README.md)
   
 Todo: add examples.
   

@@ -11,32 +11,41 @@ int NDD_NODE_TABLE_SIZE;
 int NDD_NODE_CACHE_RATIO;  // default 8
 ```
 
-2. Create the `NDDFactory` with BDD parameters. Here is a demo in [Batfish](https://github.com/batfish/batfish)
+2. Create the `NDDFactory` with BDD parameters. If you are changing your project from JavaBDD, here you can refer to this demo in [Batfish](https://github.com/batfish/batfish)
 
 ```java
 public class BDDPacket {
-  public static BDDFactory defaultFactory(BiFunction<Integer, Integer, BDDFactory> init) {
-    BDDFactory factory =
-        init.apply(BDD_NODE_TABLE_SIZE, BDD_NODE_CACHE_SIZE);
-    factory.setCacheRatio(NDD_NODE_CACHE_RATIO);
-    return factory;
-  }
-
-  public BDDPacket() {
-    this(defaultFactory(NDDFactory::init));
-  }
-
-  public BDDPacket(BDDFactory factory) {
-    _factory = factory;
-    ...
-  }
+    public static BDDFactory defaultFactory(BiFunction<Integer, Integer, BDDFactory> init) {
+        BDDFactory factory =
+            init.apply(BDD_NODE_TABLE_SIZE, BDD_NODE_CACHE_SIZE);
+        factory.setCacheRatio(NDD_NODE_CACHE_RATIO);
+        return factory;
+    }
+    
+    public BDDPacket() {
+        this(defaultFactory(NDDFactory::init));
+    }
+    
+    public BDDPacket(BDDFactory factory) {
+        _factory = factory;
+        // ...
+    }
 }
 ```
 
-3. NDD cannot grow up dynamically for its fields in every domain should already be computed and passed. So we use a brand new `setVarNum` method.
+or you can directly pass `NDD` parameters to `Factory` so that do not need to dynamically `setVarNum` (step 3) by
 
 ```java
-  public BDDPacket(BDDFactory factory) {
+BDDFactory factory = init.apply(numNeeded, NDD_NODE_TABLE_SIZE, BDD_NODE_TABLE_SIZE, BDD_NODE_CACHE_SIZE);
+```
+
+which is recommended. It is desirable to define the division of each domain at the beginning, and it is better not to grow the domain dynamically.
+`setVarNum(int)` will create a new field with `int` length and add up to the `fieldNum` immediately. (supported but not recommended)
+
+3. (ignore if pass NDD parameters in step 2) NDD cannot grow up dynamically for its fields in every domain should already be computed and passed. So we use a brand new `setVarNum` method.
+
+```java
+public BDDPacket(BDDFactory factory) {
     _factory = factory;
     int[] numNeeded = {
       IP_LENGTH, // primed/unprimed src/dst
@@ -61,7 +70,7 @@ public class BDDPacket {
       PACKET_LENGTH_LENGTH
     };
     ((NDDFactory) _factory).setVarNum(numNeeded, NDD_NODE_TABLE_SIZE);
-  }
+}
 ```
 
 The array `numNeeded` passes every length of field to `NDDFactory` so that it can `declare` these 20 domains in total. To make a better reusage of BDD edges in NDD, each `IP` `PORT` and `TCP_FLAG` are separated.
