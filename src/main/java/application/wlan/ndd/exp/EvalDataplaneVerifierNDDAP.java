@@ -17,6 +17,8 @@ public class EvalDataplaneVerifierNDDAP {
     private static final String currentPath = System.getProperty("user.dir");
     private static boolean incrementACL = false;
     public static boolean runNAT = false;
+    public static boolean CHECK_CORRECTNESS = false;
+    public static boolean DEBUG_MODEL = false;
 
     public static void runFattreeUpdate(String configPath, String ACL_Usage_Path, String ACL_Rule_Path) throws IOException {
         // long t0 = System.nanoTime();
@@ -98,31 +100,27 @@ public class EvalDataplaneVerifierNDDAP {
     public static int num2=0;
 
     public static void main(String[] args) throws IOException {
-        //Ready
         // UtilityTools.split_str = "_";
-        // String configPath = "/data/zcli-data/data";
-        // String ACL_Usage_Path = "/data/zcli-data/Dataset/acls/usage";
-        // String ACL_Rule_Path = "/data/zcli-data/Dataset/acl_rule_"+aclNum;
+        // String configPath = "datasets\\wlan\\purdue\\data";
+        // String ACL_Usage_Path = "datasets\\wlan\\purdue\\Dataset/acls/usage";
+        // String ACL_Rule_Path = "datasets\\wlan\\purdue\\Dataset/acl_rule_"+aclNum;
         // aclNum = args[0];
         // System.out.println(aclNum);
-
-        //Ready
+        
         UtilityTools.split_str = "_";
-        String configPath = "/data/zcli-data/pd";
-        String ACL_Usage_Path = "/data/zcli-data/purdue/acls/usage";
-        String ACL_Rule_Path = "/data/zcli-data/purdue/acl_rule";
-
-        //Ready
+        String configPath = "datasets\\wlan\\purdue\\pd";
+        String ACL_Usage_Path = "datasets\\wlan\\purdue\\purdue/acls/usage";
+        String ACL_Rule_Path = "datasets\\wlan\\purdue\\purdue/acl_rule";
+        
         // UtilityTools.split_str = "-";
-        // String configPath = "/data/zcli-data/st";
-        // String ACL_Usage_Path = "/data/zcli-data/stanford/acls/usage";
-        // String ACL_Rule_Path = "/data/zcli-data/stanford/acl_rule";
-
-        //Ready
+        // String configPath = "datasets\\wlan\\purdue\\st";
+        // String ACL_Usage_Path = "datasets\\wlan\\purdue\\stanford/acls/usage";
+        // String ACL_Rule_Path = "datasets\\wlan\\purdue\\stanford/acl_rule";
+        
         // UtilityTools.split_str = "_";
-        // String configPath = "/data/zcli-data/cam";
-        // String ACL_Usage_Path = "/data/zcli-data/campus/acls/usage";
-        // String ACL_Rule_Path = "/data/zcli-data/campus/acl_rule";
+        // String configPath = "datasets\\wlan\\purdue\\cam";
+        // String ACL_Usage_Path = "datasets\\wlan\\purdue\\campus/acls/usage";
+        // String ACL_Rule_Path = "datasets\\wlan\\purdue\\campus/acl_rule";
 
         //Ready
         // UtilityTools.split_str = "_";

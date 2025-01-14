@@ -8,6 +8,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
+import application.wlan.bdd.exp.EvalDataplaneVerifier;
 import application.wlan.bdd.verifier.DPVerifier_Incre;
 import application.wlan.bdd.verifier.apkeep.core.APKeeper;
 import application.wlan.bdd.verifier.apkeep.core.ChangeItem;
@@ -17,7 +18,9 @@ import application.wlan.bdd.verifier.apkeep.utils.UtilityTools;
 import application.wlan.bdd.verifier.common.BDDACLWrapper;
 
 import application.wlan.bdd.verifier.common.PositionTuple;
+import application.wlan.ndd.exp.EvalDataplaneVerifierNDDAP;
 import javafx.util.Pair;
+import ndd.jdd.diagram.NDD;
 
 enum Types {
 	Transfer, Copy, Remove;
@@ -355,7 +358,6 @@ public abstract class Element {
 			// delta = bdd.diffto(delta,bdd3);
 			// }
 			// }
-
 			HashSet<Integer> transfer_aps = new HashSet<Integer>();
 			int pred = delta;
 			if (pred_aps.containsKey(delta)) {
@@ -393,8 +395,7 @@ public abstract class Element {
 					if (intersect != ap) {
 						int dif = bdd.diff(ap, intersect);
 						// split the AP in AP Set
-						split_tuple.put(ap, new Pair<Integer, Integer>(dif, intersect));
-						bdd.getBDD().deref(dif);
+						split_tuple.put(ap, new Pair<Integer, Integer>(dif, bdd.getBDD().ref(intersect)));
 					}
 					// locally transfer the AP from from_port to to_port
 					// update batch moved aps because of transfering

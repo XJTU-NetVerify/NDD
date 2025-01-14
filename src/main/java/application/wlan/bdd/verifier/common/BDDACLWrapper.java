@@ -91,13 +91,12 @@ public class BDDACLWrapper implements Serializable {
 	public final static int BDDTrue = 1;
 
 	public BDDACLWrapper() {
-		System.out.println("tag");
-		aclBDD = new BDD(700000, 700000); //purdue
+//		aclBDD = new BDD(700000, 700000); //purdue
 		// aclBDD = new BDD(400000, 400000); //stanford
 		// aclBDD = new BDD(400000, 400000); //internet2
 		// aclBDD = new BDD(350000, 350000);
-		// aclBDD = new BDD(100000000, 10000000);
-		// aclBDD = new BDD(10000000, 10000000);
+//		 aclBDD = new BDD(100000000, 10000000);
+		 aclBDD = new BDD(10000000, 10000000); //campus
 		// aclBDD = new BDD(Parameters.BDD_TABLE_SIZE, Parameters.BDD_TABLE_SIZE);
 
 		protocol = new int[protocolBits];

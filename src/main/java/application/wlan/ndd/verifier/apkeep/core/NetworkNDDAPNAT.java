@@ -8,8 +8,8 @@ import application.wlan.ndd.verifier.apkeep.element.FieldNodeAPNAT;
 import application.wlan.ndd.verifier.common.RewriteRule;
 import application.wlan.ndd.verifier.common.Utility;
 import javafx.util.Pair;
-import org.ants.jndd.diagram.AtomizedNDD;
-import org.ants.jndd.diagram.NDD;
+import ndd.jdd.diagram.AtomizedNDD;
+import ndd.jdd.diagram.NDD;
 
 public class NetworkNDDAPNAT extends NetworkNDDAP {
     public HashMap<String, HashSet<String>> startEdge;
@@ -18,7 +18,7 @@ public class NetworkNDDAPNAT extends NetworkNDDAP {
 
     public NetworkNDDAPNAT(String name) throws IOException {
         super(name);
-        splitMapAction = new SplitMap(AtomizedNDD.getFieldNum());
+        splitMapAction = new SplitMap(AtomizedNDD.getFieldNum() + 1);
         splitMapAction.SetType(true);
     }
 
@@ -186,7 +186,15 @@ public class NetworkNDDAPNAT extends NetworkNDDAP {
             if (tokens[7].equals("any")) {
                 srcBDD = bdd_engine.BDDTrue;
             } else {
-                srcBDD = NDD.encodePrefixBDD(Utility.IPBinRep(tokens[7]), bdd_engine.SRC_IP_FIELD);
+                int[] ipbin = Utility.IPBinRep(tokens[7]);
+                int l = 0;
+                int r = ipbin.length - 1;
+                while (l < r) {
+                    int t = ipbin[l];
+                    ipbin[l] = ipbin[r];
+                    ipbin[r] = t;
+                }
+                srcBDD = NDD.encodePrefixBDD(ipbin, NDD.getBDDVars(bdd_engine.SRC_IP_FIELD), NDD.getNotBDDVars(bdd_engine.SRC_IP_FIELD));
             }
             NDD srcNDD = NDD.ref(NDD.toNDD(srcBDD));
 
@@ -194,7 +202,15 @@ public class NetworkNDDAPNAT extends NetworkNDDAP {
             if (tokens[8].equals("any")) {
                 dstBDD = bdd_engine.BDDTrue;
             } else {
-                dstBDD = NDD.encodePrefixBDD(Utility.IPBinRep(tokens[8]), bdd_engine.DST_IP_FIELD);
+                int[] ipbin = Utility.IPBinRep(tokens[8]);
+                int l = 0;
+                int r = ipbin.length - 1;
+                while (l < r) {
+                    int t = ipbin[l];
+                    ipbin[l] = ipbin[r];
+                    ipbin[r] = t;
+                }
+                dstBDD = NDD.encodePrefixBDD(ipbin, NDD.getBDDVars(bdd_engine.DST_IP_FIELD), NDD.getNotBDDVars(bdd_engine.DST_IP_FIELD));
             }
             NDD dstNDD = NDD.ref(NDD.toNDD(dstBDD));
 
@@ -239,7 +255,7 @@ public class NetworkNDDAPNAT extends NetworkNDDAP {
                 String pName = entry.getKey();
                 device.ports_aps.put(entry.getKey(), AtomizedNDD.ref(ndd_mol.get(entry.getValue())));
                 HashSet<Integer>[] apSet = ndd_aps.get(entry.getValue());
-                for (int field = 0; field < AtomizedNDD.getFieldNum(); field++) {
+                for (int field = 0; field <= AtomizedNDD.getFieldNum(); field++) {
                     HashMap<Integer, HashSet<Pair<String, String>>> sub_ap_ports = ap_ports[field];
                     for (int ap : apSet[field]) {
                         HashSet<Pair<String, String>> ports = sub_ap_ports.get(ap);
@@ -300,7 +316,7 @@ public class NetworkNDDAPNAT extends NetworkNDDAP {
                 }
             }
         }
-        for (int i = 0; i < AtomizedNDD.getFieldNum(); i++) {
+        for (int i = 0; i <= AtomizedNDD.getFieldNum(); i++) {
             if (AtomizedNDD.getAllAtoms(i).size() == 1) {
                 ap_ports[i].put(1, new HashSet<>());
                 if(i<=1)ap_ports_action[i].put(1, new HashSet<>());
@@ -418,7 +434,7 @@ public class NetworkNDDAPNAT extends NetworkNDDAP {
         if (empty)
             return;
 
-        for (int curr_field = 0; curr_field < AtomizedNDD.getFieldNum(); curr_field++) {
+        for (int curr_field = 0; curr_field <= AtomizedNDD.getFieldNum(); curr_field++) {
             for (Map.Entry<Integer, HashSet<Integer>> entry : split_ap.get(curr_field).entrySet()) {
                 AtomizedNDD.getAllAtoms(curr_field).remove(entry.getKey());
                 AtomizedNDD.getAllAtoms(curr_field).addAll(entry.getValue());
@@ -427,7 +443,7 @@ public class NetworkNDDAPNAT extends NetworkNDDAP {
         }
 
         HashSet<Pair<String, String>> finished = new HashSet<>();
-        for (int field = 0; field < AtomizedNDD.getFieldNum(); field++) {
+        for (int field = 0; field <= AtomizedNDD.getFieldNum(); field++) {
             HashMap<Integer, HashSet<Pair<String, String>>> sub_ap_ports = splitMap.ap_ports[field];
             HashMap<Integer, HashSet<Integer>> apToSplit = split_ap.get(field);
             for (int ap : apToSplit.keySet()) {

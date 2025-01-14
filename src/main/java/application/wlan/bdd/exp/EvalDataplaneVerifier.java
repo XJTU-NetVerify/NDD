@@ -19,6 +19,8 @@ public class EvalDataplaneVerifier {
     private static boolean incrementACL = false;
     public static boolean runNAT = false;
     public static boolean divideACL = true;
+    public static boolean CHECK_CORRECTNESS = false;
+    public static boolean DEBUG_MODEL = false;
 
     public static void runFattreeUpdate(String configPath, String ACL_Path) throws IOException {
         // long t0 = System.nanoTime();
@@ -108,20 +110,20 @@ public class EvalDataplaneVerifier {
 
     public static void main(String[] args) throws IOException {
         UtilityTools.split_str = "_";
-        String configPath = "/data/zcli-data/pd";
-        String ACL_Path = "/data/zcli-data/purdue";
+        String configPath = "datasets\\wlan\\purdue\\pd";
+        String ACL_Path = "datasets\\wlan\\purdue\\purdue";
 
-        // UtilityTools.split_str = "-";
-        // String configPath = "/data/zcli-data/st";
-        // String ACL_Path = "/data/zcli-data/stanford";
+//         UtilityTools.split_str = "-";
+//         String configPath = "datasets\\wlan\\stanford\\st";
+//         String ACL_Path = "datasets\\wlan\\stanford\\stanford";
 
-        // UtilityTools.split_str = "_";
-        // String configPath = "/data/zcli-data/cam";
-        // String ACL_Path = "/data/zcli-data/campus";
+//         UtilityTools.split_str = "_";
+//         String configPath = "datasets\\wlan\\campus\\cam";
+//         String ACL_Path = "datasets\\wlan\\campus\\campus";
 
-        // UtilityTools.split_str = "_";
-        // String configPath = "/home/zcli/lzc/APKeepBatch/data/internet2";
-        // String ACL_Path = "/home/zcli/lzc/APKeepBatch/data/internet2";
+//         UtilityTools.split_str = "_";
+//         String configPath = "datasets\\wlan\\internet2";
+//         String ACL_Path = "datasets\\wlan\\internet2";
 
         if(runNAT)
         {

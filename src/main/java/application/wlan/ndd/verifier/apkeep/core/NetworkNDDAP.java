@@ -1,19 +1,24 @@
 package application.wlan.ndd.verifier.apkeep.core;
 
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 
+import application.wlan.bdd.exp.EvalDataplaneVerifier;
+import application.wlan.bdd.verifier.apkeep.element.ACLElement;
+import application.wlan.ndd.exp.EvalDataplaneVerifierNDDAP;
 import application.wlan.ndd.verifier.apkeep.checker.TranverseNodeAP;
 import application.wlan.ndd.verifier.apkeep.element.FieldNodeAP;
 import application.wlan.ndd.verifier.apkeep.utils.UtilityTools;
 import application.wlan.ndd.verifier.common.ACLRule;
 import javafx.util.*;
-import org.ants.jndd.diagram.AtomizedNDD;
-import org.ants.jndd.diagram.NDD;
+import ndd.jdd.diagram.AtomizedNDD;
+import ndd.jdd.diagram.NDD;
 
 public class NetworkNDDAP extends NetworkNDDPred {
     public HashMap<String, FieldNodeAP> FieldNodes;
@@ -25,7 +30,7 @@ public class NetworkNDDAP extends NetworkNDDPred {
         FieldNodes = new HashMap<>();
         TranverseNodeAP.net = this;
         FieldNodeAP.network = this;
-        splitMap = new SplitMap(AtomizedNDD.getFieldNum());
+        splitMap = new SplitMap(AtomizedNDD.getFieldNum() + 1);
     }
 
     public void addForwardNode(String element) {
@@ -59,24 +64,23 @@ public class NetworkNDDAP extends NetworkNDDPred {
         int count = 0;
         for (String linestr : acl_rules) {
             count++;
-            // System.out.println();
-            // System.out.println(count+" "+linestr);
             if(count == 1000)
             {
-                // System.out.println("tag");
                 UpdateFieldAP();
             }
             UpdateACLRule(linestr);
         }
 
-        // System.out.println(no_use_num);
+        if (EvalDataplaneVerifierNDDAP.CHECK_CORRECTNESS) {
+            OutputACLPredicate();
+            UpdateFieldAP();
+            System.out.println(AtomizedNDD.totalCountOfAtoms());
+        }
 
         long t2 = System.nanoTime();
 
         updateFWDRuleBatch(fwd_rules, moved_aps);
         UpdateFieldAP();
-
-        // CheckNDD_Molecule();
 
         for (String acl_name : acl_application.keySet()) {
             for (String acl_app : acl_application.get(acl_name)) {
@@ -100,6 +104,20 @@ public class NetworkNDDAP extends NetworkNDDPred {
         // }
 
         return moved_aps;
+    }
+
+    private void OutputACLPredicate() throws IOException {
+        FileWriter fw = new FileWriter("results\\" + name + "\\ACLPredicateSatCountNDD.txt", false);
+        PrintWriter pw = new PrintWriter(fw);
+        for (String elementName : acl_application.keySet()) {
+            FieldNodeAP aclElement = FieldNodes.get(elementName);
+            for (Map.Entry<String, AtomizedNDD> entry : aclElement.ports_aps.entrySet()) {
+                String portName = entry.getKey();
+                AtomizedNDD predicate = entry.getValue();
+                pw.println(elementName+" "+portName+" "+AtomizedNDD.satCount(AtomizedNDD.atomizedToNDD(predicate)));
+            }
+        }
+        pw.flush();
     }
 
     public HashMap<String, HashSet<Integer>> UpdateBatchRulesIncre(ArrayList<String> rules, ArrayList<String> acl_rules)
@@ -234,6 +252,7 @@ public class NetworkNDDAP extends NetworkNDDPred {
             System.out.println("Remove not implement !");
             // change_set = e.RemoveACLRule(r);
         }
+
         return tokens[2];
     }
 
@@ -342,7 +361,7 @@ public class NetworkNDDAP extends NetworkNDDPred {
                 String pName = entry.getKey();
                 device.ports_aps.put(entry.getKey(), AtomizedNDD.ref(ndd_mol.get(entry.getValue())));
                 HashSet<Integer>[] apSet = ndd_aps.get(entry.getValue());
-                for (int field = 0; field < AtomizedNDD.getFieldNum(); field++) {
+                for (int field = 0; field <= AtomizedNDD.getFieldNum(); field++) {
                     HashMap<Integer, HashSet<Pair<String, String>>> sub_ap_ports = ap_ports[field];
                     for (int ap : apSet[field]) {
                         HashSet<Pair<String, String>> ports = sub_ap_ports.get(ap);
@@ -360,7 +379,7 @@ public class NetworkNDDAP extends NetworkNDDPred {
                 AtomizedNDD.deref(atomizedNDD);
             }
         }
-        for(int i=0;i<AtomizedNDD.getFieldNum();i++)
+        for(int i=0;i<=AtomizedNDD.getFieldNum();i++)
         {
             if(AtomizedNDD.getAllAtoms(i).size() == 1)
             {
@@ -440,7 +459,7 @@ public class NetworkNDDAP extends NetworkNDDPred {
 
     public void split_ap_multi_field(ArrayList<HashMap<Integer, HashSet<Integer>>> split_ap) {
         boolean empty = true;
-        for (int curr = 0; curr < AtomizedNDD.getFieldNum(); curr++) {
+        for (int curr = 0; curr <= AtomizedNDD.getFieldNum(); curr++) {
             if (split_ap.get(curr).size() > 0) {
                 empty = false;
             }
@@ -448,7 +467,7 @@ public class NetworkNDDAP extends NetworkNDDPred {
         if (empty)
             return;
 
-        for (int curr_field = 0; curr_field < AtomizedNDD.getFieldNum(); curr_field++) {
+        for (int curr_field = 0; curr_field <= AtomizedNDD.getFieldNum(); curr_field++) {
             for (Map.Entry<Integer, HashSet<Integer>> entry : split_ap.get(curr_field).entrySet()) {
                 AtomizedNDD.getAllAtoms(curr_field).remove(entry.getKey());
                 AtomizedNDD.getAllAtoms(curr_field).addAll(entry.getValue());
@@ -471,7 +490,7 @@ public class NetworkNDDAP extends NetworkNDDPred {
         // }
 
         HashSet<Pair<String, String>> finished = new HashSet<>();
-        for (int field = 0; field < AtomizedNDD.getFieldNum(); field++) {
+        for (int field = 0; field <= AtomizedNDD.getFieldNum(); field++) {
             HashMap<Integer, HashSet<Pair<String, String>>> sub_ap_ports = splitMap.ap_ports[field];
             HashMap<Integer, HashSet<Integer>> apToSplit = split_ap.get(field);
             for (int ap : apToSplit.keySet()) {

@@ -1,8 +1,11 @@
 package application.wlan.ndd.verifier.apkeep.checker;
 
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.Stack;
 
 import application.wlan.ndd.verifier.apkeep.core.NetworkNDDAPNAT;
@@ -10,7 +13,7 @@ import application.wlan.ndd.verifier.apkeep.element.FieldNodeAP;
 import application.wlan.ndd.verifier.apkeep.element.FieldNodeAPNAT;
 import application.wlan.ndd.verifier.common.PositionTuple;
 import javafx.util.Pair;
-import org.ants.jndd.diagram.AtomizedNDD;
+import ndd.jdd.diagram.AtomizedNDD;
 
 public class CheckerNDDAPNAT {
     static boolean checkCorrectness = false;

@@ -1,12 +1,15 @@
-package org.ants.jndd.diagram;
+package ndd.jdd.diagram;
 
+import application.wlan.ndd.exp.EvalDataplaneVerifierNDDAP;
 import javafx.util.Pair;
-import org.ants.jndd.cache.OperationCache;
-import org.ants.jndd.nodetable.AtomizedNodeTable;
+import ndd.jdd.cache.OperationCache;
+import ndd.jdd.nodetable.AtomizedNodeTable;
+import ndd.jdd.nodetable.NodeTable;
 
 import java.util.*;
 
 public class AtomizedNDD extends NDD {
+    private final static boolean DEBUG_MODEL = false;
     public static AtomizedNodeTable atomizedNodeTable;
     private static HashSet<AtomizedNDD> atomizedTemporarilyProtect;
     private static ArrayList<HashSet<Integer>> atomsPerField;
@@ -57,6 +60,14 @@ public class AtomizedNDD extends NDD {
 
     public static HashSet<Integer> getAllAtoms(int field) {
         return atomsPerField.get(field);
+    }
+
+    public static int totalCountOfAtoms() {
+        int count = 0;
+        for (HashSet<Integer> atoms : atomsPerField) {
+            count += atoms.size();
+        }
+        return count;
     }
 
     public static HashSet<AtomizedNDD> getAtomizedTemporarilyProtect() {
@@ -159,7 +170,20 @@ public class AtomizedNDD extends NDD {
 
     public static AtomizedNDD or(AtomizedNDD a, AtomizedNDD b) {
         atomizedTemporarilyProtect.clear();
-        return orRec(a, b);
+        AtomizedNDD result = orRec(a, b);
+        if (DEBUG_MODEL) {
+            int abdd = bddEngine.ref(NDD.toBDD(AtomizedNDD.atomizedToNDD(a)));
+            int bbdd = bddEngine.ref(NDD.toBDD(AtomizedNDD.atomizedToNDD(b)));
+            int resultBDD = bddEngine.ref(bddEngine.orTo(abdd, bbdd));
+            if (resultBDD != NDD.toBDD(AtomizedNDD.atomizedToNDD(result))) {
+                System.out.println("Operation atomized or: wrong answer");
+                print(a);
+                print(b);
+                print(result);
+            }
+            bddEngine.deref(resultBDD);
+        }
+        return result;
     }
 
     private static AtomizedNDD orRec(AtomizedNDD a, AtomizedNDD b) {
@@ -174,8 +198,14 @@ public class AtomizedNDD extends NDD {
         HashMap<AtomizedNDD, HashSet<Integer>> edges = new HashMap<>();
         if (a.field == b.field) {
             // record edges of each node, which will 'or' with the edge pointing to FALSE of another node
-            HashMap<AtomizedNDD, HashSet<Integer>> residualA = new HashMap<>(a.getAtomizedEdges());
-            HashMap<AtomizedNDD, HashSet<Integer>> residualB = new HashMap<>(b.getAtomizedEdges());
+            HashMap<AtomizedNDD, HashSet<Integer>> residualA = new HashMap<>();
+            for (Map.Entry<AtomizedNDD, HashSet<Integer>> entry : a.getAtomizedEdges().entrySet()) {
+                residualA.put(entry.getKey(), new HashSet<>(entry.getValue()));
+            }
+            HashMap<AtomizedNDD, HashSet<Integer>> residualB = new HashMap<>();
+            for (Map.Entry<AtomizedNDD, HashSet<Integer>> entry : b.getAtomizedEdges().entrySet()) {
+                residualB.put(entry.getKey(), new HashSet<>(entry.getValue()));
+            }
             for (Map.Entry<AtomizedNDD, HashSet<Integer>> entryA : a.getAtomizedEdges().entrySet()) {
                 for (Map.Entry<AtomizedNDD, HashSet<Integer>> entryB : b.getAtomizedEdges().entrySet()) {
                     // the bdd label on the new edge
@@ -189,8 +219,8 @@ public class AtomizedNDD extends NDD {
                     }
                     if (!intersect.isEmpty()) {
                         // update residual
-                        entryA.getValue().removeAll(intersect);
-                        entryB.getValue().removeAll(intersect);
+                        residualA.get(entryA.getKey()).removeAll(intersect);
+                        residualB.get(entryB.getKey()).removeAll(intersect);
                         // the descendant of the new edge
                         AtomizedNDD subResult = orRec(entryA.getKey(), entryB.getKey());
                         // try to merge edges
@@ -219,7 +249,7 @@ public class AtomizedNDD extends NDD {
                 a = b;
                 b = t;
             }
-            HashSet<Integer> residualB = new HashSet<>(getAllAtoms(b.field));
+            HashSet<Integer> residualB = new HashSet<>(getAllAtoms(a.field));
             for (Map.Entry<AtomizedNDD, HashSet<Integer>> entryA : a.getAtomizedEdges().entrySet()) {
                 /*
                  * if A branches on a higher field than B,
@@ -273,6 +303,18 @@ public class AtomizedNDD extends NDD {
         AtomizedNDD n = notRec(b);
         atomizedTemporarilyProtect.add(n);
         AtomizedNDD result = andRec(a, n);
+        if (DEBUG_MODEL) {
+            int abdd = bddEngine.ref(NDD.toBDD(AtomizedNDD.atomizedToNDD(a)));
+            int bbdd = bddEngine.ref(NDD.toBDD(AtomizedNDD.atomizedToNDD(b)));
+            int nbdd = bddEngine.ref(bddEngine.not(bbdd));
+            bddEngine.deref(bbdd);
+            int resultBDD = bddEngine.andTo(abdd, nbdd);
+            bddEngine.deref(nbdd);
+            if (resultBDD != NDD.toBDD(AtomizedNDD.atomizedToNDD(result))) {
+                System.out.println("Operation atomized diff: wrong answer!");
+            }
+            bddEngine.deref(resultBDD);
+        }
         return result;
     }
 
@@ -303,12 +345,12 @@ public class AtomizedNDD extends NDD {
         return result;
     }
 
-    private static NDD toNDD(AtomizedNDD a) {
+    public static NDD atomizedToNDD(AtomizedNDD a) {
         NDD.getTemporarilyProtect().clear();
-        return toNDDRec(a);
+        return atomizedToNDDRec(a);
     }
 
-    private static NDD toNDDRec(AtomizedNDD a) {
+    private static NDD atomizedToNDDRec(AtomizedNDD a) {
         if (a.isTrue()) {
             return NDD.getTrue();
         } else if (a.isFalse()) {
@@ -321,7 +363,7 @@ public class AtomizedNDD extends NDD {
             for (int atom : entry.getValue()) {
                 bddLabel = bddEngine.orTo(bddLabel, atom);
             }
-            NDD subResult = toNDDRec(entry.getKey());
+            NDD subResult = atomizedToNDDRec(entry.getKey());
             NDD.addEdge(edges, subResult, bddLabel);
         }
 
@@ -334,8 +376,8 @@ public class AtomizedNDD extends NDD {
 
     public static HashMap<NDD, AtomizedNDD> atomization(HashSet<NDD> nddPredicates, HashMap<NDD, HashSet<Integer>[]> nddToAtoms) {
         //collect preds
-        HashSet<Integer>[] bddPredicatesPerField = new HashSet[fieldNum];
-        for(int i = 0; i < fieldNum; i++) {
+        HashSet<Integer>[] bddPredicatesPerField = new HashSet[fieldNum + 1];
+        for(int i = 0; i <= fieldNum; i++) {
             bddPredicatesPerField[i] = new HashSet<>();
         }
         for(NDD nddPredicate : nddPredicates) {
@@ -343,7 +385,7 @@ public class AtomizedNDD extends NDD {
         }
 
         //update atoms
-        for(int field = 0; field < fieldNum; field++) {
+        for(int field = 0; field <= fieldNum; field++) {
             HashSet<Integer> atoms = new HashSet<>();
             atoms.add(1);
             HashSet<Integer> newAtoms = new HashSet<>();
@@ -375,7 +417,7 @@ public class AtomizedNDD extends NDD {
 
         //atomize bdd pred
         HashMap<Integer, HashSet<Integer>> bddToAtoms = new HashMap<>();
-        for(int field = 0; field < fieldNum; field++) {
+        for(int field = 0; field <= fieldNum; field++) {
             for(int bddPredicate : bddPredicatesPerField[field]) {
                 HashSet<Integer> atomsOfPredicate = new HashSet<>();
                 for(int atom : atomsPerField.get(field)) {
@@ -390,8 +432,8 @@ public class AtomizedNDD extends NDD {
         //atomize ndd pred
         HashMap<NDD, AtomizedNDD> nddToAtomizationNDD = new HashMap<>();
         for(NDD nddPredicate : nddPredicates) {
-            HashSet<Integer>[] atoms = new HashSet[fieldNum];
-            for(int field = 0; field < fieldNum; field++) {
+            HashSet<Integer>[] atoms = new HashSet[fieldNum + 1];
+            for(int field = 0; field <= fieldNum; field++) {
                 atoms[field] = new HashSet<>();
             }
             AtomizedNDD atomizedNDD = atomizeNDD(nddPredicate, bddToAtoms);
@@ -446,15 +488,15 @@ public class AtomizedNDD extends NDD {
 
     public static void changeAtoms(AtomizedNDD oldPredicate, AtomizedNDD newPredicate, HashSet<Integer>[] remove,
                                   HashSet<Integer>[] add) {
-        HashSet<Integer>[] array1 = new HashSet[fieldNum];
-        HashSet<Integer>[] array2 = new HashSet[fieldNum];
-        for (int i = 0; i < fieldNum; i++) {
+        HashSet<Integer>[] array1 = new HashSet[fieldNum + 1];
+        HashSet<Integer>[] array2 = new HashSet[fieldNum + 1];
+        for (int i = 0; i <= fieldNum; i++) {
             array1[i] = new HashSet<>();
             array2[i] = new HashSet<>();
         }
         collectAtoms(oldPredicate, array1);
         collectAtoms(newPredicate, array2);
-        for (int i = 0; i < fieldNum; i++) {
+        for (int i = 0; i <= fieldNum; i++) {
             remove[i] = new HashSet<>(array1[i]);
             add[i] = new HashSet<>(array2[i]);
             remove[i].removeAll(array2[i]);
@@ -533,8 +575,8 @@ public class AtomizedNDD extends NDD {
 
     public static void getAtomsToSplitMultipleFields(AtomizedNDD atomizedNDD, int[] deltaVector, ArrayList<HashSet<Integer>> deltaToAtoms,
                                                 ArrayList<HashMap<Integer, HashSet<Integer>>> atomsToSplit, int field) {
-        if (field == fieldNum) {
-        } else if ((atomizedNDD.isTrue() && field < fieldNum) || atomizedNDD.field > field) {
+        if (field == fieldNum + 1) {
+        } else if ((atomizedNDD.isTrue() && field <= fieldNum) || atomizedNDD.field > field) {
             if (deltaVector[field] == 1) {
                 deltaToAtoms.get(field).addAll(getAllAtoms(field));
             } else {
@@ -549,9 +591,12 @@ public class AtomizedNDD extends NDD {
                     getAtomsToSplitMultipleFields(entry.getKey(), deltaVector, deltaToAtoms, atomsToSplit, field + 1);
                 } else {
                     int newDeltaBDD = splitDeltaSingleField(entry.getValue(), deltaBDD, deltaToAtoms.get(field), atomsToSplit.get(field));
-                    if ((newDeltaBDD != 0) && (deltaBDD != newDeltaBDD)) {
+                    if (deltaBDD != newDeltaBDD) {
                         deltaBDD = newDeltaBDD;
                         getAtomsToSplitMultipleFields(entry.getKey(), deltaVector, deltaToAtoms, atomsToSplit, field + 1);
+                    }
+                    if (deltaBDD == 0) {
+                        break;
                     }
                 }
             }
@@ -666,10 +711,31 @@ public class AtomizedNDD extends NDD {
 
     public static int getAtomsCount() {
         int atomsNumber = 0;
-        for (int field = 0; field < fieldNum; field++) {
+        for (int field = 0; field <= fieldNum; field++) {
             atomsNumber += atomsPerField.get(field).size();
         }
         return atomsNumber;
+    }
+
+    public static void print(AtomizedNDD root) {
+        System.out.println("Print " + root + " begin!");
+        printRec(root);
+        System.out.println("Print " + root + " finish!\n");
+    }
+
+    private static void printRec(AtomizedNDD current) {
+        if (current.isTrue()) System.out.println("TRUE\n");
+        else if (current.isFalse()) System.out.println("FALSE\n");
+        else {
+            System.out.println("field:" + current.field + " node:" + current);
+            for (Map.Entry<AtomizedNDD, HashSet<Integer>> entry : current.getAtomizedEdges().entrySet()) {
+                System.out.println("next:" + entry.getKey() + " label:" + entry.getValue());
+            }
+            System.out.println();
+            for (AtomizedNDD next : current.getAtomizedEdges().keySet()) {
+                printRec(next);
+            }
+        }
     }
 
     // per node content

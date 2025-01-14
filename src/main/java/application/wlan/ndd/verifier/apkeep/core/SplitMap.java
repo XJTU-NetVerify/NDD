@@ -6,11 +6,11 @@ import java.util.HashSet;
 import java.util.Map;
 
 import javafx.util.*;
-import org.ants.jndd.diagram.AtomizedNDD;
+import ndd.jdd.diagram.AtomizedNDD;
+import ndd.jdd.diagram.NDD;
 
 public class SplitMap {
     public int fieldNum;
-    public int dstIPField = 1;
     public HashMap<Integer, HashSet<Pair<String, String>>>[] ap_ports;
     public boolean isAction = false;
 
@@ -51,7 +51,8 @@ public class SplitMap {
     }
 
     public void split(ArrayList<HashMap<Integer, HashSet<Integer>>> split_ap) {
-        int maxField = AtomizedNDD.getFieldNum();
+//        System.out.println(split_ap);
+        int maxField = AtomizedNDD.getFieldNum() + 1;
         if(isAction)maxField = 2;
         for (int field = 0; field < maxField; field++) {
             HashMap<Integer, HashSet<Pair<String, String>>> sub_ap_ports = ap_ports[field];
@@ -64,6 +65,7 @@ public class SplitMap {
                 }
             }
         }
+//        System.out.println(ap_ports[4]);
     }
 
     public void split(HashMap<Integer, HashSet<Integer>> apToSplit, int field) {

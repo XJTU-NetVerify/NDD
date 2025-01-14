@@ -5,12 +5,15 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 
+import application.wlan.bdd.exp.EvalDataplaneVerifier;
 import application.wlan.bdd.verifier.apkeep.core.BDDRuleItem;
 import application.wlan.bdd.verifier.apkeep.core.ChangeItem;
 import application.wlan.bdd.verifier.common.ACLRule;
 
 import application.wlan.bdd.verifier.common.BDDACLWrapper;
+import application.wlan.ndd.exp.EvalDataplaneVerifierNDDAP;
 import jdd.bdd.BDD;
+import ndd.jdd.diagram.NDD;
 
 public class ACLElement extends Element{
 
@@ -53,7 +56,7 @@ public class ACLElement extends Element{
 		int residual2 = BDDACLWrapper.BDDFalse;
 		int cur_position = 0;
 		boolean inserted = false;
-		
+
 		BDDRuleItem<ACLRule> default_item = acl_rule.getLast();
 		
 		Iterator<BDDRuleItem<ACLRule>> it = acl_rule.iterator();

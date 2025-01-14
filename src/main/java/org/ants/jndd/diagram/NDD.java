@@ -1,10 +1,11 @@
-package org.ants.jndd.diagram;
+package ndd.jdd.diagram;
 
+import application.wlan.ndd.exp.EvalDataplaneVerifierNDDAP;
 import javafx.util.Pair;
 import jdd.bdd.BDD;
-import org.ants.jndd.cache.OperationCache;
-import org.ants.jndd.nodetable.NodeTable;
-import org.ants.jndd.utils.DecomposeBDD;
+import ndd.jdd.cache.OperationCache;
+import ndd.jdd.nodetable.NodeTable;
+import ndd.jdd.utils.DecomposeBDD;
 
 import java.util.*;
 
@@ -18,7 +19,8 @@ public class NDD {
     /**
      * The size of each operation cache.
      */
-    private final static int CACHE_SIZE = 100000;
+    private final static int CACHE_SIZE = 10000;
+    private final static boolean DEBUG_MODEL = false;
 
     /**
      * The ndd node table.
@@ -169,6 +171,14 @@ public class NDD {
         return nddVarsPerField.get(field)[index];
     }
 
+    public static int[] getBDDVars(int field) {
+        return bddVarsPerField.get(field);
+    }
+
+    public static int[] getNotBDDVars(int field) {
+        return bddNotVarsPerField.get(field);
+    }
+
     /**
      * Get the negation the variable for a specific bit.
      * @param field The id of the field.
@@ -224,9 +234,18 @@ public class NDD {
      * @return The result of the logical operation.
      */
     public static NDD andTo(NDD a, NDD b) {
-        NDD t = ref(and(a, b));
+        NDD result = ref(and(a, b));
         deref(a);
-        return t;
+        if (DEBUG_MODEL) {
+            int aBDD = bddEngine.ref(toBDD(a));
+            int bBDD = bddEngine.ref(toBDD(b));
+            int resultBDD = bddEngine.andTo(aBDD, bBDD);
+            bddEngine.deref(bBDD);
+            if (resultBDD != toBDD(result)) {
+                System.out.println("Operation and: result wrong!");
+            }
+        }
+        return result;
     }
 
     /**
@@ -236,9 +255,18 @@ public class NDD {
      * @return The result of the logical operation.
      */
     public static NDD orTo(NDD a, NDD b) {
-        NDD t = ref(or(a, b));
+        NDD result = ref(or(a, b));
         deref(a);
-        return t;
+        if (DEBUG_MODEL) {
+            int aBDD = bddEngine.ref(toBDD(a));
+            int bBDD = bddEngine.ref(toBDD(b));
+            int resultBDD = bddEngine.orTo(aBDD, bBDD);
+            bddEngine.deref(bBDD);
+            if (resultBDD != toBDD(result)) {
+                System.out.println("Operation or: result wrong!");
+            }
+        }
+        return result;
     }
 
     /**
@@ -272,7 +300,17 @@ public class NDD {
      */
     public static NDD and(NDD a, NDD b) {
         temporarilyProtect.clear();
-        return andRec(a, b);
+        NDD result = andRec(a, b);
+        if (DEBUG_MODEL) {
+            int aBDD = bddEngine.ref(toBDD(a));
+            int bBDD = bddEngine.ref(toBDD(b));
+            int resultBDD = bddEngine.andTo(aBDD, bBDD);
+            bddEngine.deref(bBDD);
+            if (resultBDD != toBDD(result)) {
+                System.out.println("Operation and: result wrong!");
+            }
+        }
+        return result;
     }
 
     /**
@@ -341,7 +379,17 @@ public class NDD {
      */
     public static NDD or(NDD a, NDD b) {
         temporarilyProtect.clear();
-        return orRec(a, b);
+        NDD result = orRec(a, b);
+        if (DEBUG_MODEL) {
+            int aBDD = bddEngine.ref(toBDD(a));
+            int bBDD = bddEngine.ref(toBDD(b));
+            int resultBDD = bddEngine.orTo(aBDD, bBDD);
+            bddEngine.deref(bBDD);
+            if (resultBDD != toBDD(result)) {
+                System.out.println("Operation or: result wrong!");
+            }
+        }
+        return result;
     }
 
     /**
@@ -447,7 +495,16 @@ public class NDD {
      */
     public static NDD not(NDD a) {
         temporarilyProtect.clear();
-        return notRec(a);
+        NDD result = notRec(a);
+        if (DEBUG_MODEL) {
+            int aBDD = bddEngine.ref(toBDD(a));
+            int resultBDD = bddEngine.not(aBDD);
+            bddEngine.deref(aBDD);
+            if (resultBDD != toBDD(result)) {
+                System.out.println("Operation not: result wrong!");
+            }
+        }
+        return result;
     }
 
     /**
@@ -495,6 +552,18 @@ public class NDD {
         NDD n = notRec(b);
         temporarilyProtect.add(n);
         NDD result = andRec(a, n);
+        if (DEBUG_MODEL) {
+            int aBDD = bddEngine.ref(toBDD(a));
+            int bBDD = bddEngine.ref(toBDD(b));
+            int t = bddEngine.ref(bddEngine.not(bBDD));
+            bddEngine.deref(bBDD);
+            int resultBDD = bddEngine.and(aBDD, t);
+            bddEngine.deref(aBDD);
+            bddEngine.deref(t);
+            if (resultBDD != toBDD(result)) {
+                System.out.println("Operation diff: result wrong!");
+            }
+        }
         return result;
     }
 
@@ -558,7 +627,15 @@ public class NDD {
      * @return The number of solutions.
      */
     public static double satCount(NDD ndd) {
-        return satCountRec(ndd, 0);
+//        double result = satCountRec(ndd, 0);
+//        if (DEBUG_MODEL) {
+//            double bddResult = bddEngine.satCount(toBDD(ndd));
+//            if (result != bddResult) {
+//                System.out.println("Operation satCount: result wrong!");
+//            }
+//        }
+//        return result;
+        return bddEngine.satCount(toBDD(ndd));
     }
 
     /**
@@ -606,44 +683,41 @@ public class NDD {
 
     /**
      * Encode an NDD of a prefix with no temporary NDD nodes created.
-     * @param prefixBinaryReverse The binary prefix in reverse order, e.g., [0, 1, 0, 1] for 10.
+     * @param prefixBinary The binary prefix, e.g., [1, 0, 1, 0] for 10.
      * @param field The field of the prefix.
      * @return An ndd node encoding the prefix.
      */
-    public static NDD encodePrefix(int[] prefixBinaryReverse, int field) {
-        if (prefixBinaryReverse.length == 0) {
+    public static NDD encodePrefix(int[] prefixBinary, int field) {
+        if (prefixBinary.length == 0) {
             return TRUE;
         }
 
-        int prefixBDD = encodePrefixBDD(prefixBinaryReverse, field);
+        int prefixBDD = encodePrefixBDD(prefixBinary, getBDDVars(field), getNotBDDVars(field));
 
         HashMap<NDD, Integer> edges = new HashMap<>();
         edges.put(TRUE, prefixBDD);
         return mk(field, edges);
     }
 
-    public static NDD encodePrefixs(ArrayList<int[]> prefixsBinaryReverse, int field) {
+    public static NDD encodePrefixs(ArrayList<int[]> prefixsBinary, int field) {
         int prefixsBDD = 0;
-        for (int[] prefix : prefixsBinaryReverse) {
-            prefixsBDD = bddEngine.orTo(prefixsBDD, encodePrefixBDD(prefix, field));
+        for (int[] prefix : prefixsBinary) {
+            prefixsBDD = bddEngine.orTo(prefixsBDD, encodePrefixBDD(prefix, getBDDVars(field), getNotBDDVars(field)));
         }
         HashMap<NDD, Integer> edges = new HashMap<>();
         edges.put(TRUE, prefixsBDD);
         return mk(field, edges);
     }
 
-    public static int encodePrefixBDD(int[] prefixBinaryReverse, int field) {
-        if (prefixBinaryReverse.length == 0) {
+    public static int encodePrefixBDD(int[] prefixBinary, int[] vars, int[] notVars) {
+        if (prefixBinary.length == 0) {
             return 1;
         }
 
-        int[] vars = bddVarsPerField.get(field);
-        int[] notVars = bddNotVarsPerField.get(field);
         int prefixBDD = 1;
-        for (int i = 0; i < prefixBinaryReverse.length; i++) {
-            int index = vars.length - prefixBinaryReverse.length + 1;
-            int currentBit = prefixBinaryReverse[i] == 1 ? vars[index] : notVars[index];
-            if (i == 0) {
+        for (int i = prefixBinary.length - 1; i >= 0; i--) {
+            int currentBit = prefixBinary[i] == 1 ? vars[i] : notVars[i];
+            if (i == prefixBinary.length - 1) {
                 prefixBDD = bddEngine.ref(currentBit);
             } else {
                 prefixBDD = bddEngine.andTo(prefixBDD, currentBit);
@@ -722,7 +796,7 @@ public class NDD {
 
     public static ArrayList<int[]> toArray(NDD curr) {
         ArrayList<int[]> array = new ArrayList<>();
-        int[] vec = new int[fieldNum];
+        int[] vec = new int[fieldNum + 1];
         toArrayRec(curr, array, vec, 0);
         return array;
     }
@@ -730,11 +804,11 @@ public class NDD {
     private static void toArrayRec(NDD curr, ArrayList<int[]> array, int[] vec, int currField) {
         if (curr.isFalse()) {
         } else if (curr.isTrue()) {
-            for (int i = currField; i < fieldNum; i++) {
+            for (int i = currField; i <= fieldNum; i++) {
                 vec[i] = 1;
             }
-            int[] temp = new int[fieldNum];
-            for (int i = 0; i < fieldNum; i++) {
+            int[] temp = new int[fieldNum + 1];
+            for (int i = 0; i <= fieldNum; i++) {
                 temp[i] = vec[i];
             }
             array.add(temp);
@@ -747,6 +821,49 @@ public class NDD {
                 Map.Entry<NDD, Integer> entry = (Map.Entry<NDD, Integer>) iter.next();
                 vec[curr.field] = entry.getValue();
                 toArrayRec(entry.getKey(), array, vec, curr.field + 1);
+            }
+        }
+    }
+
+    public static int toBDD(NDD root) {
+        int result = toBDDRec(root);
+        bddEngine.deref(result);
+        return result;
+    }
+
+    private static int toBDDRec(NDD current) {
+        if (current.isTrue()) {
+            return 1;
+        } else if (current.isFalse()) {
+            return 0;
+        } else {
+            int result = 0;
+            for (Map.Entry<NDD, Integer> entry : current.edges.entrySet()) {
+                int temp = bddEngine.andTo(toBDDRec(entry.getKey()), entry.getValue());
+                result = bddEngine.orTo(result, temp);
+                bddEngine.deref(temp);
+            }
+            return result;
+        }
+    }
+
+    public static void print(NDD root) {
+        System.out.println("Print " + root + " begin!");
+        printRec(root);
+        System.out.println("Print " + root + " finish!\n");
+    }
+
+    private static void printRec(NDD current) {
+        if (current.isTrue()) System.out.println("TRUE\n");
+        else if (current.isFalse()) System.out.println("FALSE\n");
+        else {
+            System.out.println("field:" + current.field + " node:" + current);
+            for (Map.Entry<NDD, Integer> entry : current.getEdges().entrySet()) {
+                System.out.println("next:" + entry.getKey() + " label:" + entry.getValue());
+            }
+            System.out.println();
+            for (NDD next : current.getEdges().keySet()) {
+                printRec(next);
             }
         }
     }

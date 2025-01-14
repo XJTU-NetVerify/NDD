@@ -1,16 +1,14 @@
 package application.wlan.ndd.verifier.apkeep.element;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
+import java.util.*;
 
+import application.wlan.ndd.exp.EvalDataplaneVerifierNDDAP;
 import application.wlan.ndd.verifier.DPVerifierNDDAPIncre;
 import application.wlan.ndd.verifier.apkeep.core.*;
 import application.wlan.ndd.verifier.common.ACLRule;
 import javafx.util.*;
-import org.ants.jndd.diagram.AtomizedNDD;
-import org.ants.jndd.diagram.NDD;
+import ndd.jdd.diagram.AtomizedNDD;
+import ndd.jdd.diagram.NDD;
 
 public class FieldNodeAP extends FieldNode {
     public static NetworkNDDAP network = null;
@@ -513,16 +511,14 @@ public class FieldNodeAP extends FieldNode {
                 // update aps
                 ArrayList<HashSet<Integer>> delta_aps = new ArrayList<>();
                 ArrayList<HashMap<Integer, HashSet<Integer>>> split_ap = new ArrayList<>();
-                for (int curr = 0; curr < AtomizedNDD.getFieldNum(); curr++) {
+                for (int curr = 0; curr <= AtomizedNDD.getFieldNum(); curr++) {
                     delta_aps.add(new HashSet<>());
                     split_ap.add(new HashMap<>());
                 }
                 AtomizedNDD from_aps = ports_aps.get(from_port);
                 AtomizedNDD.getAtomsToSplitMultipleFields(from_aps, bdd_vec, delta_aps, split_ap, 0);
-
                 if(DPVerifierNDDAPIncre.getSplitNum)
                 {
-                    // System.out.println(split_ap);
                     for(HashMap<Integer, HashSet<Integer>> map : split_ap)
                     {
                         for(Map.Entry<Integer, HashSet<Integer>> entry : map.entrySet())
@@ -532,38 +528,30 @@ public class FieldNodeAP extends FieldNode {
                         }
                     }
                 }
-
                 // split
                 network.split_ap_multi_field(split_ap);
-
                 // transfer
                 AtomizedNDD moved_aps = AtomizedNDD.getTrue();
-                for (int curr_field = AtomizedNDD.getFieldNum() - 1; curr_field >= 0; curr_field--) {
-                    if (delta_aps.get(curr_field).size() == AtomizedNDD.getAllAtoms(curr_field).size())
-                    {
-                        continue;
-                    }
+                for (int curr_field = AtomizedNDD.getFieldNum(); curr_field >= 0; curr_field--) {
                     HashMap<AtomizedNDD, HashSet<Integer>> tempMap = new HashMap<>();
                     tempMap.put(moved_aps, delta_aps.get(curr_field));
                     moved_aps = AtomizedNDD.mkAtomized(curr_field, tempMap);
                 }
-                AtomizedNDD.ref(moved_aps);
 
+                AtomizedNDD.ref(moved_aps);
                 AtomizedNDD old_from_aps = ports_aps.get(from_port);
                 AtomizedNDD new_from_aps = AtomizedNDD.ref(AtomizedNDD.diff(old_from_aps, moved_aps));
-                AtomizedNDD.deref(old_from_aps);
                 ports_aps.put(from_port, new_from_aps);
 
                 AtomizedNDD old_to_aps = ports_aps.get(to_port);
                 AtomizedNDD new_to_aps = AtomizedNDD.ref(AtomizedNDD.or(old_to_aps, moved_aps));
-                AtomizedNDD.deref(old_to_aps);
                 ports_aps.put(to_port, new_to_aps);
 
-                HashSet<Integer> [] toAdd = new HashSet [AtomizedNDD.getFieldNum()];
-                HashSet<Integer> [] toRemove = new HashSet [AtomizedNDD.getFieldNum()];
+                HashSet<Integer> [] toAdd = new HashSet [AtomizedNDD.getFieldNum() + 1];
+                HashSet<Integer> [] toRemove = new HashSet [AtomizedNDD.getFieldNum() + 1];
                 AtomizedNDD.changeAtoms(old_from_aps, new_from_aps, toRemove, toAdd);
 
-                for (int field = 0; field < AtomizedNDD.getFieldNum(); field++) {
+                for (int field = 0; field <= AtomizedNDD.getFieldNum(); field++) {
                     HashSet<Integer> removeAP = toRemove[field];
                     HashSet<Integer> addAP = toAdd[field];
                     HashMap<Integer, HashSet<Pair<String, String>>> sub_ap_ports = network.splitMap.ap_ports[field];
@@ -574,12 +562,10 @@ public class FieldNodeAP extends FieldNode {
                         sub_ap_ports.get(ap).add(new Pair<>(name, from_port));
                     }
                 }
-
-                toAdd = new HashSet [AtomizedNDD.getFieldNum()];
-                toRemove = new HashSet [AtomizedNDD.getFieldNum()];
+                toAdd = new HashSet [AtomizedNDD.getFieldNum() + 1];
+                toRemove = new HashSet [AtomizedNDD.getFieldNum() + 1];
                 AtomizedNDD.changeAtoms(old_to_aps, new_to_aps, toRemove, toAdd);
-
-                for (int field = 0; field < AtomizedNDD.getFieldNum(); field++) {
+                for (int field = 0; field <= AtomizedNDD.getFieldNum(); field++) {
                     HashSet<Integer> removeAP = toRemove[field];
                     HashSet<Integer> addAP = toAdd[field];
                     HashMap<Integer, HashSet<Pair<String, String>>> sub_ap_ports = network.splitMap.ap_ports[field];
@@ -590,8 +576,9 @@ public class FieldNodeAP extends FieldNode {
                         sub_ap_ports.get(ap).add(new Pair<>(name, to_port));
                     }
                 }
-
                 AtomizedNDD.deref(moved_aps);
+                AtomizedNDD.deref(old_from_aps);
+                AtomizedNDD.deref(old_to_aps);
             }
             NDD.deref(delta);
         }
@@ -626,7 +613,7 @@ public class FieldNodeAP extends FieldNode {
                 // update aps
                 ArrayList<HashSet<Integer>> delta_aps = new ArrayList<>();
                 ArrayList<HashMap<Integer, HashSet<Integer>>> split_ap = new ArrayList<>();
-                for (int curr = 0; curr < AtomizedNDD.getFieldNum(); curr++) {
+                for (int curr = 0; curr <= AtomizedNDD.getFieldNum(); curr++) {
                     delta_aps.add(new HashSet<>());
                     split_ap.add(new HashMap<>());
                 }
@@ -638,7 +625,7 @@ public class FieldNodeAP extends FieldNode {
 
                 // transfer
                 AtomizedNDD moved_aps = AtomizedNDD.getTrue();
-                for (int curr_field = AtomizedNDD.getFieldNum() - 1; curr_field >= 0; curr_field--) {
+                for (int curr_field = AtomizedNDD.getFieldNum(); curr_field >= 0; curr_field--) {
                     if (delta_aps.get(curr_field).size() == AtomizedNDD.getAllAtoms(curr_field).size())
                     {
                         continue;
@@ -659,11 +646,11 @@ public class FieldNodeAP extends FieldNode {
                 AtomizedNDD.deref(old_to_aps);
                 ports_aps.put(to_port, new_to_aps);
 
-                HashSet<Integer> [] toAdd = new HashSet [AtomizedNDD.getFieldNum()];
-                HashSet<Integer> [] toRemove = new HashSet [AtomizedNDD.getFieldNum()];
+                HashSet<Integer> [] toAdd = new HashSet [AtomizedNDD.getFieldNum() + 1];
+                HashSet<Integer> [] toRemove = new HashSet [AtomizedNDD.getFieldNum() + 1];
                 AtomizedNDD.changeAtoms(old_from_aps, new_from_aps, toRemove, toAdd);
 
-                for (int field = 0; field < AtomizedNDD.getFieldNum(); field++) {
+                for (int field = 0; field <= AtomizedNDD.getFieldNum(); field++) {
                     HashSet<Integer> removeAP = toRemove[field];
                     HashSet<Integer> addAP = toAdd[field];
                     HashMap<Integer, HashSet<Pair<String, String>>> sub_ap_ports = network.splitMap.ap_ports[field];
@@ -675,11 +662,11 @@ public class FieldNodeAP extends FieldNode {
                     }
                 }
 
-                toAdd = new HashSet [AtomizedNDD.getFieldNum()];
-                toRemove = new HashSet [AtomizedNDD.getFieldNum()];
+                toAdd = new HashSet [AtomizedNDD.getFieldNum() + 1];
+                toRemove = new HashSet [AtomizedNDD.getFieldNum() + 1];
                 AtomizedNDD.changeAtoms(old_to_aps, new_to_aps, toRemove, toAdd);
 
-                for (int field = 0; field < AtomizedNDD.getFieldNum(); field++) {
+                for (int field = 0; field <= AtomizedNDD.getFieldNum(); field++) {
                     HashSet<Integer> removeAP = toRemove[field];
                     HashSet<Integer> addAP = toAdd[field];
                     HashMap<Integer, HashSet<Pair<String, String>>> sub_ap_ports = network.splitMap.ap_ports[field];

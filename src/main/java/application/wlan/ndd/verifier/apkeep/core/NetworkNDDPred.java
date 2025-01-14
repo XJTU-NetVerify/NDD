@@ -1,7 +1,11 @@
 package application.wlan.ndd.verifier.apkeep.core;
 
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
+import java.io.FileNotFoundException;
+import java.io.PrintWriter;
 
 import application.wlan.ndd.verifier.apkeep.checker.TranverseNode;
 import application.wlan.ndd.verifier.apkeep.element.FieldNode;
@@ -9,7 +13,7 @@ import application.wlan.ndd.verifier.apkeep.utils.UtilityTools;
 import application.wlan.ndd.verifier.common.ACLRule;
 import application.wlan.ndd.verifier.common.BDDACLWrapper;
 import application.wlan.ndd.verifier.common.PositionTuple;
-import org.ants.jndd.diagram.NDD;
+import ndd.jdd.diagram.NDD;
 
 import javafx.util.Pair;
 

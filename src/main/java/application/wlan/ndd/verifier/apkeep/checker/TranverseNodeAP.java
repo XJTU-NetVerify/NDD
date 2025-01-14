@@ -3,9 +3,11 @@ package application.wlan.ndd.verifier.apkeep.checker;
 import application.wlan.ndd.verifier.apkeep.core.NetworkNDDAP;
 import application.wlan.ndd.verifier.apkeep.utils.UtilityTools;
 import application.wlan.ndd.verifier.common.PositionTuple;
-import org.ants.jndd.diagram.AtomizedNDD;
+import ndd.jdd.diagram.AtomizedNDD;
 
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 
 public class TranverseNodeAP {
     public PositionTuple source;

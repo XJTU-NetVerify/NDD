@@ -1,6 +1,6 @@
 package application.wlan.ndd.verifier.apkeep.core;
 
-import org.ants.jndd.diagram.NDD;
+import ndd.jdd.diagram.NDD;
 
 public class ChangeItem {
 	public String from_port;

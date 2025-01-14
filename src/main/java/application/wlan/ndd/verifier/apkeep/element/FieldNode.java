@@ -6,7 +6,10 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.List;
+import java.util.Set;
 
+import application.wlan.ndd.exp.EvalDataplaneVerifierNDDAP;
 import application.wlan.ndd.verifier.apkeep.core.*;
 import application.wlan.ndd.verifier.apkeep.utils.*;
 import application.wlan.ndd.verifier.common.ACLRule;
@@ -14,7 +17,8 @@ import application.wlan.ndd.verifier.common.BDDACLWrapper;
 import application.wlan.ndd.verifier.common.ForwardingRule;
 import application.wlan.ndd.verifier.common.RewriteRule;
 import javafx.util.*;
-import org.ants.jndd.diagram.NDD;
+import jdd.bdd.BDD;
+import ndd.jdd.diagram.NDD;
 
 public class FieldNode {
     public static NetworkNDDPred network = null;
@@ -809,7 +813,7 @@ public class FieldNode {
             BDDRuleItem<ACLRule> item = it.next();
             // TODO: fast check whether the rule is not affected by any rule
             if (item.rule.getPriority() >= priority) {
-                if (!residual.isFalse()) {
+                if (!residual.isFalse() && !NDD.and(residual, item.rule_bdd).isFalse()) {
                     NDD t = residual;
                     residual = NDD.ref(NDD.diff(residual, item.rule_bdd));
                     NDD.deref(t);

@@ -3,7 +3,8 @@ package application.wlan.ndd.verifier;
 import application.wlan.ndd.verifier.apkeep.checker.CheckerNDDAP;
 import application.wlan.ndd.verifier.apkeep.checker.Checker_stanford_AP;
 import application.wlan.ndd.verifier.apkeep.core.NetworkNDDAP;
-import org.ants.jndd.diagram.AtomizedNDD;
+import ndd.jdd.diagram.AtomizedNDD;
+import ndd.jdd.diagram.NDD;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -19,7 +20,7 @@ public class DPVerifierNDDAP extends DPVerifierNDDPred {
 
 	public DPVerifierNDDAP()
 	{
-		AtomizedNDD.initAtomizedNDD(1000000, 1000000, 100000000, 10000000);
+		AtomizedNDD.initAtomizedNDD(1000000, 1000000, 1000000, 100000);
 	}
 
     public DPVerifierNDDAP(String network_name, ArrayList<String> topo, ArrayList<String> edge_ports,

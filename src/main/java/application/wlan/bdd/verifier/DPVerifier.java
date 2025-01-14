@@ -20,7 +20,7 @@ public class DPVerifier {
     public DPVerifier(String network_name, ArrayList<String> topo, ArrayList<String> edge_ports,
 	Map<String, Map<String, List<Map<String, Map<String, List<Map<String, String>>>>>>> dpDevices) throws IOException{
     	apkeepNetworkModel = new Network(network_name);
-    	apkeepNetworkModel.initializeNetwork(topo, edge_ports, dpDevices);	
+    	apkeepNetworkModel.initializeNetwork(topo, edge_ports, dpDevices);
 
     	dpm_time=0;
     	dpv_time=0;

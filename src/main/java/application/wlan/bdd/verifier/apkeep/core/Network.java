@@ -20,6 +20,7 @@ import application.wlan.bdd.verifier.common.ACLRule;
 import application.wlan.bdd.verifier.common.BDDACLWrapper;
 import application.wlan.bdd.verifier.common.PositionTuple;
 
+import application.wlan.ndd.exp.EvalDataplaneVerifierNDDAP;
 import javafx.util.Pair;
 
 public class Network {
@@ -101,7 +102,7 @@ public class Network {
 		// addHostsToTopology();
 		parseACLConfigs(dpDevices);
 		if (name.equals("st")) {
-			parseVLAN("/data/zcli-data/st/vlan_ports");
+			parseVLAN("datasets\\wlan\\stanford\\st\\vlan_ports");
 		}
 		apk.Initialize();
 		if(EvalDataplaneVerifier.divideACL)
@@ -369,23 +370,16 @@ public class Network {
 			for(String linestr : acl_rules)
 			{
 				acl_count++;
-				// System.out.println(acl_count+" "+linestr);
+//				System.out.println(acl_count+" "+linestr);
+//				System.out.println(ACL_apk.AP.size());
 				UpdateACLRule(linestr, moved_aps);
 			}
 		}
 		else
 		{
-			FileWriter fw;
-			PrintWriter pw;
-			fw = new FileWriter("/home/zcli/lzc/Field-Decision-Network/FDN/src/main/java/org/ants/output/"+name+"/per_acl_APK.txt", false);
-			pw = new PrintWriter(fw);
 			for (String linestr : acl_rules) {
 				acl_count++;
-				double time1 = System.nanoTime();
 				UpdateACLRule(linestr, moved_aps);
-				double time2 = System.nanoTime();
-				pw.println(acl_count+" "+(time2-time1)/1000000.0);
-				pw.flush();
 			}
 		}
 
@@ -401,6 +395,10 @@ public class Network {
 		else
 		{
 			apk.TryMergeAPBatch(moved_aps);
+		}
+
+		if (EvalDataplaneVerifier.CHECK_CORRECTNESS) {
+			OutputACLPredicate();
 		}
 
 		long t2 = System.nanoTime();
@@ -428,6 +426,25 @@ public class Network {
 		System.out.println("ACL:" + (t2-t1)/1000000000.0);
 
 		return moved_aps;
+	}
+
+	private void OutputACLPredicate() throws IOException {
+		FileWriter fw = new FileWriter("results\\" + name + "\\ACLPredicateSatCountBDD.txt", false);
+		PrintWriter pw = new PrintWriter(fw);
+		for (String elementName : acl_application.keySet()) {
+			ACLElement aclElement = ACLelements.get(elementName);
+			for (Map.Entry<String, HashSet<Integer>> entry : aclElement.port_aps_raw.entrySet()) {
+				String portName = entry.getKey();
+				HashSet<Integer> atoms = entry.getValue();
+				int predicate = 0;
+				for (int atom : atoms) {
+					predicate = bdd_engine.orto(predicate, atom);
+				}
+				pw.println(elementName+" "+portName+" "+bdd_engine.getBDD().satCount(predicate));
+				bdd_engine.getBDD().deref(predicate);
+			}
+		}
+		pw.flush();
 	}
 
 	public static ArrayList<String> parseDumpedJson(Map<String, Map<String, List<Map<String, Map<String, List<String>>>>>> dpDevices) {

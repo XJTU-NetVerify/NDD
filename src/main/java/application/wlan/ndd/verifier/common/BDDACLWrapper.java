@@ -46,10 +46,11 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.*;
 
+import application.wlan.ndd.exp.EvalDataplaneVerifierNDDAP;
 import javafx.util.Pair;
 import jdd.bdd.*;
-import org.ants.jndd.diagram.AtomizedNDD;
-import org.ants.jndd.diagram.NDD;
+import ndd.jdd.diagram.AtomizedNDD;
+import ndd.jdd.diagram.NDD;
 
 /**
  * Computes BDD for ACL rules and Forwardding rules
@@ -125,32 +126,32 @@ public class BDDACLWrapper implements Serializable {
 		return aclBDD;
 	}
 
-    private void DeclareVars(NDD[] vars, int bits) {
+    private void DeclareVars(NDD[] vars, int bits, int field) {
         AtomizedNDD.declareField(bits);
         for (int i = bits - 1; i >= 0; i--) {
-            vars[i] = NDD.getVar(NDD.getFieldNum() - 1, i);
+            vars[i] = NDD.getVar(field, i);
         }
     }
 
     // protocol is 8 bits
     private void DeclareProtocol() {
-        DeclareVars(protocol, protocolBits);
+        DeclareVars(protocol, protocolBits, PROTOCOL_FIELD);
     }
 
     private void DeclareSrcPort() {
-        DeclareVars(srcPort, portBits);
+        DeclareVars(srcPort, portBits, SRC_PORT_FIELD);
     }
 
     private void DeclareDstPort() {
-        DeclareVars(dstPort, portBits);
+        DeclareVars(dstPort, portBits, DST_PORT_FIELD);
     }
 
     private void DeclareSrcIP() {
-        DeclareVars(srcIP, ipBits);
+        DeclareVars(srcIP, ipBits, SRC_IP_FIELD);
     }
 
     private void DeclareDstIP() {
-        DeclareVars(dstIP, ipBits);
+        DeclareVars(dstIP, ipBits, DST_IP_FIELD);
     }
 
 //	public HashMap<String, Integer> getfwdbdds(ArrayList<ForwardingRule> fws) {
@@ -391,7 +392,7 @@ public class BDDACLWrapper implements Serializable {
 		int[] ipbin = Utility.CalBinRep(ipaddr, ipBits);
 		int[] ipbinprefix = new int[prefixlen];
 		for (int k = 0; k < prefixlen; k++) {
-			ipbinprefix[k] = ipbin[k + ipBits - prefixlen];
+			ipbinprefix[prefixlen - k - 1] = ipbin[k + ipBits - prefixlen];
 		}
 		NDD entrybdd = NDD.encodePrefix(ipbinprefix, SRC_IP_FIELD);
 		return entrybdd;
@@ -401,7 +402,7 @@ public class BDDACLWrapper implements Serializable {
 		int[] ipbin = Utility.CalBinRep(ipaddr, ipBits);
 		int[] ipbinprefix = new int[prefixlen];
 		for (int k = 0; k < prefixlen; k++) {
-			ipbinprefix[k] = ipbin[k + ipBits - prefixlen];
+			ipbinprefix[prefixlen - k - 1] = ipbin[k + ipBits - prefixlen];
 		}
         NDD entrybdd = NDD.encodePrefix(ipbinprefix, DST_IP_FIELD);
 		return entrybdd;
@@ -411,9 +412,9 @@ public class BDDACLWrapper implements Serializable {
         int[] ipbin = Utility.CalBinRep(ipaddr, ipBits);
         int[] ipbinprefix = new int[prefixlen];
         for (int k = 0; k < prefixlen; k++) {
-            ipbinprefix[k] = ipbin[k + ipBits - prefixlen];
+            ipbinprefix[prefixlen - k - 1] = ipbin[k + ipBits - prefixlen];
         }
-        int entrybdd = NDD.encodePrefixBDD(ipbinprefix, SRC_IP_FIELD);
+        int entrybdd = NDD.encodePrefixBDD(ipbinprefix, NDD.getBDDVars(SRC_IP_FIELD), NDD.getNotBDDVars(SRC_IP_FIELD));
         return entrybdd;
     }
 
@@ -421,9 +422,9 @@ public class BDDACLWrapper implements Serializable {
         int[] ipbin = Utility.CalBinRep(ipaddr, ipBits);
         int[] ipbinprefix = new int[prefixlen];
         for (int k = 0; k < prefixlen; k++) {
-            ipbinprefix[k] = ipbin[k + ipBits - prefixlen];
+            ipbinprefix[prefixlen - k - 1] = ipbin[k + ipBits - prefixlen];
         }
-        int entrybdd = NDD.encodePrefixBDD(ipbinprefix, DST_IP_FIELD);
+		int entrybdd = NDD.encodePrefixBDD(ipbinprefix, NDD.getBDDVars(DST_IP_FIELD), NDD.getNotBDDVars(DST_IP_FIELD));
         return entrybdd;
     }
 
@@ -581,7 +582,7 @@ public class BDDACLWrapper implements Serializable {
             int[] ipbin = Utility.CalBinRep(subnet.getipaddr(), ipBits);
             int[] ipbinprefix = new int[subnet.getprefixlen()];
             for (int k = 0; k < subnet.getprefixlen(); k++) {
-                ipbinprefix[k] = ipbin[k + ipBits - subnet.getprefixlen()];
+                ipbinprefix[subnet.getprefixlen() - k - 1] = ipbin[k + ipBits - subnet.getprefixlen()];
             }
             prefixsBinary.add(ipbinprefix);
         }
@@ -594,7 +595,7 @@ public class BDDACLWrapper implements Serializable {
             int[] ipbin = Utility.CalBinRep(subnet.getipaddr(), ipBits);
             int[] ipbinprefix = new int[subnet.getprefixlen()];
             for (int k = 0; k < subnet.getprefixlen(); k++) {
-                ipbinprefix[k] = ipbin[k + ipBits - subnet.getprefixlen()];
+                ipbinprefix[subnet.getprefixlen() - k - 1] = ipbin[k + ipBits - subnet.getprefixlen()];
             }
             prefixsBinary.add(ipbinprefix);
         }
@@ -606,7 +607,7 @@ public class BDDACLWrapper implements Serializable {
      *            address and mask
      * @return the corresponding bdd node
      */
-    protected int ConvertIPAddress(String IP, String Mask, NDD[] vars, int field) {
+    protected int ConvertIPAddress(String IP, String Mask, int field) {
         int tempnode = BDDTrue;
         // case 1 IP = any
         if (IP == null || IP.equalsIgnoreCase("any")) {
@@ -616,26 +617,47 @@ public class BDDACLWrapper implements Serializable {
 
         // binary representation of IP address
         int[] ipbin = Utility.IPBinRep(IP);
+		int l = 0;
+		int r = ipbin.length - 1;
+		while (l < r) {
+			int t = ipbin[l];
+			ipbin[l] = ipbin[r];
+			ipbin[r] = t;
+			l++;
+			r--;
+		}
         // case 2 Mask = null
         if (Mask == null) {
             // no mask is working
-            return NDD.encodePrefixBDD(ipbin, field);
+            return NDD.encodePrefixBDD(ipbin, NDD.getBDDVars(field), NDD.getNotBDDVars(field));
         } else {
             int[] maskbin = Utility.IPBinRep(Mask);
             int numMasked = Utility.NumofNonZeros(maskbin);
+			l = 0;
+			r = maskbin.length - 1;
+			while (l < r) {
+				int t = maskbin[l];
+				maskbin[l] = maskbin[r];
+				maskbin[r] = t;
+				l++;
+				r--;
+			}
 
             int[] prefix = new int[maskbin.length - numMasked];
-            NDD[] varsUsed = new NDD[prefix.length];
+			int[] vars = NDD.getBDDVars(field);
+			int[] notVars = NDD.getNotBDDVars(field);
+			int[] varsUsed = new int[prefix.length];
+			int[] notVarsUsed = new int[prefix.length];
             int ind = 0;
             for (int i = 0; i < maskbin.length; i++) {
                 if (maskbin[i] == 0) {
                     prefix[ind] = ipbin[i];
                     varsUsed[ind] = vars[i];
+					notVarsUsed[ind] = notVars[i];
                     ind++;
                 }
             }
-
-            return NDD.encodePrefixBDD(prefix, field);
+            return NDD.encodePrefixBDD(prefix, varsUsed, notVarsUsed);
         }
 
     }
@@ -644,7 +666,7 @@ public class BDDACLWrapper implements Serializable {
      * return a bdd node representing the predicate on the protocol field
      */
     private int EncodeProtocolPrefix(int[] prefix) {
-        return NDD.encodePrefixBDD(prefix, PROTOCOL_FIELD);
+        return NDD.encodePrefixBDD(prefix, NDD.getBDDVars(PROTOCOL_FIELD), NDD.getNotBDDVars(PROTOCOL_FIELD));
     }
 
     /**
@@ -667,10 +689,19 @@ public class BDDACLWrapper implements Serializable {
 
         int tempnode = BDDTrue;
         for (int i = 0; i < prefix.size(); i++) {
+			int left = 0;
+			int right = prefix.get(i).length - 1;
+			while (left < right) {
+				int t = prefix.get(i)[left];
+				prefix.get(i)[left] = prefix.get(i)[right];
+				prefix.get(i)[right] = t;
+				left++;
+				right--;
+			}
             if (i == 0) {
-                tempnode = NDD.encodePrefixBDD(prefix.get(i), field);
+                tempnode = NDD.encodePrefixBDD(prefix.get(i), NDD.getBDDVars(field), NDD.getNotBDDVars(field));
             } else {
-                int tempnode2 = NDD.encodePrefixBDD(prefix.get(i), field);
+                int tempnode2 = NDD.encodePrefixBDD(prefix.get(i), NDD.getBDDVars(field), NDD.getNotBDDVars(field));
                 int tempnode3 = aclBDD.or(tempnode, tempnode2);
                 aclBDD.ref(tempnode3);
                 DerefInBatch(new int[] { tempnode, tempnode2 });
@@ -842,14 +873,13 @@ public class BDDACLWrapper implements Serializable {
 		/**
 		 * src IP
 		 */
-		int srcIPNode = ConvertIPAddress(aclr.source, aclr.sourceWildcard,
-				srcIP, SRC_IP_FIELD);
+		int srcIPNode = ConvertIPAddress(aclr.source, aclr.sourceWildcard, SRC_IP_FIELD);
 
 		/**
 		 * dst IP
 		 */
 		int dstIPNode = ConvertIPAddress(aclr.destination,
-				aclr.destinationWildcard, dstIP, DST_IP_FIELD);
+				aclr.destinationWildcard, DST_IP_FIELD);
 
 		// put them together
 		int[] fiveFields = { protocolNode, srcPortNode, dstPortNode, srcIPNode,
@@ -866,13 +896,11 @@ public class BDDACLWrapper implements Serializable {
         /**
          * src IP
          */
-        perFieldBDD.add(new Pair<>(SRC_IP_FIELD, ConvertIPAddress(aclr.source, aclr.sourceWildcard,
-                srcIP, SRC_IP_FIELD)));
+        perFieldBDD.add(new Pair<>(SRC_IP_FIELD, ConvertIPAddress(aclr.source, aclr.sourceWildcard, SRC_IP_FIELD)));
         /**
          * dst IP
          */
-        perFieldBDD.add(new Pair<>(DST_IP_FIELD, ConvertIPAddress(aclr.destination,
-                aclr.destinationWildcard, dstIP, DST_IP_FIELD)));
+        perFieldBDD.add(new Pair<>(DST_IP_FIELD, ConvertIPAddress(aclr.destination, aclr.destinationWildcard, DST_IP_FIELD)));
 
         /**
          * src port
@@ -925,7 +953,15 @@ public class BDDACLWrapper implements Serializable {
 		if (src.equals("any")) {
 			srcBDD = BDDTrue;
 		} else {
-			srcBDD = NDD.encodePrefixBDD(Utility.IPBinRep(src), SRC_IP_FIELD);
+			int[] ipbin = Utility.IPBinRep(src);
+			int l = 0;
+			int r = ipbin.length - 1;
+			while (l < r) {
+				int t = ipbin[l];
+				ipbin[l] = ipbin[r];
+				ipbin[r] = t;
+			}
+			srcBDD = NDD.encodePrefixBDD(ipbin, NDD.getBDDVars(SRC_IP_FIELD), NDD.getNotBDDVars(SRC_IP_FIELD));
 		}
         perFieldBDD.add(new Pair<>(SRC_IP_FIELD, srcBDD));
 
@@ -933,7 +969,15 @@ public class BDDACLWrapper implements Serializable {
 		if (dst.equals("any")) {
 			dstBDD = BDDTrue;
 		} else {
-			dstBDD = NDD.encodePrefixBDD(Utility.IPBinRep(dst), DST_IP_FIELD);
+			int[] ipbin = Utility.IPBinRep(dst);
+			int l = 0;
+			int r = ipbin.length - 1;
+			while (l < r) {
+				int t = ipbin[l];
+				ipbin[l] = ipbin[r];
+				ipbin[r] = t;
+			}
+			dstBDD = NDD.encodePrefixBDD(ipbin, NDD.getBDDVars(DST_IP_FIELD), NDD.getNotBDDVars(DST_IP_FIELD));
 		}
         perFieldBDD.add(new Pair<>(DST_IP_FIELD, dstBDD));
 		return NDD.ref(NDD.encodeACL(perFieldBDD));

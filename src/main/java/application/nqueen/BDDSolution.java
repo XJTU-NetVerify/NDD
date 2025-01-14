@@ -1,6 +1,7 @@
 package application.nqueen;
 
 import jdd.bdd.BDD;
+import ndd.jdd.diagram.NDD;
 
 public class BDDSolution {
     private static BDD bddEngine;

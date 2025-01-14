@@ -4,11 +4,14 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
 import application.wlan.ndd.verifier.apkeep.core.NetworkNDDAP;
-import org.ants.jndd.diagram.AtomizedNDD;
+import ndd.jdd.diagram.AtomizedNDD;
+import ndd.jdd.diagram.NDD;
 
 public class DPVerifierNDDAPIncre extends application.wlan.ndd.verifier.DPVerifierNDDAP {
     public static boolean getSplitNum = false;

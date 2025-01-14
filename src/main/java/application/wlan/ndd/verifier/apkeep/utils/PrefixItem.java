@@ -1,6 +1,6 @@
 package application.wlan.ndd.verifier.apkeep.utils;
 
-import org.ants.jndd.diagram.NDD;
+import ndd.jdd.diagram.NDD;
 
 public class PrefixItem {
 
