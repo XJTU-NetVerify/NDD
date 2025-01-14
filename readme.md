@@ -67,9 +67,7 @@ Author:
 
 ## Getting Started
 
-// Todo: add content.
-
-Maven
+Download the NDD package to `/lib/ndd-1.0.jar` and add `<dependency>` in `pom.xml`
 
 ```xml
 <dependencies>
@@ -78,12 +76,12 @@ Maven
 		<artifactId></artifactId>
 		<version></version>
 		<scope>system</scope>
-		<systemPath>${project.basedir}/lib/.jar</systemPath>
+		<systemPath>${project.basedir}/lib/ndd-1.0.jar</systemPath>
 	</dependency>
 </dependencies>
 ```
 
-* `jndd`
+### jndd
 
 An [example](/src/main/java/application/nqueen/NDDSolution.java) shows how to solve the NQueens problem by NDD.
 
@@ -131,13 +129,11 @@ for (int i = 0; i < n; i++) {
 return NDD.satCount(queen);
 ```
 
-* `JavaNDD`
+### JavaNDD
 
 Library and its usage can be access in [src/main/java/org/ants/javandd](src/main/java/org/ants/javandd/README.md)
   
 ## API Examples
- 
-Todo: add examples.
   
 - Encode common semantics
   

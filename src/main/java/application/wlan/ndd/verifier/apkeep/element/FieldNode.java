@@ -18,7 +18,7 @@ import application.wlan.ndd.verifier.common.ForwardingRule;
 import application.wlan.ndd.verifier.common.RewriteRule;
 import javafx.util.*;
 import jdd.bdd.BDD;
-import ndd.jdd.diagram.NDD;
+import org.ants.jndd.diagram.NDD;
 
 public class FieldNode {
     public static NetworkNDDPred network = null;

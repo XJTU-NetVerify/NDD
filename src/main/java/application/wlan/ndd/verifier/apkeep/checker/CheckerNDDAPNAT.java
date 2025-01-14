@@ -13,7 +13,7 @@ import application.wlan.ndd.verifier.apkeep.element.FieldNodeAP;
 import application.wlan.ndd.verifier.apkeep.element.FieldNodeAPNAT;
 import application.wlan.ndd.verifier.common.PositionTuple;
 import javafx.util.Pair;
-import ndd.jdd.diagram.AtomizedNDD;
+import org.ants.jndd.diagram.AtomizedNDD;
 
 public class CheckerNDDAPNAT {
     static boolean checkCorrectness = false;

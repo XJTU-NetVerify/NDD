@@ -9,8 +9,8 @@ import application.wlan.ndd.verifier.apkeep.core.ChangeItem;
 import application.wlan.ndd.verifier.apkeep.core.NetworkNDDAPNAT;
 import application.wlan.ndd.verifier.common.RewriteRule;
 import javafx.util.Pair;
-import ndd.jdd.diagram.AtomizedNDD;
-import ndd.jdd.diagram.NDD;
+import org.ants.jndd.diagram.AtomizedNDD;
+import org.ants.jndd.diagram.NDD;
 
 public class FieldNodeAPNAT extends FieldNodeAP {
     public HashMap<String, Pair<NDD, NDD>> ports_action_pred;

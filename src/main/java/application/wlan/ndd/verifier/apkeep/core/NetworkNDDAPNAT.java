@@ -8,8 +8,8 @@ import application.wlan.ndd.verifier.apkeep.element.FieldNodeAPNAT;
 import application.wlan.ndd.verifier.common.RewriteRule;
 import application.wlan.ndd.verifier.common.Utility;
 import javafx.util.Pair;
-import ndd.jdd.diagram.AtomizedNDD;
-import ndd.jdd.diagram.NDD;
+import org.ants.jndd.diagram.AtomizedNDD;
+import org.ants.jndd.diagram.NDD;
 
 public class NetworkNDDAPNAT extends NetworkNDDAP {
     public HashMap<String, HashSet<String>> startEdge;

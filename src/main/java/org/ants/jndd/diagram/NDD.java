@@ -1,11 +1,11 @@
-package ndd.jdd.diagram;
+package org.ants.jndd.diagram;
 
 import application.wlan.ndd.exp.EvalDataplaneVerifierNDDAP;
 import javafx.util.Pair;
 import jdd.bdd.BDD;
-import ndd.jdd.cache.OperationCache;
-import ndd.jdd.nodetable.NodeTable;
-import ndd.jdd.utils.DecomposeBDD;
+import org.ants.jndd.cache.OperationCache;
+import org.ants.jndd.nodetable.NodeTable;
+import org.ants.jndd.utils.DecomposeBDD;
 
 import java.util.*;
 

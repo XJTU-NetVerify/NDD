@@ -1,6 +1,6 @@
 package application.nqueen;
 
-import ndd.jdd.diagram.NDD;
+import org.ants.jndd.diagram.NDD;
 
 public class NDDSolution {
     public static final int NDD_TABLE_SIZE = 100000000;

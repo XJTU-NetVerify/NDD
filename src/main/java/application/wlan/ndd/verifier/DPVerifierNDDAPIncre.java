@@ -10,8 +10,8 @@ import java.util.List;
 import java.util.Map;
 
 import application.wlan.ndd.verifier.apkeep.core.NetworkNDDAP;
-import ndd.jdd.diagram.AtomizedNDD;
-import ndd.jdd.diagram.NDD;
+import org.ants.jndd.diagram.AtomizedNDD;
+import org.ants.jndd.diagram.NDD;
 
 public class DPVerifierNDDAPIncre extends application.wlan.ndd.verifier.DPVerifierNDDAP {
     public static boolean getSplitNum = false;

@@ -49,8 +49,8 @@ import java.util.*;
 import application.wlan.ndd.exp.EvalDataplaneVerifierNDDAP;
 import javafx.util.Pair;
 import jdd.bdd.*;
-import ndd.jdd.diagram.AtomizedNDD;
-import ndd.jdd.diagram.NDD;
+import org.ants.jndd.diagram.AtomizedNDD;
+import org.ants.jndd.diagram.NDD;
 
 /**
  * Computes BDD for ACL rules and Forwardding rules

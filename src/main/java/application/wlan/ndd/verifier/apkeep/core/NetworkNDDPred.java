@@ -13,7 +13,7 @@ import application.wlan.ndd.verifier.apkeep.utils.UtilityTools;
 import application.wlan.ndd.verifier.common.ACLRule;
 import application.wlan.ndd.verifier.common.BDDACLWrapper;
 import application.wlan.ndd.verifier.common.PositionTuple;
-import ndd.jdd.diagram.NDD;
+import org.ants.jndd.diagram.NDD;
 
 import javafx.util.Pair;
 

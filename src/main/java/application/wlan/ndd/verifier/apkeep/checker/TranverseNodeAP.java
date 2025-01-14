@@ -3,7 +3,7 @@ package application.wlan.ndd.verifier.apkeep.checker;
 import application.wlan.ndd.verifier.apkeep.core.NetworkNDDAP;
 import application.wlan.ndd.verifier.apkeep.utils.UtilityTools;
 import application.wlan.ndd.verifier.common.PositionTuple;
-import ndd.jdd.diagram.AtomizedNDD;
+import org.ants.jndd.diagram.AtomizedNDD;
 
 import java.util.HashMap;
 import java.util.HashSet;

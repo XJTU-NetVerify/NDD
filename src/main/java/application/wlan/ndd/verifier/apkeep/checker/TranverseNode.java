@@ -8,7 +8,7 @@ import application.wlan.ndd.verifier.apkeep.core.NetworkNDDPred;
 import application.wlan.ndd.verifier.apkeep.utils.UtilityTools;
 import application.wlan.ndd.verifier.common.PositionTuple;
 import javafx.util.*;
-import ndd.jdd.diagram.NDD;
+import org.ants.jndd.diagram.NDD;
 
 public class TranverseNode {
     public PositionTuple source;

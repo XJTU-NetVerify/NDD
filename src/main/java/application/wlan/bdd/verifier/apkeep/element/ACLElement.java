@@ -13,7 +13,7 @@ import application.wlan.bdd.verifier.common.ACLRule;
 import application.wlan.bdd.verifier.common.BDDACLWrapper;
 import application.wlan.ndd.exp.EvalDataplaneVerifierNDDAP;
 import jdd.bdd.BDD;
-import ndd.jdd.diagram.NDD;
+import org.ants.jndd.diagram.NDD;
 
 public class ACLElement extends Element{
 

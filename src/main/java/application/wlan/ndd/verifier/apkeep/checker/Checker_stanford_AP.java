@@ -4,7 +4,7 @@ import application.wlan.ndd.verifier.apkeep.core.NetworkNDDAP;
 import application.wlan.ndd.verifier.apkeep.element.FieldNodeAP;
 import application.wlan.ndd.verifier.apkeep.utils.UtilityTools;
 import application.wlan.ndd.verifier.common.PositionTuple;
-import ndd.jdd.diagram.AtomizedNDD;
+import org.ants.jndd.diagram.AtomizedNDD;
 
 import java.io.FileWriter;
 import java.io.IOException;

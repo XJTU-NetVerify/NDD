@@ -1,7 +1,7 @@
 package application.wlan.ndd.verifier.apkeep.utils;
 
 import application.wlan.ndd.verifier.common.ForwardingRule;
-import ndd.jdd.diagram.NDD;
+import org.ants.jndd.diagram.NDD;
 
 import java.util.ArrayList;
 

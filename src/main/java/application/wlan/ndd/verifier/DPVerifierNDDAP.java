@@ -3,8 +3,8 @@ package application.wlan.ndd.verifier;
 import application.wlan.ndd.verifier.apkeep.checker.CheckerNDDAP;
 import application.wlan.ndd.verifier.apkeep.checker.Checker_stanford_AP;
 import application.wlan.ndd.verifier.apkeep.core.NetworkNDDAP;
-import ndd.jdd.diagram.AtomizedNDD;
-import ndd.jdd.diagram.NDD;
+import org.ants.jndd.diagram.AtomizedNDD;
+import org.ants.jndd.diagram.NDD;
 
 import java.io.IOException;
 import java.util.ArrayList;

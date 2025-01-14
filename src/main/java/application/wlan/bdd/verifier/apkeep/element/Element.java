@@ -20,7 +20,7 @@ import application.wlan.bdd.verifier.common.BDDACLWrapper;
 import application.wlan.bdd.verifier.common.PositionTuple;
 import application.wlan.ndd.exp.EvalDataplaneVerifierNDDAP;
 import javafx.util.Pair;
-import ndd.jdd.diagram.NDD;
+import org.ants.jndd.diagram.NDD;
 
 enum Types {
 	Transfer, Copy, Remove;
