@@ -201,10 +201,18 @@ public class NodeTable {
      * @return The ndd node.
      */
     public NDD ref(NDD ndd) {
-        if (!ndd.isTerminal()) {
+        if (!ndd.isTerminal() && referenceCount.get(ndd) != Integer.MAX_VALUE) {
             referenceCount.put(ndd, referenceCount.get(ndd) + 1);
         }
         return ndd;
+    }
+
+    /**
+     * Ref the initialized NDD node with Integer.MAX_VALUE (special label)
+     * @param ndd
+     */
+    public void fixNDDNodeRefCount(NDD ndd) {
+        referenceCount.put(ndd, Integer.MAX_VALUE);
     }
 
     /**
@@ -212,7 +220,7 @@ public class NodeTable {
      * @param ndd The ndd node to be unprotected.
      */
     public void deref(NDD ndd) {
-        if (!ndd.isTerminal()) {
+        if (!ndd.isTerminal() && referenceCount.get(ndd) != Integer.MAX_VALUE) {
             referenceCount.put(ndd, referenceCount.get(ndd) - 1);
         }
     }

@@ -143,12 +143,16 @@ public class NDD {
         for (int i = 0;i < bitNum;i++) {
             bddVars[i] = bddEngine.ref(bddEngine.createVar());
             bddNotVars[i] = bddEngine.ref(bddEngine.not(bddVars[i]));
+
             HashMap<NDD, Integer> edges = new HashMap<>();
             edges.put(getTrue(), bddEngine.ref(bddVars[i]));
-            nddVars[i] = ref(mk(fieldNum, edges));
+            nddVars[i] = mk(fieldNum, edges);
+            nodeTable.fixNDDNodeRefCount(nddVars[i]);
+
             edges = new HashMap<>();
             edges.put(getTrue(), bddEngine.ref(bddNotVars[i]));
-            nddNotVars[i] = ref(mk(fieldNum, edges));
+            nddNotVars[i] = mk(fieldNum, edges);
+            nodeTable.fixNDDNodeRefCount(nddNotVars[i]);
         }
         bddVarsPerField.add(bddVars);
         bddNotVarsPerField.add(bddNotVars);
