@@ -1,16 +1,17 @@
 # A library for Network Decision Diagram
 
-This project provides a pure java implementation of NDD (Network Decision Diagram), which supports efficient formal modeling for network verification tools (e.g., APVerifier, APT, APKeep, SRE and Batfish).
+This is a prototype implementation of the following [paper]():
+> Zechun Li, Peng Zhang, Yichi Zhang, and Hongkun Yang. "NDD: A Decision Diagram for Network Verification", NSDI'25
 
 ## Publication
 
 **NDD: A Decision Diagram for Network Verification** (Proceedings of USENIX NSDI'25).
 
 Author:
-* Zechun Li - [mail](mailto:1467874668@qq.com) - XJTU
-* Peng Zhang - [mail](mailto:p-zhang@xjtu.edu.cn) - XJTU professor
-* Yichi Zhang - [mail](augists@outlook.com) - XJTU
-* Hongkun Yang - [mail](hkyang@google.com) - Google
+- Zechun Li (1467874668@qq.com)
+- Peng Zhang (p-zhang@xjtu.edu.cn)
+- Yichi Zhang (augists@outlook.com)
+- Hongkun Yang (hkyang@google.com)
 
 ```bibtex
 @inproceedings {NDD,
@@ -142,3 +143,7 @@ Library and its usage can be access in [src/main/java/org/ants/javandd](src/main
 - Incremental update
 
 - Model packet transformers
+
+## License
+
+Apache License, see [LICENSE](LICENSE).
