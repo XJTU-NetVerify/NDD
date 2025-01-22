@@ -4,31 +4,6 @@ This is a prototype implementation of the following [paper]():
 
 > Zechun Li, Peng Zhang, Yichi Zhang, and Hongkun Yang. "NDD: A Decision Diagram for Network Verification", NSDI'25
 
-## Publication
-
-**NDD: A Decision Diagram for Network Verification** (Proceedings of USENIX NSDI'25).
-
-Author:
-- Zechun Li (1467874668@qq.com)
-- Peng Zhang (p-zhang@xjtu.edu.cn)
-- Yichi Zhang (augists@outlook.com)
-- Hongkun Yang (hkyang@google.com)
-
-```bibtex
-@inproceedings {NDD,
-  author = {Zechun Li and Peng Zhang and Yichi Zhang and Hongkun Yang},
-  title = {{NDD}: A Decision Diagram for Network Verification},
-  booktitle = {22th USENIX Symposium on Networked Systems Design and Implementation (NSDI 25)},
-  year = {2025},
-  isbn = {},
-  address = {},
-  pages = {},
-  url = {},
-  publisher = {USENIX Association},
-  month = apr
-}
-```
-
 ## Introduction
 
 **Definition 1.** A **Network Decision Diagram (NDD)** is a rooted, directed acyclic graph with:
@@ -145,6 +120,13 @@ Library and its usage can be access in [src/main/java/org/ants/javandd](src/main
 
 - Model packet transformers
 
+## Contact
+
+- Zechun Li (1467874668@qq.com)
+- Peng Zhang (p-zhang@xjtu.edu.cn)
+- Yichi Zhang (augists@outlook.com)
+- Hongkun Yang (hkyang@google.com)
+
 ## License
 
-Apache License, see [LICENSE](LICENSE).
+Apache-2.0 License, see [LICENSE](LICENSE).
