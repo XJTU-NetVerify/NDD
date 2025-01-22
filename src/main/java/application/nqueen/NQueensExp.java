@@ -1,7 +1,4 @@
-package experiment;
-
-import application.nqueen.BDDSolution;
-import application.nqueen.NDDSolution;
+package application.nqueen;
 
 import java.io.FileNotFoundException;
 import java.io.PrintWriter;
