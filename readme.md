@@ -6,9 +6,14 @@ This is a prototype implementation of the following [paper]():
 
 ## Introduction
 
-\emph{Network Decision Diagram (NDD)} is a new decision diagram customized for network verification. It is more efficient than BDD when used for network verification, in terms of memory and computation. NDD wraps BDD with another layers of decision diagram, such that each node represents a \emph{field} of the network, and each edge is labeled with a BDD encoding the values of that field. Due to the \emph{field locality} in networks, NDD can significantly reduce the redundant nodes. In addition, NDD provides a native support for equivalence classes, a key technique underlying most network verifiers, so network verifiers do not need to implement their own algorithms for computing and updating equivalence classes.
+**Network Decision Diagram (NDD)** is a new decision diagram customized for network verification. It is more efficient than BDD when used for network verification, in terms of memory and computation. NDD wraps BDD with another layers of decision diagram, such that each node represents a **field** of the network, and each edge is labeled with a BDD encoding the values of that field. Due to the **locality** of fields in networks, NDD can significantly reduce the redundant nodes. 
 
-## Formal Definitions
+
+**Atomized Network Decision Diagram (Atomized NDD)** is an extension of NDD, which offers a native support for equivalence classes, a key technique underlying most network verifiers.
+In atomized NDD, the label of each edge is a set of atoms, instead of a BDD as in standard NDD.
+Using atomized NDD, network verifiers do not need to implement their own algorithms for computing and updating equivalence classes.
+
+### Definitions
 
 **Definition 1.** A **Network Decision Diagram (NDD)** is a rooted, directed acyclic graph with:
 
@@ -26,16 +31,15 @@ This is a prototype implementation of the following [paper]():
 - No redundant node: no non-terminal node has only edge e with $label(e) = true$;
 - No redundant edges: no two edges from the same node point to the same successor, i.e., $\forall u,\forall x, y \in edge(u) : next(x) = next(y) \Rightarrow x = y$.
 
-**Atomized Network Decision Diagram** is an NDD where the label of each edge is a set of atoms, instead of a BDD. Before introducing the formal definition, we define some notations. Given a set of NDDs N , we use Df(N) to denote the set of  all descendants (direct or indirect successors) of some NDD with $n \in N$ and $var(n) = f$.
 
-**Definition 3.** Given a set of NDDs N for a set of variables F, we say A(f) = {{a_1}^f,...,{a_k}^f} is the set of **atoms** for variable f ∈ F, with respect with N , if it satisfies the following conditions:
+**Definition 3.** Given a set of NDDs $N$ for a set of variables $F$, we say $A(f) = {{a_1}^f,...,{a_k}^f}$ is the set of **atoms** for variable $f \in F$, with respect with $N$ , if it satisfies the following conditions:
 - $a_i^f \ne false,\forall i ∈ {1,..., k}$;
 - $\vee_{i=1}^k a_i^f = true$;
 - $a_i^f∧a_j^f = false$, if $i \ne j$;
-- for $e \in edges(u), u \in D(N), var(u) = f$, there exists a set $atoms(e) \subset A(f)$, s.t., $label(e) = \bigvee_{a_i^f∈A(f)}a_i^f$;
-- k is the minimum number satisfy the above properties.
+- $\forall e \in edges(u)$, $u$ is a node of $N$ $var(u) = f$: there exists a set $atoms(e) \subset A(f)$, s.t., $label(e) = $\bigvee_{a \in atoms(e)}a$;
+- $k$ is the minimum number satisfy the above properties.
 
-**Definition 4.** Given a set of NDDs N, we say N a is the atomized NDDs of N, if $N^a = N$ , except that for each $e \in edges(u)$, where $u \in D(N^a), var(u) = f: label(e) \leftarrow atoms(e)$.
+**Definition 4.** Given a set of NDDs $N$, we say $N^a$ a is the **atomized NDDs** of $N$, if $N^a = N$ , except that for each $e$ of $N^a$: $label(e) \leftarrow atoms(e)$.
 
 ## Project Structure
 
