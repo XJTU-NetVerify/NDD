@@ -8,11 +8,13 @@ This is a prototype implementation of the following [paper]():
 
 **Network Decision Diagram (NDD)** is a new decision diagram customized for network verification. It is more efficient than BDD when used for network verification, in terms of memory and computation. NDD wraps BDD with another layers of decision diagram, such that each node represents a **field** of the network, and each edge is labeled with a BDD encoding the values of that field. Due to the **locality** of fields in networks, NDD can significantly reduce the redundant nodes. 
 
-
 **Atomized Network Decision Diagram (Atomized NDD)** is an extension of NDD, which offers a native support for equivalence classes, a key technique underlying most network verifiers.
 In atomized NDD, the label of each edge is a set of atoms, instead of a BDD as in standard NDD.
 Using atomized NDD, network verifiers do not need to implement their own algorithms for computing and updating equivalence classes.
 
+**Todo: add a example of BDD, NDD, and atomized NDD.**
+
+<!--
 ### Definitions
 
 **Definition 1.** A **Network Decision Diagram (NDD)** is a rooted, directed acyclic graph with:
@@ -31,7 +33,6 @@ Using atomized NDD, network verifiers do not need to implement their own algorit
 - No redundant node: no non-terminal node has only edge e with $label(e) = true$;
 - No redundant edges: no two edges from the same node point to the same successor, i.e., $\forall u,\forall x, y \in edge(u) : next(x) = next(y) \Rightarrow x = y$.
 
-
 **Definition 3.** Given a set of NDDs $N$ for a set of variables $F$, we say $A(f) = {{a_1}^f,...,{a_k}^f}$ is the set of **atoms** for variable $f \in F$, with respect with $N$ , if it satisfies the following conditions:
 - $a_i^f \ne false,\forall i ∈ {1,..., k}$;
 - $\vee_{i=1}^k a_i^f = true$;
@@ -40,6 +41,7 @@ Using atomized NDD, network verifiers do not need to implement their own algorit
 - $k$ is the minimum number satisfy the above properties.
 
 **Definition 4.** Given a set of NDDs $N$, we say $N^a$ a is the **atomized NDDs** of $N$, if $N^a = N$ , except that for each $e$ of $N^a$: $label(e) \leftarrow atoms(e)$.
+-->
 
 ## Project Structure
 
@@ -116,11 +118,13 @@ return NDD.satCount(queen);
 
 ### JavaNDD
 
-Library and its usage can be access in [src/main/java/org/ants/javandd](src/main/java/org/ants/javandd/README.md)
+Library and its usage can be accessed in [src/main/java/org/ants/javandd](src/main/java/org/ants/javandd/README.md)
+
+**TODO More details on how to use javandd?**
 
 ## Benchmark
 
-TODO: show some benchmark results as in the Decision Diagram library.
+**TODO: show a table for benchmark results, and compare to Ryan's Decision Diagram if possible.**
 
 ### Contact
 
