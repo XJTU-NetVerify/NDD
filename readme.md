@@ -12,7 +12,8 @@ This is a prototype implementation of the following [paper]():
 In atomized NDD, the label of each edge is a set of atoms, instead of a BDD as in standard NDD.
 Using atomized NDD, network verifiers do not need to implement their own algorithms for computing and updating equivalence classes.
 
-**Todo: add a example of BDD, NDD, and atomized NDD.**
+[fig4.drawio.pdf](https://github.com/user-attachments/files/19009397/fig4.drawio.pdf)
+
 
 <!--
 ### Definitions
