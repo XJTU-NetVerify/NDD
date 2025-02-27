@@ -8,11 +8,13 @@ This is a prototype implementation of the following [paper]():
 
 **Network Decision Diagram (NDD)** is a new decision diagram customized for network verification. It is more efficient than BDD when used for network verification, in terms of memory and computation. NDD wraps BDD with another layers of decision diagram, such that each node represents a **field** of the network, and each edge is labeled with a BDD encoding the values of that field. Due to the **locality** of fields in networks, NDD can significantly reduce the redundant nodes. 
 
+As an example, the figure below shows three BDDs in (a), and three equivalent NDDs in (c), each edge of which is labelled by per-field BDDs in (b).
+
+![fig4 drawio](https://github.com/user-attachments/assets/daf42009-e201-4c24-8878-99b03ba50a22)
+
 **Atomized Network Decision Diagram (Atomized NDD)** is an extension of NDD, which offers a native support for equivalence classes, a key technique underlying most network verifiers.
 In atomized NDD, the label of each edge is a set of atoms, instead of a BDD as in standard NDD.
 Using atomized NDD, network verifiers do not need to implement their own algorithms for computing and updating equivalence classes.
-
-![fig4 drawio](https://github.com/user-attachments/assets/daf42009-e201-4c24-8878-99b03ba50a22)
 
 <!--
 ### Definitions
