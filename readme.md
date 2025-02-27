@@ -70,21 +70,21 @@ Download the NDD package to `/lib/ndd-1.0.jar` and add `<dependency>` in `pom.xm
 
 ### jndd
 
-An [example](/src/main/java/application/nqueen/NDDSolution.java) shows how to solve the NQueens problem by NDD.
-
+init NDD library
 ```java
-// init NDD library
-NDD.initNDD(NDD_TABLE_SIZE, 1 + Math.max(1000, (int) (Math.pow(4.4, n - 6)) * 1000), 10000);
+NDD.initNDD(NDD_TABLE_SIZE, 10000, 10000);
+```
 
-// declare ndd fields
+declare ndd fields
+```java
 for (int i = 0; i < n; i++) {
     NDD.declareField(n);
 }
+```
 
-// constraints
+ndd logical operation
+```java
 NDD[] orBatch = new NDD[n];
-NDD[][] impBatch = new NDD[n][n];
-
 for (int i = 0; i < n; i++) {
     NDD condition = NDD.getFalse();
     for (int j = 0; j < n; j++) {
@@ -92,28 +92,6 @@ for (int i = 0; i < n; i++) {
     }
     orBatch[i] = condition;
 }
-
-for (int i = 0; i < n; i++) {
-    for (int j = 0; j < n; j++) {
-        build(i, j, n, impBatch);
-    }
-}
-
-// result computation
-NDD queen = NDD.getTrue();
-
-for (int i = 0; i < n; i++) {
-    queen = NDD.andTo(queen, orBatch[i]);
-    NDD.deref(orBatch[i]);
-}
-for (int i = 0; i < n; i++) {
-    for (int j = 0; j < n; j++) {
-        queen = NDD.andTo(queen, impBatch[i][j]);
-        NDD.deref(impBatch[i][j]);
-    }
-}
-
-return NDD.satCount(queen);
 ```
 
 ### JavaNDD
