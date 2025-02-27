@@ -1,3 +1,8 @@
+/**
+ * Node table of Atomized NDD.
+ * @author Zechun Li
+ * @version 1.0
+ */
 package org.ants.jndd.nodetable;
 
 import jdd.bdd.BDD;

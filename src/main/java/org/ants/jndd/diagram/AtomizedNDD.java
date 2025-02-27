@@ -1,10 +1,13 @@
+/**
+ * Implement logical operations of Atomized NDD.
+ * @author Zechun Li
+ * @version 1.0
+ */
 package org.ants.jndd.diagram;
 
-import application.wlan.ndd.exp.EvalDataplaneVerifierNDDAP;
 import javafx.util.Pair;
 import org.ants.jndd.cache.OperationCache;
 import org.ants.jndd.nodetable.AtomizedNodeTable;
-import org.ants.jndd.nodetable.NodeTable;
 
 import java.util.*;
 

@@ -1,15 +1,14 @@
+/**
+ * Node table of NDD.
+ * @author Zechun Li
+ * @version 1.0
+ */
 package org.ants.jndd.nodetable;
 
 import jdd.bdd.BDD;
 import org.ants.jndd.diagram.NDD;
 
 import java.util.*;
-
-/**
- * Node table of NDD and atomized NDD.
- * @author Zechun Li
- * @version 0.1
- */
 
 public class NodeTable {
     /**

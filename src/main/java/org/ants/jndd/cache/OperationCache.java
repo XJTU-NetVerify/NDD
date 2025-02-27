@@ -1,12 +1,11 @@
-package org.ants.jndd.cache;
-
-import javax.validation.constraints.NotNull;
-
 /**
  * Operation cache of NDD.
  * @author Zechun Li
- * @version 0.1
+ * @version 1.0
  */
+package org.ants.jndd.cache;
+
+import javax.validation.constraints.NotNull;
 
 public class OperationCache<T> {
     /**

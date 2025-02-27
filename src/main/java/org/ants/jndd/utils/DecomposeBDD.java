@@ -1,3 +1,8 @@
+/**
+ * Utility for decomposing NDD.
+ * @author Zechun Li
+ * @version 1.0
+ */
 package org.ants.jndd.utils;
 
 import jdd.bdd.BDD;

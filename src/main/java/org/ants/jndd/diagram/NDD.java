@@ -1,6 +1,10 @@
+/**
+ * Implement logical operations of NDD.
+ * @author Zechun Li
+ * @version 1.0
+ */
 package org.ants.jndd.diagram;
 
-import application.wlan.ndd.exp.EvalDataplaneVerifierNDDAP;
 import javafx.util.Pair;
 import jdd.bdd.BDD;
 import org.ants.jndd.cache.OperationCache;
@@ -8,12 +12,6 @@ import org.ants.jndd.nodetable.NodeTable;
 import org.ants.jndd.utils.DecomposeBDD;
 
 import java.util.*;
-
-/**
- * Implement logical operations of NDD.
- * @author Zechun Li
- * @version 0.1
- */
 
 public class NDD {
     /**
