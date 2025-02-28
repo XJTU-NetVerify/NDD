@@ -2,7 +2,6 @@ package application.wan.bdd.exp;
 
 // import org.ants.main.DNA;
 import application.wan.bdd.verifier.DPVerifier;
-import application.wan.bdd.verifier.DPVerifierNAT;
 import application.wan.bdd.verifier.DPVerifier_Incre;
 import application.wan.bdd.verifier.apkeep.utils.UtilityTools;
 
@@ -17,7 +16,6 @@ import java.util.Map;
 public class EvalDataplaneVerifier {
     private static final String currentPath = System.getProperty("user.dir");
     private static boolean incrementACL = false;
-    public static boolean runNAT = false;
     public static boolean divideACL = true;
     public static boolean CHECK_CORRECTNESS = false;
     public static boolean DEBUG_MODEL = false;
@@ -59,20 +57,6 @@ public class EvalDataplaneVerifier {
                 ArrayList<String> acl_rules = new ArrayList<String>();
                 acl_rules = UtilityTools.readFile(ACL_Path + "/acl_rule");
                 dpv.run(forwarding_rules, acl_rules);
-            } else if (runNAT) {
-                divideACL = true;
-                // divideACL = false;
-                // ACL_json = new HashMap<>();
-                System.out.println(num1 + " " + num2);
-                ArrayList<String> NAT_rules = UtilityTools.readFile(configPath + "/NAT/nat" + num1 + "_" + num2);
-                DPVerifierNAT dpv = new DPVerifierNAT(testcase, topo, edge_ports, ACL_json, NAT_rules);
-                // update base rules
-                String baseFile = Paths.get(updateFolder, "change_base").toString();
-                ArrayList<String> forwarding_rules = UtilityTools.readFile(baseFile);
-                ArrayList<String> acl_rules = new ArrayList<String>();
-                acl_rules = UtilityTools.readFile(ACL_Path + "/acl_rule");
-                dpv.run(forwarding_rules, acl_rules, NAT_rules);
-                System.out.println();
             } else {
                 divideACL = true;
                 DPVerifier dpv = new DPVerifier(testcase, topo, edge_ports, ACL_json);
@@ -102,30 +86,10 @@ public class EvalDataplaneVerifier {
         }
     }
 
-    public static int num1 = 0;
-    public static int num2 = 0;
-
     public static void main(String[] args) throws IOException {
         UtilityTools.split_str = "_";
         String configPath = "/data/zcli-data/network-decision-diagram/datasets/wan/purdue/pd";
         String ACL_Path = "/data/zcli-data/network-decision-diagram/datasets/wan/purdue/purdue";
-
-        // UtilityTools.split_str = "-";
-        // String configPath = "datasets\\wan\\stanford\\st";
-        // String ACL_Path = "datasets\\wan\\stanford\\stanford";
-
-        // UtilityTools.split_str = "_";
-        // String configPath = "datasets\\wan\\campus\\cam";
-        // String ACL_Path = "datasets\\wan\\campus\\campus";
-
-        // UtilityTools.split_str = "_";
-        // String configPath = "datasets\\wan\\internet2";
-        // String ACL_Path = "datasets\\wan\\internet2";
-
-        if (runNAT) {
-            num1 = Integer.parseInt(args[0]);
-            num2 = Integer.parseInt(args[1]);
-        }
 
         runFattreeUpdate(configPath, ACL_Path);
     }

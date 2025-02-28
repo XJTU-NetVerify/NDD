@@ -67,15 +67,6 @@ public class DPVerifierNDDAPIncre extends application.wan.ndd.verifier.DPVerifie
         apkeepNetworkModel.UpdateBatchRulesIncre(secondFW, secondACL);
         long t2 = System.nanoTime();
         getSplitNum = false;
-        apkeepVerifier = new CheckerNDDAP(apkeepNetworkModel, false);
-        apkeepVerifier.PropertyCheck();
-        long t3 = System.nanoTime();
-
-        // System.out.println(insertNum+" "+(t2-t1)/1000000000.0);
-        // apkeepVerifier.printReachSize();
-        apkeepNetworkModel.UpdateFieldAP();
-        System.out.println("Total atoms:" + AtomizedNDD.getAtomsCount());
-        System.out.println("The number of reachable pairs: " + apkeepVerifier.ans.size());
 
         pw.println(insertNum + " " + (t2 - t1) / 1000000.0 + "ms" + " " + splitNum);
         pw.flush();

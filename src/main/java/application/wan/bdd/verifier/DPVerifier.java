@@ -6,7 +6,6 @@ import java.io.PrintWriter;
 import java.util.*;
 
 import application.wan.bdd.verifier.apkeep.checker.Checker;
-import application.wan.bdd.verifier.apkeep.checker.Checker_stanford;
 import application.wan.bdd.verifier.apkeep.core.Network;
 
 public class DPVerifier {
@@ -31,20 +30,10 @@ public class DPVerifier {
 		long t0 = System.nanoTime();
 		HashMap<String, HashSet<Integer>> moved_aps = apkeepNetworkModel.UpdateBatchRules(forwarding_rules, acl_rules);
 		long t1 = System.nanoTime();
-		if (apkeepNetworkModel.name.equals("st")) {
-			apkeepVerifier = new Checker_stanford(apkeepNetworkModel);
-			apkeepVerifier.PropertyCheck();
-		} else {
-			apkeepVerifier = new Checker(apkeepNetworkModel);
-			apkeepVerifier.PropertyCheck();
-		}
+		apkeepVerifier = new Checker(apkeepNetworkModel);
+		apkeepVerifier.PropertyCheck();
 		long t2 = System.nanoTime();
-		// System.out.println("Update Model: " + (t1-t0)/1000000000.0);
 		System.out.println("Property Check Time: " + (t2 - t1) / 1000000000.0);
 		System.out.println("The number of reachable pairs:" + apkeepVerifier.ans.size());
-		// apkeepVerifier.printReachSize();
-		// apkeepVerifier.Output_Result("/home/zcli/lzc/Field-Decision-Network/FDN/src/main/java/org/ants/output/"+apkeepNetworkModel.name+"/reach-APKBatch-no-ACL");
-		// apkeepVerifier.Output_Result_ACL("/home/zcli/lzc/Field-Decision-Network/FDN/src/main/java/org/ants/output/"+apkeepNetworkModel.name+"/reach-APKBatch");
-		// apkeepVerifier.OutputReachBDD();
 	}
 }

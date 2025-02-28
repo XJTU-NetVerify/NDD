@@ -109,9 +109,6 @@ public class Network {
 		if (EvalDataplaneVerifier.divideACL) {
 			ACL_apk.Initialize();
 		}
-		// System.out.println(ACL_apk.ap_ports.toString());
-		// System.out.println(ACL_apk.ports_aps.toString());
-		// System.exit(0);
 	}
 
 	/**
@@ -351,7 +348,6 @@ public class Network {
 	 */
 	public HashMap<String, HashSet<Integer>> UpdateBatchRules(ArrayList<String> rules, ArrayList<String> acl_rules)
 			throws IOException {
-		// rules = new ArrayList<String>();
 		long t0 = System.nanoTime();
 		HashMap<String, HashSet<Integer>> moved_aps = new HashMap<String, HashSet<Integer>>();
 		HashMap<String, HashMap<String, HashSet<Pair<String, String>>>> fwd_rules = new HashMap<String, HashMap<String, HashSet<Pair<String, String>>>>();
@@ -365,8 +361,6 @@ public class Network {
 		if (!DPVerifier.update_per_acl) {
 			for (String linestr : acl_rules) {
 				acl_count++;
-				// System.out.println(acl_count+" "+linestr);
-				// System.out.println(ACL_apk.AP.size());
 				UpdateACLRule(linestr, moved_aps);
 			}
 		} else {
@@ -387,10 +381,6 @@ public class Network {
 			apk.TryMergeAPBatch(moved_aps);
 		}
 
-		// if (EvalDataplaneVerifier.CHECK_CORRECTNESS) {
-		// OutputACLPredicate();
-		// }
-
 		long t2 = System.nanoTime();
 
 		/*
@@ -400,12 +390,6 @@ public class Network {
 		apk.TryMergeAPBatch(moved_aps);
 
 		long t3 = System.nanoTime();
-
-		// for(int ap : ACL_apk.ap_ports.keySet())
-		// {
-		// System.out.println(ap);
-		// System.out.println(ACL_apk.ap_ports.get(ap));
-		// }
 
 		System.out.println("Atoms of forwarding rules: " + apk.AP.size());
 		if (EvalDataplaneVerifier.divideACL) {
@@ -510,15 +494,8 @@ public class Network {
 		 * secondly, categorize rules by Device
 		 */
 		HashSet<Pair<String, String>> actions = rules.get(element_name);
-		// if (actions == null) {
-		// actions = new HashSet<Pair<String, String>>();
-		// }
-		// else
-		// {
-		// return;
-		// }
 
-		if (true) { // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+		if (true) {
 			actions = new HashSet<Pair<String, String>>();
 		}
 		/*
@@ -645,212 +622,6 @@ public class Network {
 			apk.UpdateTransferAPBatch(ap, new HashMap<String, HashSet<String>>(), add_ports.get(ap));
 		}
 		long t4 = System.nanoTime();
-		// try {
-		// FileWriter fw = new FileWriter("/home/zcli/lzc/A_APK.txt", false);
-		// PrintWriter pw = new PrintWriter(fw);
-		// double div = 1;
-		// for(int factor=0;factor<72;factor++)
-		// {
-		// div = div*2;
-		// }
-		// HashSet<Integer> preds = new HashSet<Integer>();
-		// for(int device_id = 1;device_id<=1646;device_id++)
-		// {
-		// String element_name = "config"+device_id;
-		// for(String port : elements.get(element_name).port_aps_raw.keySet())
-		// {
-		// int pred = bdd_engine.BDDFalse;
-		// for(int ap : elements.get(element_name).port_aps_raw.get(port))
-		// {
-		// int temp = bdd_engine.getBDD().ref(bdd_engine.getBDD().or(pred, ap));
-		// bdd_engine.getBDD().deref(pred);
-		// pred = temp;
-		// }
-		// // System.out.println(element_name+" "+port+"
-		// "+bdd_engine.getBDD().satCount(pred)/div);
-		// pw.println(element_name+" "+port+" "+bdd_engine.getBDD().satCount(pred)/div);
-		// pw.flush();
-		// preds.add(pred);
-		// }
-		// }
-		// System.out.println("pred :"+preds.size());
-		// } catch (IOException e) {
-		// //TODO: handle exception
-		// }
-
-		// try {
-		// HashMap<Integer, HashSet<String>> all_pred = new HashMap<Integer,
-		// HashSet<String>>();
-		// FileWriter fw = new FileWriter("/home/zcli/lzc/B_APK.txt", false);
-		// PrintWriter pw = new PrintWriter(fw);
-		// double div = 1;
-		// for(int factor=0;factor<72;factor++)
-		// {
-		// div = div*2;
-		// }
-		// HashSet<Integer> preds = new HashSet<Integer>();
-		// for(int device_id = 1;device_id<=1646;device_id++)
-		// {
-		// String element_name = "config"+device_id;
-		// for(String port : elements.get(element_name).port_aps_raw.keySet())
-		// {
-		// String position = element_name+"_"+port;
-		// int pred = bdd_engine.BDDFalse;
-		// for(int ap : elements.get(element_name).port_aps_raw.get(port))
-		// {
-		// int temp = bdd_engine.getBDD().ref(bdd_engine.getBDD().or(pred, ap));
-		// bdd_engine.getBDD().deref(pred);
-		// pred = temp;
-		// }
-		// HashSet<String> ports = all_pred.get(pred);
-		// if (ports == null) {
-		// ports = new HashSet<String>();
-		// }
-		// ports.add(position);
-		// all_pred.put(pred, ports);
-		// }
-		// }
-		// for (int abdd : all_pred.keySet()) {
-		// pw.print(bdd_engine.getBDD().satCount(abdd) / div);
-		// pw.flush();
-		// for (String str : all_pred.get(abdd)) {
-		// pw.print(" "+str);
-		// pw.flush();
-		// }
-		// pw.println();
-		// pw.flush();
-		// }
-		// } catch (IOException e) {
-		// //TODO: handle exception
-		// }
-
-		// try {
-		// HashMap<String, ArrayList<Double>> ap_sat = new HashMap<String,
-		// ArrayList<Double>>();
-		// FileWriter fw = new FileWriter("/home/zcli/lzc/C_APK.txt", false);
-		// PrintWriter pw = new PrintWriter(fw);
-		// double div = 1;
-		// for (int factor = 0; factor < 72; factor++) {
-		// div = div * 2;
-		// }
-		// for (int device_id = 1; device_id <= 1646; device_id++) {
-		// String element_name = "config" + device_id;
-		// for (String port : elements.get(element_name).port_aps_raw.keySet()) {
-		// String position = element_name + "_" + port;
-		// ArrayList<Double> subset = ap_sat.get(position);
-		// if (subset == null) {
-		// subset = new ArrayList<Double>();
-		// }
-		// for (int ap : elements.get(element_name).port_aps_raw.get(port)) {
-		// subset.add(bdd_engine.getBDD().satCount(ap) / div);
-		// }
-		// ap_sat.put(position, subset);
-		// }
-		// }
-		// for (String position : ap_sat.keySet()) {
-		// pw.print(position);
-		// pw.flush();
-		// for (Double sat_count : ap_sat.get(position)) {
-		// pw.print(" " + sat_count);
-		// pw.flush();
-		// }
-		// pw.println();
-		// pw.flush();
-		// }
-		// } catch (IOException e) {
-		// // TODO: handle exception
-		// }
-
-		// double div = 1;
-		// for (int factor = 0; factor < 72; factor++) {
-		// div = div * 2;
-		// }
-		// int target_pred = bdd_engine.encodeDstIPPrefix(3232235520l, 24);
-		// int pred_714 = bdd_engine.BDDFalse;
-		// for (int ap :
-		// elements.get("config714").port_aps_raw.get("TenGigabitEthernet2/1/6")) {
-		// int temp = bdd_engine.getBDD().ref(bdd_engine.getBDD().or(pred_714, ap));
-		// bdd_engine.getBDD().deref(pred_714);
-		// pred_714 = temp;
-		// }
-		// System.out.println(bdd_engine.getBDD().satCount(bdd_engine.getBDD().and(pred_714,
-		// target_pred))/div);
-
-		// int pred_776 = bdd_engine.BDDFalse;
-		// for (int ap :
-		// elements.get("config776").port_aps_raw.get("TenGigabitEthernet5/4")) {
-		// int temp = bdd_engine.getBDD().ref(bdd_engine.getBDD().or(pred_776, ap));
-		// bdd_engine.getBDD().deref(pred_776);
-		// pred_776 = temp;
-		// }
-		// System.out.println(bdd_engine.getBDD().satCount(bdd_engine.getBDD().and(pred_776,
-		// target_pred))/div);
-
-		// int pred_1516 = bdd_engine.BDDFalse;
-		// for (int ap :
-		// elements.get("config1516").port_aps_raw.get("TenGigabitEthernet5/4")) {
-		// int temp = bdd_engine.getBDD().ref(bdd_engine.getBDD().or(pred_1516, ap));
-		// bdd_engine.getBDD().deref(pred_1516);
-		// pred_1516 = temp;
-		// }
-		// System.out.println(bdd_engine.getBDD().satCount(bdd_engine.getBDD().and(pred_1516,
-		// target_pred))/div);
-
-		// double div = 1;
-		// for (int factor = 0; factor < 72; factor++) {
-		// div = div * 2;
-		// }
-
-		// int count = 0;
-		// for (int dst_ip_ap : apk.AP) {
-		// if(bdd_engine.getBDD().satCount(dst_ip_ap)/div == 512.0)
-		// {
-		// bdd_engine.getBDD().printDot("/home/zcli/lzc/Field-Decision-Network/FDN/src/main/java/org/ants/pic/APK_count512_ap"+count,
-		// dst_ip_ap);
-		// count++;
-		// }
-		// }
-
-		// HashSet<Integer> preds = new HashSet<Integer>();
-		// HashSet<Integer> AP = new HashSet<Integer>();
-		// HashSet<Integer> temp_set = new HashSet<Integer>();
-
-		// for (int device_id = 1; device_id <= 1646; device_id++) {
-		// String element_name = "config" + device_id;
-		// for (String port : elements.get(element_name).port_aps_raw.keySet()) {
-		// int pred = bdd_engine.BDDFalse;
-		// for (int ap : elements.get(element_name).port_aps_raw.get(port)) {
-		// int temp = bdd_engine.getBDD().ref(bdd_engine.getBDD().or(pred, ap));
-		// bdd_engine.getBDD().deref(pred);
-		// pred = temp;
-		// }
-		// preds.add(pred);
-		// }
-		// }
-
-		// AP.add(bdd_engine.BDDTrue);
-
-		// for (int abdd : preds) {
-		// temp_set.clear();
-		// for (int ap : AP) {
-		// int intersect = bdd_engine.getBDD().ref(bdd_engine.getBDD().and(ap, abdd));
-		// if (intersect != bdd_engine.BDDFalse) {
-		// temp_set.add(intersect);
-		// }
-		// intersect = bdd_engine.getBDD().ref(bdd_engine.getBDD().and(ap,
-		// bdd_engine.getBDD().not(abdd)));
-		// if (intersect != bdd_engine.BDDFalse) {
-		// temp_set.add(intersect);
-		// }
-		// }
-		// AP = new HashSet<Integer>(temp_set);
-		// }
-		// System.out.println(AP.size());
-
-		// System.out.println("updateFWDRuleBatch stage1: " + (t1 - t0) / 1000000000.0);
-		// System.out.println("updateFWDRuleBatch stage2: " + (t2 - t1) / 1000000000.0);
-		// System.out.println("updateFWDRuleBatch stage3: " + (t3 - t2) / 1000000000.0);
-		// System.out.println("updateFWDRuleBatch stage4: " + (t4 - t3) / 1000000000.0);
 	}
 
 	public HashMap<PositionTuple, HashSet<PositionTuple>> getTopology() {
@@ -955,7 +726,6 @@ class sortRulesByPriority implements Comparator<Object> {
 		String ip2 = (String) o2;
 		int p1 = Integer.valueOf(ip1.split("/")[1]);
 		int p2 = Integer.valueOf(ip2.split("/")[1]);
-		return p2 - p1;// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-		// return p1-p2;
+		return p2 - p1;
 	}
 }

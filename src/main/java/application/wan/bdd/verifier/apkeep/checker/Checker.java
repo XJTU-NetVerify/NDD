@@ -55,18 +55,6 @@ public class Checker {
                     HashSet<Integer> next_fw_aps = new HashSet<Integer>(curr_node.fw_aps);
                     next_fw_aps.retainAll(curr_device.port_aps_raw.get(out_port));
 
-                    // HashSet<Integer> next_fw_aps;
-                    // if(curr_device.port_aps_raw.get(out_port).size() < curr_node.fw_aps.size())
-                    // {
-                    // next_fw_aps = new HashSet<Integer>(curr_device.port_aps_raw.get(out_port));
-                    // next_fw_aps.retainAll(curr_node.fw_aps);
-                    // }
-                    // else
-                    // {
-                    // next_fw_aps = new HashSet<Integer>(curr_node.fw_aps);
-                    // next_fw_aps.retainAll(curr_device.port_aps_raw.get(out_port));
-                    // }
-
                     if (next_fw_aps.size() == 0)
                         continue;
                     if (net.edge_ports.containsKey(curr_node.curr.getDeviceName())
@@ -122,18 +110,6 @@ public class Checker {
                     HashSet<Integer> next_acl_aps = new HashSet<Integer>(curr_node.acl_aps);
                     next_acl_aps.retainAll(curr_device.port_aps_raw.get(out_port));
 
-                    // HashSet<Integer> next_acl_aps;
-                    // if(curr_device.port_aps_raw.get(out_port).size() < curr_node.acl_aps.size())
-                    // {
-                    // next_acl_aps = new HashSet<Integer>(curr_device.port_aps_raw.get(out_port));
-                    // next_acl_aps.retainAll(curr_node.acl_aps);
-                    // }
-                    // else
-                    // {
-                    // next_acl_aps = new HashSet<Integer>(curr_node.acl_aps);
-                    // next_acl_aps.retainAll(curr_device.port_aps_raw.get(out_port));
-                    // }
-
                     if (next_acl_aps.size() == 0)
                         continue;
                     if (net.edge_ports.containsKey(curr_node.curr.getDeviceName())
@@ -181,7 +157,6 @@ public class Checker {
                 }
             }
         }
-        // System.out.println(net.bdd_engine.getBDD().table_size);
         if (EvalDataplaneVerifier.CHECK_CORRECTNESS) {
             printReach();
         }
@@ -198,7 +173,7 @@ public class Checker {
         return sum;
     }
 
-    // We maintain 2 sets of atoms for forwarding and ACL rules, respectively.
+    // APKeep maintains 2 sets of atoms for forwarding and ACL rules, respectively.
     // Therefore, when the verifier find a loop or a reachable pair, it has to merge
     // those 2 set of atoms to avoid false positive.
     public int mergeSet(HashSet<Integer> fw_aps, HashSet<Integer> acl_aps) {

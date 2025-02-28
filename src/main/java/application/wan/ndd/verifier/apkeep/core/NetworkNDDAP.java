@@ -73,12 +73,6 @@ public class NetworkNDDAP extends NetworkNDDPred {
             UpdateACLRule(linestr);
         }
 
-        // if (EvalDataplaneVerifierNDDAP.CHECK_CORRECTNESS) {
-        // OutputACLPredicate();
-        // UpdateFieldAP();
-        // System.out.println(AtomizedNDD.totalCountOfAtoms());
-        // }
-
         long t2 = System.nanoTime();
 
         updateFWDRuleBatch(fwd_rules, moved_aps);
@@ -96,14 +90,6 @@ public class NetworkNDDAP extends NetworkNDDPred {
 
         System.out.println("FW Time:" + (t3 - t2) / 1000000000.0);
         System.out.println("ACL Time:" + (t2 - t1) / 1000000000.0);
-
-        // PrintPredicate();
-
-        // for(int ap : splitMap.ap_ports[0].keySet())
-        // {
-        // System.out.println(ap);
-        // System.out.println(splitMap.ap_ports[0].get(ap));
-        // }
 
         return moved_aps;
     }
@@ -160,69 +146,11 @@ public class NetworkNDDAP extends NetworkNDDPred {
         return moved_aps;
     }
 
-    // private void CheckNDD_Molecule() {
-    // HashMap<String, HashMap<String, Integer>> preds = new HashMap<>();
-    // for (FieldNodeAP device : FieldNodes.values()) {
-    // preds.put(device.name, new HashMap<>());
-    // for (String port : device.ports_aps.keySet()) {
-    // int nddPred =
-    // bdd_engine.getBDD().ref(NDD.toBDD(device.ports_pred.get(port)));
-    // int moleculePred =
-    // bdd_engine.getBDD().ref(Molecule.toBDD(device.ports_aps.get(port)));
-    // if (nddPred != moleculePred) {
-    // System.out.println(device.name + " " + port + " " + nddPred + " " +
-    // moleculePred);
-    // }
-    // if (!Molecule.CheckPred(device.ports_aps.get(port))) {
-    // System.out.println(device.name + " " + port + " check failed");
-    // }
-    // preds.get(device.name).put(port, moleculePred);
-    // }
-    // }
-    //
-    // // UpdateFieldAP();
-    //
-    // // for (FieldNodeAP device : FieldNodes.values()) {
-    // // for (String port : device.ports_aps.keySet()) {
-    // // int moleculePred =
-    // // bdd_engine.getBDD().ref(Molecule.toBDD(device.ports_aps.get(port)));
-    // // if (preds.get(device.name).get(port) != moleculePred) {
-    // // System.out.println(
-    // // device.name + " " + port + " " + preds.get(device.name).get(port) + " " +
-    // // moleculePred);
-    // // }
-    // // }
-    // // }
-    // }
-
-    // private void PrintPredicate() throws IOException {
-    // FileWriter f = new FileWriter(
-    // "/home/zcli/lzc/Field-Decision-Network/SingleLayerNDD/src/main/java/org/ants/output/pd/predicateA",
-    // false);
-    // PrintWriter p = new PrintWriter(f);
-    // for (FieldNodeAP device : FieldNodes.values()) {
-    // // if(device.type != 0)continue;
-    // for (String port : device.ports_aps.keySet()) {
-    // Molecule aps = device.ports_aps.get(port);
-    // int sum = bdd_engine.getBDD().ref(Molecule.toBDD(aps));
-    // p.println(device.name + " " + port + " " +
-    // bdd_engine.getBDD().satCount(sum));
-    // bdd_engine.getBDD().deref(sum);
-    // }
-    // }
-    // }
-
     protected String UpdateACLRule(String linestr) {
         String[] tokens = linestr.split(" ");
 
-        // if(tokens[2].contains("config1511_151"))
-        // {
-        // System.out.println(linestr);
-        // }
-
         FieldNodeAP e = FieldNodes.get(tokens[2]);
         if (e == null) {
-            // System.out.println(tokens[2]);
             return null;
         }
 
@@ -245,19 +173,10 @@ public class NetworkNDDAP extends NetworkNDDPred {
         ArrayList<ChangeItem> change_set = null;
         ArrayList<ChangeItemBDD> change_setBDD = null;
         if (tokens[0].equals("+")) {
-            // if(encodeWithNDD)
-            // {
             change_set = e.InsertACLRule(r);
             e.update_ACL(change_set);
-            // }
-            // else
-            // {
-            // change_setBDD = e.InsertACLRuleBDD(r);
-            // e.update_ACL_BDD(change_setBDD);
-            // }
         } else if (tokens[0].equals("-")) {
             System.out.println("Remove not implement !");
-            // change_set = e.RemoveACLRule(r);
         }
 
         return tokens[2];
@@ -336,9 +255,6 @@ public class NetworkNDDAP extends NetworkNDDPred {
             }
         }
         long t3 = System.nanoTime();
-        // System.out.println((t1 - t0) / 1000000000.0);
-        // System.out.println("FW time1:" + (t2 - t1) / 1000000000.0);
-        // System.out.println("FW time2:" + (t3 - t2) / 1000000000.0);
     }
 
     public void UpdateFieldAP() {
@@ -397,31 +313,6 @@ public class NetworkNDDAP extends NetworkNDDPred {
             bdd_engine.getBDD().deref(entry.getKey());
         }
 
-        // for (FieldNodeAP device : FieldNodes.values()) {
-        // if (device.type == 0) {
-        // for (String port : device.ports_aps.keySet()) {
-        // Molecule aps = device.ports_aps.get(port);
-        // Molecule new_aps = Molecule.split_port_ap_1_1(split_ap, aps);
-        // if (!new_aps.is_False()) {
-        // Molecule.table.ref(new_aps);
-        // Molecule.table.deref(aps);
-        // device.ports_aps.put(port, new_aps);
-        // }
-        // }
-        // } else {
-        // for (String port : device.ports_aps.keySet()) {
-        // Molecule aps = device.ports_aps.get(port);
-        // Pair<Boolean, Molecule> ret = Molecule.split_port_ap_1_n(split_ap, aps,
-        // field);
-        // if (ret.getKey()) {
-        // Molecule.table.ref(ret.getValue());
-        // Molecule.table.deref(aps);
-        // device.ports_aps.put(port, ret.getValue());
-        // }
-        // }
-        // }
-        // }
-
         HashSet<Pair<String, String>> finished = new HashSet<>();
         HashMap<Integer, HashSet<Pair<String, String>>> sub_ap_ports = splitMap.ap_ports[field];
         HashMap<Integer, HashSet<Integer>> apToSplit = split_ap;
@@ -475,20 +366,6 @@ public class NetworkNDDAP extends NetworkNDDPred {
                 bdd_engine.getBDD().deref(entry.getKey());
             }
         }
-
-        // for (FieldNodeAP device : FieldNodes.values()) {
-        // if (device.type == 0 && split_ap.get(1).size() == 0)
-        // continue;
-        // for (Map.Entry<String, Molecule> entry : device.ports_aps.entrySet()) {
-        // Molecule aps = entry.getValue();
-        // Pair<Boolean, Molecule> ret = Molecule.split_port_ap_n_n(split_ap, aps);
-        // if (ret.getKey()) {
-        // Molecule.table.ref(ret.getValue());
-        // Molecule.table.deref(aps);
-        // device.ports_aps.put(entry.getKey(), ret.getValue());
-        // }
-        // }
-        // }
 
         HashSet<Pair<String, String>> finished = new HashSet<>();
         for (int field = 0; field <= AtomizedNDD.getFieldNum(); field++) {

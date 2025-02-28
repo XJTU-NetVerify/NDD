@@ -63,12 +63,7 @@ public class DPVerifier_Incre {
         apkeepNetworkModel.UpdateBatchRules(secondFW, secondACL);
         long t2 = System.nanoTime();
         getSplitNum = false;
-        apkeepVerifier = new Checker(apkeepNetworkModel);
-        apkeepVerifier.PropertyCheck();
-        long t3 = System.nanoTime();
 
-        // System.out.println(insertNum+" "+(t2-t1)/1000000000.0);
-        // apkeepVerifier.printReachSize();
         pw.println(insertNum + " " + (t2 - t1) / 1000000.0 + "ms" + " " + splitNum);
         pw.flush();
         pw.println(currACL);

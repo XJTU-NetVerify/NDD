@@ -2,7 +2,6 @@ package application.wan.ndd.exp;
 
 import application.wan.ndd.verifier.DPVerifierNDDAP;
 import application.wan.ndd.verifier.DPVerifierNDDAPIncre;
-import application.wan.ndd.verifier.DPVerifierNDDAPNAT;
 import application.wan.ndd.verifier.apkeep.utils.UtilityTools;
 
 import java.io.File;
@@ -16,7 +15,6 @@ import java.util.Map;
 public class EvalDataplaneVerifierNDDAP {
     private static final String currentPath = System.getProperty("user.dir");
     private static boolean incrementACL = false;
-    public static boolean runNAT = false;
     public static boolean CHECK_CORRECTNESS = false;
     public static boolean DEBUG_MODEL = false;
 
@@ -55,16 +53,6 @@ public class EvalDataplaneVerifierNDDAP {
                 ArrayList<String> acl_rules = new ArrayList<String>();
                 acl_rules = UtilityTools.readFile(ACL_Rule_Path);
                 dpv.run(forwarding_rules, acl_rules);
-            } else if (runNAT) {
-                System.out.println(num1 + " " + num2);
-                ArrayList<String> NAT_rules = UtilityTools.readFile(configPath + "/NAT/nat" + num1 + "_" + num2);
-                DPVerifierNDDAPNAT dpv = new DPVerifierNDDAPNAT(testcase, topo, edge_ports, ACL_json, NAT_rules);
-                String baseFile = Paths.get(updateFolder, "change_base").toString();
-                ArrayList<String> forwarding_rules = UtilityTools.readFile(baseFile);
-                ArrayList<String> acl_rules = new ArrayList<String>();
-                acl_rules = UtilityTools.readFile(ACL_Rule_Path);
-                dpv.run(forwarding_rules, acl_rules, NAT_rules);
-                System.out.println();
             } else {
                 DPVerifierNDDAP dpv = new DPVerifierNDDAP(testcase, topo, edge_ports, ACL_json);
                 String baseFile = Paths.get(updateFolder, "change_base").toString();
@@ -90,45 +78,11 @@ public class EvalDataplaneVerifierNDDAP {
         }
     }
 
-    static String aclNum = "1";
-
-    public static int num1 = 0;
-    public static int num2 = 0;
-
     public static void main(String[] args) throws IOException {
-        // UtilityTools.split_str = "_";
-        // String configPath = "datasets\\wan\\purdue\\data";
-        // String ACL_Usage_Path = "datasets\\wan\\purdue\\Dataset/acls/usage";
-        // String ACL_Rule_Path = "datasets\\wan\\purdue\\Dataset/acl_rule_"+aclNum;
-        // aclNum = args[0];
-        // System.out.println(aclNum);
-
         UtilityTools.split_str = "_";
         String configPath = "/data/zcli-data/network-decision-diagram/datasets/wan/purdue/pd";
         String ACL_Usage_Path = "/data/zcli-data/network-decision-diagram/datasets/wan/purdue/purdue/acls/usage";
         String ACL_Rule_Path = "/data/zcli-data/network-decision-diagram/datasets/wan/purdue/purdue/acl_rule";
-
-        // UtilityTools.split_str = "-";
-        // String configPath = "datasets\\wan\\purdue\\st";
-        // String ACL_Usage_Path = "datasets\\wan\\purdue\\stanford/acls/usage";
-        // String ACL_Rule_Path = "datasets\\wan\\purdue\\stanford/acl_rule";
-
-        // UtilityTools.split_str = "_";
-        // String configPath = "datasets\\wan\\purdue\\cam";
-        // String ACL_Usage_Path = "datasets\\wan\\purdue\\campus/acls/usage";
-        // String ACL_Rule_Path = "datasets\\wan\\purdue\\campus/acl_rule";
-
-        // Ready
-        // UtilityTools.split_str = "_";
-        // String configPath = "/home/zcli/lzc/APKeepBatch/data/internet2";
-        // String ACL_Usage_Path =
-        // "/home/zcli/lzc/APKeepBatch/data/internet2/acls/usage";
-        // String ACL_Rule_Path = "/home/zcli/lzc/APKeepBatch/data/internet2/acl_rule";
-
-        if (runNAT) {
-            num1 = Integer.parseInt(args[0]);
-            num2 = Integer.parseInt(args[1]);
-        }
 
         runFattreeUpdate(configPath, ACL_Usage_Path, ACL_Rule_Path);
     }
