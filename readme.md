@@ -70,7 +70,7 @@ Download the NDD package to `/lib/ndd-1.0.jar` and add `<dependency>` in `pom.xm
 </dependencies>
 ```
 
-### jndd
+### JNDD
 
 init NDD library
 ```java
@@ -179,7 +179,7 @@ The array `numNeeded` passes every length of field to `NDDFactory` so that it ca
 
 ## Benchmark
 
-| N | BDD (JDD) | BDD (JavaBDD - JFactory) | NDD (JNDD / JavaNDD) |
+| N | BDD (JDD) | BDD (JavaBDD - JFactory) | NDD (JNDD) |
 | - | --------- | ------------- | -------------------- |
 | 6 | 0.017 | 0.056 | 0.012 |
 | 7 | 0.023 | 0.072 | 0.019 |
@@ -189,12 +189,16 @@ The array `numNeeded` passes every length of field to `NDDFactory` so that it ca
 | 11 | 2.567 | 4.424 | 2.257 |
 | 12 | 19.109 | 33.024 | 12.417 |
 
+> time (second)
+
+> JavaNDD is implemented using JNDD
+
 ## Bibtex
 
 ```bibtex
 @inproceedings {NDD,
-  author = {Peng Zhang},
-  title = {{NDD}: },
+  author = {Zechun Li, Peng Zhang, Yichi Zhang, Hongkun Yang},
+  title = {{NDD}: A Decision Diagram for Network Verification},
   booktitle = {22th USENIX Symposium on Networked Systems Design and Implementation (NSDI 25)},
   year = {2025},
   isbn = {},
