@@ -1,7 +1,7 @@
 /**
  * NDD implementation in JavaBDD version (compatible and extendable).
  * Based on JavaBDD package in {@see <a href="https://github.com/batfish/batfish">Batfish</a>}.
- * @author Yichi Zhang
+ * @author Yichi Zhang - XJTU ANTS NetVerify Lab
  * @version 1.0
  */
 package org.ants.javandd;

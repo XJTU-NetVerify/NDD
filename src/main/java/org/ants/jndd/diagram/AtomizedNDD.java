@@ -1,6 +1,6 @@
 /**
  * Implement logical operations of Atomized NDD.
- * @author Zechun Li
+ * @author Zechun Li - XJTU ANTS NetVerify Lab
  * @version 1.0
  */
 package org.ants.jndd.diagram;

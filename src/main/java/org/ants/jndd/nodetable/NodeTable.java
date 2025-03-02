@@ -1,6 +1,6 @@
 /**
  * Node table of NDD.
- * @author Zechun Li
+ * @author Zechun Li - XJTU ANTS NetVerify Lab
  * @version 1.0
  */
 package org.ants.jndd.nodetable;
