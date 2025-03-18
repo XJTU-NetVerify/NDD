@@ -179,6 +179,8 @@ The array `numNeeded` passes every length of field to `NDDFactory` so that it ca
 
 ## Benchmark
 
+Benchmark (time `second`) on **NQueens**
+
 | N | BDD (JDD) | BDD (JavaBDD - JFactory) | NDD (JNDD) |
 | - | --------- | ------------- | -------------------- |
 | 6 | 0.017 | 0.056 | 0.012 |
@@ -188,8 +190,6 @@ The array `numNeeded` passes every length of field to `NDDFactory` so that it ca
 | 10 | 0.615 | 0.913 | 0.344 |
 | 11 | 2.567 | 4.424 | 2.257 |
 | 12 | 19.109 | 33.024 | 12.417 |
-
-> time (second)
 
 > JavaNDD is implemented using JNDD
 
