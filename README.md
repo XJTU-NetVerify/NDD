@@ -10,7 +10,7 @@ This is a prototype implementation of the following [paper]():
 
 As an example, the figure below shows three BDDs in (a), and three equivalent NDDs in (c), each edge of which is labelled by per-field BDDs in (b).
 
-![fig4 drawio](https://github.com/user-attachments/assets/daf42009-e201-4c24-8878-99b03ba50a22)
+![fig4 drawio](fig4.drawio.svg)
 
 **Atomized Network Decision Diagram (Atomized NDD)** is an extension of NDD, which offers a native support for equivalence classes, a key technique underlying most network verifiers.
 In atomized NDD, the label of each edge is a set of atoms, instead of a BDD as in standard NDD.
