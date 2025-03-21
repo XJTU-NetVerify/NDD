@@ -191,8 +191,6 @@ Benchmark (time `second`) on **NQueens**
 | 11 | 2.567 | 4.424 | 2.257 |
 | 12 | 19.109 | 33.024 | 12.417 |
 
-> JavaNDD is implemented using JNDD
-
 ## Bibtex
 
 ```bibtex
