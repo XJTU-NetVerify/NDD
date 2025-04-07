@@ -1,0 +1,2 @@
+- `experiment.vector`: an implementation of BDD Vector, which is a simplified version of the implementation that only references the idea of dividing domains in NDD, and also compared with NDD in our experiments.
+- `application`: some applications (such as network verifications) supported by BDD and NDD.
