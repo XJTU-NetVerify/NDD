@@ -2,7 +2,7 @@
 
 Version:
 
-* Batfish: 07e522933b5af047ce4a5529e68545c93313a6b5
+* Batfish: b89d48eb6a580ae4124c2c3e8e7e06fad8583491
 * Pybatfish: 5a0488d1574534e425b3e70df5cc65171fb285a2
 
 Check:
