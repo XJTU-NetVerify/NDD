@@ -11,6 +11,8 @@ import org.ants.jndd.cache.OperationCache;
 import org.ants.jndd.nodetable.NodeTable;
 import org.ants.jndd.utils.DecomposeBDD;
 
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.*;
 
 public class NDD {
@@ -879,6 +881,133 @@ public class NDD {
             for (NDD next : current.getEdges().keySet()) {
                 printRec(next);
             }
+        }
+    }
+    
+    public static void printDot(NDD root, String filename) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("digraph NDD_Graph {\n");
+        sb.append("  rankdir=TD;\n");
+        sb.append("  compound=true;\n");
+        
+        HashSet<NDD> visitedNDD = new HashSet<>();
+        
+        sb.append("  NDD_TRUE [shape=box, style=filled, label=\"NDD TRUE\"];\n");
+        sb.append("  NDD_FALSE [shape=box, style=filled, label=\"NDD FALSE\"];\n");
+        
+        try {
+            FileWriter writer = new FileWriter(filename);
+            
+            HashMap<Integer, Integer> bddRoots = new HashMap<>();
+            collectBDDRoots(root, bddRoots, new HashSet<NDD>());
+            
+            for (Integer bddId : bddRoots.keySet()) {
+                if (bddId <= 1) continue;
+                
+                sb.append("  subgraph cluster_").append(bddId).append(" {\n");
+                sb.append("    label=\"BDD ").append(bddId).append("\";\n");
+                sb.append("    style=dashed;\n");
+                sb.append("    color=blue;\n");
+                sb.append("    bgcolor=lightgrey;\n");
+                
+                sb.append("    true_").append(bddId).append(" [shape=box, label=\"true#").append(bddId).append("\", style=filled];\n");
+                sb.append("    false_").append(bddId).append(" [shape=box, label=\"false#").append(bddId).append("\", style=filled];\n");
+                printBDDSubgraph(bddId, bddId, sb, new HashSet<Integer>());
+                
+                sb.append("  }\n\n");
+            }
+            
+            visitedNDD.clear();
+            printNDDStructure(root, sb, visitedNDD);
+            
+            sb.append("}\n");
+            writer.write(sb.toString());
+            writer.close();
+            
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static void printNDDStructure(NDD current, StringBuilder sb, 
+                                        HashSet<NDD> visited) {
+        if (current.isTerminal() || visited.contains(current)) {
+            return;
+        }
+        visited.add(current);
+        
+        String nodeId = "NDD_" + System.identityHashCode(current);
+        sb.append("  ").append(nodeId)
+        .append(" [shape=circle, label=\"Field ").append(current.field).append("\"];\n");
+        
+        for (Map.Entry<NDD, Integer> entry : current.getEdges().entrySet()) {
+            NDD next = entry.getKey();
+            int bddId = entry.getValue();
+            
+            String nextId;
+            if (next.isTrue()) {
+                nextId = "NDD_TRUE";
+            } else if (next.isFalse()) {
+                nextId = "NDD_FALSE";
+            } else {
+                nextId = "NDD_" + System.identityHashCode(next);
+            }
+            sb.append("  ").append(nodeId).append(" -> ").append(nextId)
+            .append(" [label=\"").append(bddId).append("\"];\n");
+            
+            printNDDStructure(next, sb, visited);
+        }
+    }
+    private static void collectBDDRoots(NDD ndd, HashMap<Integer, Integer> bddRoots, HashSet<NDD> visited) {
+        if (ndd.isTerminal() || visited.contains(ndd)) {
+            return;
+        }
+        visited.add(ndd);
+        
+        for (Map.Entry<NDD, Integer> entry : ndd.getEdges().entrySet()) {
+            int bddId = entry.getValue();
+            bddRoots.put(bddId, bddId);
+            
+            collectBDDRoots(entry.getKey(), bddRoots, visited);
+        }
+    }
+    private static void printBDDSubgraph(int currentBDD, int rootBDD, 
+                                    StringBuilder sb, HashSet<Integer> visited) {
+        if (currentBDD <= 1 || visited.contains(currentBDD)) {
+            return;
+        }
+        visited.add(currentBDD);
+        
+        int var = bddEngine.getVar(currentBDD);
+        int high = bddEngine.getHigh(currentBDD);
+        int low = bddEngine.getLow(currentBDD);
+        
+        sb.append("    node").append(currentBDD).append("_").append(rootBDD)
+        .append(" [shape=circle, label=\"x").append(var).append("\"];\n");
+        
+        if (high == 1) {
+            sb.append("    node").append(currentBDD).append("_").append(rootBDD)
+            .append(" -> true_").append(rootBDD).append(";\n");
+        } else if (high == 0) {
+            sb.append("    node").append(currentBDD).append("_").append(rootBDD)
+            .append(" -> false_").append(rootBDD).append(";\n");
+        } else {
+            sb.append("    node").append(currentBDD).append("_").append(rootBDD)
+            .append(" -> node").append(high).append("_").append(rootBDD).append(";\n");
+            printBDDSubgraph(high, rootBDD, sb, visited);
+        }
+        
+        if (low == 1) {
+            sb.append("    node").append(currentBDD).append("_").append(rootBDD)
+            .append(" -> true_").append(rootBDD).append(" [style=dotted];\n");
+        } else if (low == 0) {
+            sb.append("    node").append(currentBDD).append("_").append(rootBDD)
+            .append(" -> false_").append(rootBDD).append(" [style=dotted];\n");
+        } else {
+            sb.append("    node").append(currentBDD).append("_").append(rootBDD)
+            .append(" -> node").append(low).append("_").append(rootBDD)
+            .append(" [style=dotted];\n");
+            printBDDSubgraph(low, rootBDD, sb, visited);
         }
     }
 
