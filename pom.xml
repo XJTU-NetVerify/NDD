@@ -30,14 +30,6 @@
 
     <dependencies>
         <dependency>
-            <groupId>mytool</groupId>
-            <artifactId>jdd</artifactId>
-            <version>111</version>
-            <scope>system</scope>
-            <systemPath>${project.basedir}/lib/jdd-111.jar</systemPath>
-        </dependency>
-
-        <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-controls</artifactId>
             <version>15</version>

@@ -34,6 +34,6 @@ public class ChangeItem {
 
 	@Override
 	public int hashCode() {
-		return from_port.hashCode() + to_port.hashCode() + new Integer(delta).hashCode();
+		return from_port.hashCode() + to_port.hashCode() + Integer.hashCode(delta);
 	}
 }

@@ -832,9 +832,7 @@ public class NDD {
             for (int i = currField; i < curr.field; i++) {
                 vec[i] = 1;
             }
-            Iterator iter = curr.edges.entrySet().iterator();
-            while (iter.hasNext()) {
-                Map.Entry<NDD, Integer> entry = (Map.Entry<NDD, Integer>) iter.next();
+            for (Map.Entry<NDD, Integer> entry : curr.edges.entrySet()) {
                 vec[curr.field] = entry.getValue();
                 toArrayRec(entry.getKey(), array, vec, curr.field + 1);
             }

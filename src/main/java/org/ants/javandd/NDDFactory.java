@@ -7,6 +7,7 @@
 package org.ants.javandd;
 
 import jdd.util.Configuration;
+import jdd.util.JDDConsole;
 import jdd.util.Options;
 
 import java.math.BigInteger;
@@ -1279,6 +1280,18 @@ public class NDDFactory extends BDDFactory {
             this.nodeTable = new ArrayList<>();
             bddEngine = new jdd.bdd.BDD(bddTableSize, bddCacheSize);
             this.referenceCount = new HashMap<>();
+            // Register NDD GC as a prehook to JDD GC
+            bddEngine.registerGCPrehook(this::performGC);
+        }
+
+        /**
+         * Perform NDD garbage collection.
+         * This method is called as a prehook before JDD GC to ensure
+         * NDD nodes are cleaned up before BDD nodes are removed.
+         */
+        public void performGC() {
+            gc(true);  // Triggered by JDD GC prehook
+            clearCaches();
         }
 
         public void setMaxSize(long maxSize) {
@@ -1339,14 +1352,27 @@ public class NDDFactory extends BDDFactory {
         }
 
         private void gcOrGrow() {
-            gc();
+            gc(false);  // NDD self-triggered GC
             if (maxSize - currentSize <= maxSize * QUICK_GROW_THRESHOLD) {
                 grow();
             }
             clearCaches();
         }
 
-        private void gc() {
+        /**
+         * Garbage collection.
+         * @param triggeredByJDD true if called from JDD GC prehook, false if NDD self-triggered
+         */
+        private void gc(boolean triggeredByJDD) {
+            long startSize = currentSize;
+            long startTime = System.currentTimeMillis();
+            String caller = triggeredByJDD ? "JDD prehook" : "NDD self";
+
+            if (Options.gc_log) {
+                JDDConsole.out.printf("[JavaNDD GC] Start (triggered by %s): currentSize=%d, maxSize=%d\n",
+                    caller, currentSize, maxSize);
+            }
+
             // protect temporary nodes during NDD operations
             for (NDD ndd : temporarilyProtect) {
                 ref(ndd);
@@ -1380,6 +1406,13 @@ public class NDDFactory extends BDDFactory {
 
             for (NDD ndd : temporarilyProtect) {
                 deref(ndd);
+            }
+
+            if (Options.gc_log) {
+                long freed = startSize - currentSize;
+                long elapsed = System.currentTimeMillis() - startTime;
+                JDDConsole.out.printf("[JavaNDD GC] End (triggered by %s): freed=%d, currentSize=%d, time=%dms\n",
+                    caller, freed, currentSize, elapsed);
             }
         }
 

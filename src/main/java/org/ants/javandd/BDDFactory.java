@@ -34,7 +34,6 @@ import com.google.common.collect.ImmutableSet;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.math.BigInteger;
-import java.security.AccessControlException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
@@ -59,7 +58,7 @@ public abstract class BDDFactory {
   public static final String getProperty(String key, String def) {
     try {
       return System.getProperty(key, def);
-    } catch (AccessControlException ignored) {
+    } catch (SecurityException ignored) {
       return def;
     }
   }
