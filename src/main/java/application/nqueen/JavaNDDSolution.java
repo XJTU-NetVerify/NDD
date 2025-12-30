@@ -66,6 +66,7 @@ public class JavaNDDSolution {
             fields[i] = n;
         }
         ((NDDFactory) factory).setVarNum(fields, NDD_TABLE_SIZE);
+        ((NDDFactory) factory).generateFields();  // Generate shared BDD variables
 
         double startTime = System.currentTimeMillis();
 
@@ -102,14 +103,10 @@ public class JavaNDDSolution {
     }
 
     public static void main(String[] args) {
-        // System.out.println(Solution(1));
-        // System.out.println(Solution(2));
-        // System.out.println(Solution(3));
-        // System.out.println(Solution(4));
-        // System.out.println(Solution(5));
-        // System.out.println(Solution(6));
-        // System.out.println(Solution(7));
-        // System.out.println(Solution(8));
-        System.out.println(Solution(12));
+        System.out.println("=== JavaNDD NQueens with BDD Reuse ===");
+        System.out.println("N=4: " + Solution(4));
+        System.out.println("N=8: " + Solution(8));
+        System.out.println("N=10: " + Solution(10));
+        System.out.println("N=12: " + Solution(12));
     }
 }

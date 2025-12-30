@@ -7,9 +7,10 @@ public class NDDSolution {
 
     // declare n fields, n bits per field
     private static void declareFields(int n) {
-        for (int i = 0;i < n;i++) {
+        for (int i = 0; i < n; i++) {
             NDD.declareField(n);
         }
+        NDD.generateFields();  // Generate fields with shared BDD variables
     }
 
     private static void build(int i, int j, int n, NDD[][] impBatch) {
@@ -107,17 +108,15 @@ public class NDDSolution {
             }
         }
         double endTime = System.currentTimeMillis();
-        // todo: add a cache for satCount
         return "\t" + String.format("" + (endTime - startTime) / 1000, ".3f") + "\t" + NDD.satCount(queen);
     }
 
     public static void main(String[] args) {
-        // System.out.println(Solution(1));
-        // System.out.println(Solution(2));
-        // System.out.println(Solution(3));
-        // System.out.println(Solution(4));
-        // System.out.println(Solution(5));
-        // System.out.println(Solution(6));
-        System.out.println(Solution(12));
+        // Run full NQueens test
+        System.out.println("\n=== NQueens with BDD Reuse ===");
+        System.out.println("N=4: " + Solution(4));
+        System.out.println("N=8: " + Solution(8));
+        System.out.println("N=10: " + Solution(10));
+        System.out.println("N=12: " + Solution(12));
     }
 }

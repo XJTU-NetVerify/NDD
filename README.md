@@ -93,10 +93,17 @@ NDD.initNDD(NDD_TABLE_SIZE, BDD_TABLE_SIZE, BDD_CACHE_SIZE);
 
 /**
  * declare ndd fields based on the situation {x, y, z}
+ * declareField() only records the bit count, does not create BDD variables yet
  */
 for (int i = 0; i < n; i++) {
     NDD.declareField(n);    // same number of variables in every field in nqueens
 }
+
+/**
+ * generate fields after all declarations
+ * this creates shared BDD variables with right-alignment for maximum node reuse
+ */
+NDD.generateFields();
 
 /**
  * ndd logical operation

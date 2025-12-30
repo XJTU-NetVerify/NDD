@@ -1,0 +1,27 @@
+--no-fonts
+-classpath
+'/home/augists/.m2/repository/org/openjfx/javafx-controls/15/javafx-controls-15.jar:/home/augists/.m2/repository/org/openjfx/javafx-controls/15/javafx-controls-15-linux.jar:/home/augists/.m2/repository/org/openjfx/javafx-graphics/15/javafx-graphics-15.jar:/home/augists/.m2/repository/org/openjfx/javafx-graphics/15/javafx-graphics-15-linux.jar:/home/augists/.m2/repository/org/openjfx/javafx-base/15/javafx-base-15.jar:/home/augists/.m2/repository/org/openjfx/javafx-base/15/javafx-base-15-linux.jar:/home/augists/.m2/repository/com/google/guava/guava/32.0.0-android/guava-32.0.0-android.jar:/home/augists/.m2/repository/com/google/guava/failureaccess/1.0.1/failureaccess-1.0.1.jar:/home/augists/.m2/repository/com/google/guava/listenablefuture/9999.0-empty-to-avoid-conflict-with-guava/listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar:/home/augists/.m2/repository/org/checkerframework/checker-qual/3.33.0/checker-qual-3.33.0.jar:/home/augists/.m2/repository/com/google/errorprone/error_prone_annotations/2.18.0/error_prone_annotations-2.18.0.jar:/home/augists/.m2/repository/com/google/j2objc/j2objc-annotations/2.8/j2objc-annotations-2.8.jar:/home/augists/.m2/repository/org/apache/logging/log4j/log4j-core/2.24.3/log4j-core-2.24.3.jar:/home/augists/.m2/repository/org/apache/logging/log4j/log4j-api/2.24.3/log4j-api-2.24.3.jar:/home/augists/.m2/repository/com/carrotsearch/hppc/0.10.0/hppc-0.10.0.jar:/home/augists/.m2/repository/javax/annotation/javax.annotation-api/1.3.2/javax.annotation-api-1.3.2.jar:/home/augists/.m2/repository/com/google/code/findbugs/jsr305/3.0.2/jsr305-3.0.2.jar:/home/augists/.m2/repository/javax/validation/validation-api/1.0.0.GA/validation-api-1.0.0.GA.jar'
+-encoding
+'UTF-8'
+-public
+-source
+'8'
+-sourcepath
+'/home/augists/Network-Decision-Diagram/src/main/java'
+-author
+-bottom
+'Copyright &#169; 2025. All rights reserved.'
+-charset
+'UTF-8'
+-d
+'/home/augists/Network-Decision-Diagram/target/reports/apidocs'
+-docencoding
+'UTF-8'
+-doctitle
+'ndd 1.0.1 API'
+-linkoffline
+'https://docs.oracle.com/javase/8/docs/api' '/home/augists/Network-Decision-Diagram/target/javadoc-bundle-options'
+-use
+-version
+-windowtitle
+'ndd 1.0.1 API'

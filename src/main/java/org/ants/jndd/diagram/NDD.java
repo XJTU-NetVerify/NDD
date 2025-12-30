@@ -5,22 +5,24 @@
  */
 package org.ants.jndd.diagram;
 
-import javafx.util.Pair;
-import jdd.bdd.BDD;
-import org.ants.jndd.cache.OperationCache;
-import org.ants.jndd.nodetable.NodeTable;
-import org.ants.jndd.utils.DecomposeBDD;
-
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+
+import org.ants.jndd.cache.OperationCache;
+import org.ants.jndd.nodetable.NodeTable;
+
+import javafx.util.Pair;
+import jdd.bdd.BDD;
 
 public class NDD {
     /**
      * The size of each operation cache.
      */
     private static int CACHE_SIZE = 10000;
-    private final static boolean DEBUG_MODEL = false;
 
     /**
      * The ndd node table.
@@ -38,14 +40,30 @@ public class NDD {
     protected static int fieldNum;
 
     /**
-     * The max id of bits for each field.
+     * Whether generateFields() has been called.
      */
-    private static ArrayList<Integer> maxVariablePerField;
+    private static boolean fieldsGenerated;
 
     /**
-     * The correction factor of each field, used by operation of satCount.
+     * Pending field bit numbers (before generateFields).
      */
-    private static ArrayList<Double> satCountDiv;
+    private static ArrayList<Integer> pendingFieldBitNums;
+
+    /**
+     * The maximum bit number across all fields.
+     */
+    private static int maxBitNum;
+
+    /**
+     * Shared BDD variables for all fields.
+     */
+    private static int[] sharedBddVars;
+
+    /**
+     * Shared negated BDD variables for all fields.
+     */
+    private static int[] sharedBddNotVars;
+
 
     /**
      * All bdd variables.
@@ -95,8 +113,11 @@ public class NDD {
         nodeTable = new NodeTable(nddTableSize, bddTableSize, bddCacheSize);
         bddEngine = nodeTable.getBddEngine();
         fieldNum = -1;
-        maxVariablePerField = new ArrayList<>();
-        satCountDiv = new ArrayList<>();
+        fieldsGenerated = false;
+        pendingFieldBitNums = new ArrayList<>();
+        maxBitNum = 0;
+        sharedBddVars = null;
+        sharedBddNotVars = null;
         bddVarsPerField = new ArrayList<>();
         bddNotVarsPerField = new ArrayList<>();
         nddVarsPerField = new ArrayList<>();
@@ -121,56 +142,89 @@ public class NDD {
 
     // declare a field of 'bitNum' bits
     /**
-     * Declare a new field.
+     * Declare a new field. This method only stores the bit number.
+     * Call generateFields() after all fields are declared to create BDD variables.
      * @param bitNum The number of bits in the field.
      * @return The id of the field.
      */
     public static int declareField(int bitNum) {
-        // 1. update the number of fields
-        fieldNum++;
-        // 2. update the boundary of each field
-        if (maxVariablePerField.isEmpty()) {
-            maxVariablePerField.add(bitNum - 1);
-        } else {
-            maxVariablePerField.add(maxVariablePerField.get(maxVariablePerField.size() - 1) + bitNum);
+        if (fieldsGenerated) {
+            throw new IllegalStateException("Cannot declare field after generateFields() has been called");
         }
-        // 3. update satCountDiv, which will be used in satCount operation of NDD
-        double factor = Math.pow(2.0, bitNum);
-        for (int i=0; i < satCountDiv.size(); i++) {
-            satCountDiv.set(i, satCountDiv.get(i) * factor);
-        }
-        int totalBitsBefore = 0;
-        if (maxVariablePerField.size() > 1) {
-            totalBitsBefore = maxVariablePerField.get(maxVariablePerField.size() - 2) + 1;
-        }
-        satCountDiv.add(Math.pow(2.0, totalBitsBefore));
-        // 4. add node table
-        nodeTable.declareField();
-        // 5. declare vars
-        int[] bddVars = new int[bitNum];
-        int[] bddNotVars = new int[bitNum];
-        NDD[] nddVars = new NDD[bitNum];
-        NDD[] nddNotVars = new NDD[bitNum];
+        pendingFieldBitNums.add(bitNum);
+        return pendingFieldBitNums.size() - 1;
+    }
 
-        for (int i = 0;i < bitNum;i++) {
-            bddVars[i] = bddEngine.ref(bddEngine.createVar());
-            bddNotVars[i] = bddEngine.ref(bddEngine.not(bddVars[i]));
-
-            HashMap<NDD, Integer> edges = new HashMap<>();
-            edges.put(getTrue(), bddEngine.ref(bddVars[i]));
-            nddVars[i] = mk(fieldNum, edges);
-            nodeTable.fixNDDNodeRefCount(nddVars[i]);
-
-            edges = new HashMap<>();
-            edges.put(getTrue(), bddEngine.ref(bddNotVars[i]));
-            nddNotVars[i] = mk(fieldNum, edges);
-            nodeTable.fixNDDNodeRefCount(nddNotVars[i]);
+    /**
+     * Generate all fields after declaration. This method creates shared BDD variables
+     * and assigns them to each field using right-alignment for maximum node reuse.
+     * Must be called after all declareField() calls and before any NDD operations.
+     */
+    public static void generateFields() {
+        if (fieldsGenerated) {
+            throw new IllegalStateException("generateFields() has already been called");
         }
-        bddVarsPerField.add(bddVars);
-        bddNotVarsPerField.add(bddNotVars);
-        nddVarsPerField.add(nddVars);
-        nddNotVarsPerField.add(nddNotVars);
-        return fieldNum;
+        if (pendingFieldBitNums.isEmpty()) {
+            throw new IllegalStateException("No fields declared before generateFields()");
+        }
+        
+        // update state first
+        fieldsGenerated = true;
+
+        // 1. Find the maximum bit number
+        maxBitNum = 0;
+        for (int bitNum : pendingFieldBitNums) {
+            if (bitNum > maxBitNum) {
+                maxBitNum = bitNum;
+            }
+        }
+
+        // 2. Create shared BDD variables
+        sharedBddVars = new int[maxBitNum];
+        sharedBddNotVars = new int[maxBitNum];
+        for (int i = 0; i < maxBitNum; i++) {
+            sharedBddVars[i] = bddEngine.ref(bddEngine.createVar());
+            sharedBddNotVars[i] = bddEngine.ref(bddEngine.not(sharedBddVars[i]));
+        }
+
+        // 3. Create fields with right-aligned shared variables
+        for (int field = 0; field < pendingFieldBitNums.size(); field++) {
+            int bitNum = pendingFieldBitNums.get(field);
+            int offset = maxBitNum - bitNum;  // Right-align offset
+
+            // Update fieldNum
+            fieldNum++;
+
+            // Add node table for this field
+            nodeTable.declareField();
+
+            // Assign shared variables to this field (right-aligned)
+            int[] bddVars = new int[bitNum];
+            int[] bddNotVars = new int[bitNum];
+            NDD[] nddVars = new NDD[bitNum];
+            NDD[] nddNotVars = new NDD[bitNum];
+
+            for (int i = 0; i < bitNum; i++) {
+                // Right-align: field's bit i uses shared variable at (offset + i)
+                bddVars[i] = sharedBddVars[offset + i];
+                bddNotVars[i] = sharedBddNotVars[offset + i];
+
+                HashMap<NDD, Integer> edges = new HashMap<>();
+                edges.put(getTrue(), bddEngine.ref(bddVars[i]));
+                nddVars[i] = mk(fieldNum, edges);
+                nodeTable.fixNDDNodeRefCount(nddVars[i]);
+
+                edges = new HashMap<>();
+                edges.put(getTrue(), bddEngine.ref(bddNotVars[i]));
+                nddNotVars[i] = mk(fieldNum, edges);
+                nodeTable.fixNDDNodeRefCount(nddNotVars[i]);
+            }
+
+            bddVarsPerField.add(bddVars);
+            bddNotVarsPerField.add(bddNotVars);
+            nddVarsPerField.add(nddVars);
+            nddNotVarsPerField.add(nddNotVars);
+        }
     }
 
     public static int getFieldNum() {
@@ -252,15 +306,6 @@ public class NDD {
     public static NDD andTo(NDD a, NDD b) {
         NDD result = ref(and(a, b));
         deref(a);
-        if (DEBUG_MODEL) {
-            int aBDD = bddEngine.ref(toBDD(a));
-            int bBDD = bddEngine.ref(toBDD(b));
-            int resultBDD = bddEngine.andTo(aBDD, bBDD);
-            bddEngine.deref(bBDD);
-            if (resultBDD != toBDD(result)) {
-                System.out.println("Operation and: result wrong!");
-            }
-        }
         return result;
     }
 
@@ -273,15 +318,6 @@ public class NDD {
     public static NDD orTo(NDD a, NDD b) {
         NDD result = ref(or(a, b));
         deref(a);
-        if (DEBUG_MODEL) {
-            int aBDD = bddEngine.ref(toBDD(a));
-            int bBDD = bddEngine.ref(toBDD(b));
-            int resultBDD = bddEngine.orTo(aBDD, bBDD);
-            bddEngine.deref(bBDD);
-            if (resultBDD != toBDD(result)) {
-                System.out.println("Operation or: result wrong!");
-            }
-        }
         return result;
     }
 
@@ -316,17 +352,7 @@ public class NDD {
      */
     public static NDD and(NDD a, NDD b) {
         temporarilyProtect.clear();
-        NDD result = andRec(a, b);
-        if (DEBUG_MODEL) {
-            int aBDD = bddEngine.ref(toBDD(a));
-            int bBDD = bddEngine.ref(toBDD(b));
-            int resultBDD = bddEngine.andTo(aBDD, bBDD);
-            bddEngine.deref(bBDD);
-            if (resultBDD != toBDD(result)) {
-                System.out.println("Operation and: result wrong!");
-            }
-        }
-        return result;
+        return andRec(a, b);
     }
 
     /**
@@ -347,7 +373,6 @@ public class NDD {
         if (andCache.getEntry(a, b))
             return andCache.result;
 
-        NDD result = null;
         HashMap<NDD, Integer> edges = new HashMap<>();
         if (a.field == b.field) {
             for (Map.Entry<NDD, Integer> entryA : a.edges.entrySet()) {
@@ -379,7 +404,7 @@ public class NDD {
             }
         }
         // try to create or reuse node
-        result = mk(a.field, edges);
+        NDD result = mk(a.field, edges);
         // protect the node during the operation
         temporarilyProtect.add(result);
         // store the result into cache
@@ -395,17 +420,7 @@ public class NDD {
      */
     public static NDD or(NDD a, NDD b) {
         temporarilyProtect.clear();
-        NDD result = orRec(a, b);
-        if (DEBUG_MODEL) {
-            int aBDD = bddEngine.ref(toBDD(a));
-            int bBDD = bddEngine.ref(toBDD(b));
-            int resultBDD = bddEngine.orTo(aBDD, bBDD);
-            bddEngine.deref(bBDD);
-            if (resultBDD != toBDD(result)) {
-                System.out.println("Operation or: result wrong!");
-            }
-        }
-        return result;
+        return orRec(a, b);
     }
 
     /**
@@ -426,7 +441,6 @@ public class NDD {
         if (orCache.getEntry(a, b))
             return orCache.result;
 
-        NDD result = null;
         HashMap<NDD, Integer> edges = new HashMap<>();
         if (a.field == b.field) {
             // record edges of each node, which will 'or' with the edge pointing to FALSE of another node
@@ -496,7 +510,7 @@ public class NDD {
             }
         }
         // try to create or reuse node
-        result = mk(a.field, edges);
+        NDD result = mk(a.field, edges);
         // protect the node during the operation
         temporarilyProtect.add(result);
         // store the result into cache
@@ -511,16 +525,7 @@ public class NDD {
      */
     public static NDD not(NDD a) {
         temporarilyProtect.clear();
-        NDD result = notRec(a);
-        if (DEBUG_MODEL) {
-            int aBDD = bddEngine.ref(toBDD(a));
-            int resultBDD = bddEngine.not(aBDD);
-            bddEngine.deref(aBDD);
-            if (resultBDD != toBDD(result)) {
-                System.out.println("Operation not: result wrong!");
-            }
-        }
-        return result;
+        return notRec(a);
     }
 
     /**
@@ -567,20 +572,7 @@ public class NDD {
         temporarilyProtect.clear();
         NDD n = notRec(b);
         temporarilyProtect.add(n);
-        NDD result = andRec(a, n);
-        if (DEBUG_MODEL) {
-            int aBDD = bddEngine.ref(toBDD(a));
-            int bBDD = bddEngine.ref(toBDD(b));
-            int t = bddEngine.ref(bddEngine.not(bBDD));
-            bddEngine.deref(bBDD);
-            int resultBDD = bddEngine.and(aBDD, t);
-            bddEngine.deref(aBDD);
-            bddEngine.deref(t);
-            if (resultBDD != toBDD(result)) {
-                System.out.println("Operation diff: result wrong!");
-            }
-        }
-        return result;
+        return andRec(a, n);
     }
 
     /**
@@ -643,19 +635,13 @@ public class NDD {
      * @return The number of solutions.
      */
     public static double satCount(NDD ndd) {
-//        double result = satCountRec(ndd, 0);
-//        if (DEBUG_MODEL) {
-//            double bddResult = bddEngine.satCount(toBDD(ndd));
-//            if (result != bddResult) {
-//                System.out.println("Operation satCount: result wrong!");
-//            }
-//        }
-//        return result;
-        return bddEngine.satCount(toBDD(ndd));
+        return satCountRec(ndd, 0);
+        // return bddEngine.satCount(toBDD(ndd));
     }
 
     /**
      * The recursive implementation of satCount.
+     * With shared BDD variables, each field has pendingFieldBitNums.get(field) bits.
      * @param curr Current ndd node.
      * @param field Current field.
      * @return The number of solutions.
@@ -667,34 +653,70 @@ public class NDD {
             if (field > fieldNum) {
                 return 1;
             } else {
-                int len = maxVariablePerField.get(maxVariablePerField.size() - 1);
-                if (field == 0) {
-                    len++;
-                } else {
-                    len -= maxVariablePerField.get(field - 1);
+                // Count remaining fields' bits
+                double result = 1;
+                for (int f = field; f <= fieldNum; f++) {
+                    int bits = pendingFieldBitNums.get(f);
+                    result *= Math.pow(2.0, bits);
                 }
-                return Math.pow(2.0, len);
+                return result;
             }
         } else {
             double result = 0;
             if (field == curr.field) {
+                int fieldBits = pendingFieldBitNums.get(field);
+                double satDivisor = Math.pow(2.0, maxBitNum - fieldBits);
                 for (Map.Entry<NDD, Integer> entry : curr.edges.entrySet()) {
-                    double bddSat = bddEngine.satCount(entry.getValue()) / satCountDiv.get(curr.field);
-//                    System.out.println(bddEngine.satCount(entry.getValue()) + " " + bddSat);
+                    // Use our own BDD satCount with fixed variable count (maxBitNum)
+                    // instead of bddEngine.satCount which uses all variables
+                    double bddSat = bddSatCountWithVars(entry.getValue(), maxBitNum) / satDivisor;
                     double nddSat = satCountRec(entry.getKey(), field + 1);
                     result += bddSat * nddSat;
                 }
             } else {
-                int len = maxVariablePerField.get(field);
-                if (field == 0) {
-                    len++;
-                } else {
-                    len -= maxVariablePerField.get(field - 1);
-                }
-                result = Math.pow(2.0, len) * satCountRec(curr, field + 1);
+                // Field is skipped, all values are valid
+                int bits = pendingFieldBitNums.get(field);
+                result = Math.pow(2.0, bits) * satCountRec(curr, field + 1);
             }
             return result;
         }
+    }
+
+    /**
+     * Calculate satCount for a BDD using a fixed number of variables.
+     * This avoids issues when additional variables have been created
+     * for toBDD/toNDD conversion.
+     * @param bdd The BDD node.
+     * @param numVars The number of variables to consider.
+     * @return The number of satisfying assignments.
+     */
+    private static double bddSatCountWithVars(int bdd, int numVars) {
+        if (bdd == 0) return 0;
+        if (bdd == 1) return Math.pow(2.0, numVars);
+
+        int rootVar = bddEngine.getVar(bdd);
+        return Math.pow(2.0, rootVar) * bddSatCountRec(bdd, numVars);
+    }
+
+    /**
+     * Recursive helper for bddSatCountWithVars.
+     */
+    private static double bddSatCountRec(int bdd, int numVars) {
+        if (bdd == 0) return 0;
+        if (bdd == 1) return 1;
+
+        int low = bddEngine.getLow(bdd);
+        int high = bddEngine.getHigh(bdd);
+        int bddVar = bddEngine.getVar(bdd);
+
+        // For terminal nodes, use numVars as their virtual variable
+        int lowVar = (low < 2) ? numVars : bddEngine.getVar(low);
+        int highVar = (high < 2) ? numVars : bddEngine.getVar(high);
+
+        double lowCount = bddSatCountRec(low, numVars) * Math.pow(2.0, lowVar - bddVar - 1);
+        double highCount = bddSatCountRec(high, numVars) * Math.pow(2.0, highVar - bddVar - 1);
+
+        return lowCount + highCount;
     }
 
     /**
@@ -755,59 +777,298 @@ public class NDD {
         return result;
     }
 
-
+    /**
+     * Convert a BDD (using shared variables) to NDD for a specific field.
+     * The BDD uses shared variables [offset, offset+bitNum) where offset = maxBitNum - bitNum.
+     * @param a The BDD with shared variables.
+     * @param field The field this BDD belongs to.
+     * @return The NDD representation.
+     */
     public static NDD toNDD(int a, int field) {
-        return toNDDFunc(a, field);
-    }
-
-    private static NDD toNDDFunc(int a, int field)
-    {
-        if(a == 1) {
-            return TRUE;
-        } else {
-            HashMap<NDD, Integer> edges = new HashMap<>();
-            edges.put(TRUE, a);
-            return mk(field, edges);
+        switch (a) {
+            case 0:
+                return FALSE;
+            case 1:
+                return TRUE;
+            default:
+                HashMap<NDD, Integer> edges = new HashMap<>();
+                edges.put(TRUE, bddEngine.ref(a));
+                return mk(field, edges);
         }
     }
 
+    /**
+     * Convert an expanded BDD (with independent variable space per field) back to NDD.
+     *
+     * The input BDD uses variables in expanded space:
+     * - Field 0: vars [0, bitNum0)
+     * - Field 1: vars [bitNum0, bitNum0+bitNum1)
+     * - etc.
+     *
+     * This method recursively decomposes the BDD by field boundaries and replaces
+     * variables back to shared variable space.
+     *
+     * @param a The BDD with expanded (independent) variable space.
+     * @return The NDD representation with shared variables.
+     */
     public static NDD toNDD(int a) {
-        return toNDDFunc(a);
+        if (a == 0) {
+            return FALSE;
+        } else if (a == 1) {
+            return TRUE;
+        }
+
+        ensureExpandedVars();
+
+        // Decompose the BDD by field boundaries
+        return toNDDRec(a, 0);
     }
 
-    private static NDD toNDDFunc(int a)
-    {
-        HashMap<Integer, HashMap<Integer, Integer>> decomposed = DecomposeBDD.decompose(a, bddEngine, maxVariablePerField);
-        HashMap<Integer, NDD> converted = new HashMap<>();
-        converted.put(1, TRUE);
-        while(decomposed.size() != 0)
-        {
-            Set<Integer> finished = converted.keySet();
-            for(Map.Entry<Integer, HashMap<Integer, Integer>> entry : decomposed.entrySet())
-            {
-                if(finished.containsAll(entry.getValue().keySet()))
-                {
-                    int field = DecomposeBDD.bddGetField(entry.getKey());
-                    HashMap<NDD, Integer> map = new HashMap<>();
-                    for(Map.Entry<Integer, Integer> entry1 : entry.getValue().entrySet())
-                    {
-                        map.put(converted.get(entry1.getKey()), bddEngine.ref(entry1.getValue()));
-                    }
-                    NDD n = mk(field, map);
-                    converted.put(entry.getKey(), n);
-                    decomposed.remove(entry.getKey());
-                    break;
-                }
-            }
+    /**
+     * Recursive helper for toNDD.
+     * @param bdd Current BDD node (in expanded variable space).
+     * @param field Current field being processed.
+     * @return NDD with shared variables.
+     */
+    private static NDD toNDDRec(int bdd, int field) {
+        if (bdd == 0) {
+            return FALSE;
         }
-        for(HashMap<Integer, Integer> map : decomposed.values())
-        {
-            for(Integer pred : map.values())
-            {
-                bddEngine.deref(pred);
-            }
+        if (bdd == 1) {
+            return TRUE;
         }
-        return converted.get(a);
+        if (field > fieldNum) {
+            return TRUE;
+        }
+
+        int bddVar = bddEngine.getVar(bdd);
+
+        // Calculate variable range for current field in expanded space
+        int cumulativeOffset = 0;
+        for (int f = 0; f < field; f++) {
+            cumulativeOffset += pendingFieldBitNums.get(f);
+        }
+        int fieldBitNum = pendingFieldBitNums.get(field);
+        int fieldVarStart = cumulativeOffset;
+        int fieldVarEnd = cumulativeOffset + fieldBitNum - 1;
+
+        // If BDD's top variable is beyond current field, skip this field
+        if (bddVar > fieldVarEnd) {
+            return toNDDRec(bdd, field + 1);
+        }
+
+        // If BDD's top variable is before current field, something is wrong
+        if (bddVar < fieldVarStart) {
+            // This shouldn't happen with proper input, but handle gracefully
+            return toNDDRec(bdd, field + 1);
+        }
+
+        // Extract per-field BDD and replace variables back to shared space
+        // Use existential quantification to separate field constraints
+        HashMap<Integer, Integer> fieldBDDs = decomposeByField(bdd, field);
+
+        if (fieldBDDs.isEmpty()) {
+            return toNDDRec(bdd, field + 1);
+        }
+
+        HashMap<NDD, Integer> edges = new HashMap<>();
+        for (Map.Entry<Integer, Integer> entry : fieldBDDs.entrySet()) {
+            int nextBDD = entry.getKey();
+            int edgeBDD = entry.getValue();
+
+            // Replace expanded variables back to shared variables for this field
+            int sharedEdgeBDD = replaceVarsToShared(edgeBDD, field);
+
+            // Recursively process the rest
+            NDD child = toNDDRec(nextBDD, field + 1);
+
+            addEdge(edges, child, sharedEdgeBDD);
+        }
+
+        if (edges.isEmpty()) {
+            return toNDDRec(bdd, field + 1);
+        }
+
+        return mk(field, edges);
+    }
+
+    /**
+     * Decompose a BDD by extracting constraints for a specific field.
+     * Returns a map from "next BDD" (constraints for later fields) to "edge BDD" (constraints for this field).
+     */
+    private static HashMap<Integer, Integer> decomposeByField(int bdd, int field) {
+        HashMap<Integer, Integer> result = new HashMap<>();
+
+        if (bdd == 0 || bdd == 1) {
+            result.put(bdd, 1);
+            return result;
+        }
+
+        // Calculate variable range for this field in the output BDD space
+        int cumulativeOffset = 0;
+        for (int f = 0; f < field; f++) {
+            cumulativeOffset += pendingFieldBitNums.get(f);
+        }
+        int fieldBitNum = pendingFieldBitNums.get(field);
+        int fieldVarEnd = cumulativeOffset + fieldBitNum - 1;
+
+        // Build the set of variables for this field (for quantification)
+        // Note: For field 0 (cumulativeOffset < maxBitNum), use sharedBddVars
+        //       For other fields, use expandedBddVars with proper indexing
+        int fieldVarSet = 1;
+        for (int i = 0; i < fieldBitNum; i++) {
+            int varNode;
+            if (cumulativeOffset < maxBitNum) {
+                // Use shared vars
+                int sharedOffset = maxBitNum - fieldBitNum;
+                varNode = sharedBddVars[sharedOffset + i];
+            } else {
+                // Use expanded vars
+                int expandedIndex = cumulativeOffset - maxBitNum;
+                varNode = expandedBddVars.get(expandedIndex + i);
+            }
+            fieldVarSet = bddEngine.andTo(fieldVarSet, varNode);
+        }
+
+        // Use decomposition similar to DecomposeBDD
+        decomposeRec(bdd, field, cumulativeOffset, fieldVarEnd, result, new HashMap<>());
+
+        bddEngine.deref(fieldVarSet);
+        return result;
+    }
+
+    /**
+     * Recursive decomposition helper.
+     */
+    private static void decomposeRec(int bdd, int field, int fieldVarStart, int fieldVarEnd,
+                                      HashMap<Integer, Integer> result, HashMap<Integer, int[]> cache) {
+        if (bdd == 0) {
+            return;
+        }
+        if (bdd == 1) {
+            result.merge(1, 1, (old, n) -> bddEngine.orTo(old, n));
+            return;
+        }
+
+        if (cache.containsKey(bdd)) {
+            int[] cached = cache.get(bdd);
+            result.merge(cached[0], bddEngine.ref(cached[1]), (old, n) -> {
+                int merged = bddEngine.orTo(old, n);
+                bddEngine.deref(n);
+                return merged;
+            });
+            return;
+        }
+
+        int bddVar = bddEngine.getVar(bdd);
+
+        // If we've passed this field's variables, this is the "next" BDD
+        if (bddVar > fieldVarEnd) {
+            result.merge(bdd, 1, (old, n) -> bddEngine.orTo(old, n));
+            cache.put(bdd, new int[]{bdd, 1});
+            return;
+        }
+
+        // If variable is before this field (shouldn't happen), skip
+        if (bddVar < fieldVarStart) {
+            decomposeRec(bddEngine.getLow(bdd), field, fieldVarStart, fieldVarEnd, result, cache);
+            decomposeRec(bddEngine.getHigh(bdd), field, fieldVarStart, fieldVarEnd, result, cache);
+            return;
+        }
+
+        // Variable is in this field - build per-field BDD
+        int low = bddEngine.getLow(bdd);
+        int high = bddEngine.getHigh(bdd);
+
+        // Process low branch (variable = 0)
+        HashMap<Integer, Integer> lowResult = new HashMap<>();
+        decomposeRec(low, field, fieldVarStart, fieldVarEnd, lowResult, cache);
+
+        // Process high branch (variable = 1)
+        HashMap<Integer, Integer> highResult = new HashMap<>();
+        decomposeRec(high, field, fieldVarStart, fieldVarEnd, highResult, cache);
+
+        // Get the variable node for this BDD variable
+        // bddVar is in the output BDD variable space (0..totalBits-1)
+        // For vars 0..maxBitNum-1, use sharedBddVars
+        // For vars maxBitNum..totalBits-1, use expandedBddVars
+        int varNode;
+        if (bddVar < maxBitNum) {
+            varNode = sharedBddVars[bddVar];
+        } else {
+            varNode = expandedBddVars.get(bddVar - maxBitNum);
+        }
+        int notVarNode = bddEngine.not(varNode);
+
+        // Combine: for each next BDD, combine the edge BDDs
+        for (Map.Entry<Integer, Integer> entry : lowResult.entrySet()) {
+            int nextBDD = entry.getKey();
+            int edgeBDD = bddEngine.ref(bddEngine.and(notVarNode, entry.getValue()));
+            bddEngine.deref(entry.getValue());
+            result.merge(nextBDD, edgeBDD, (old, n) -> {
+                int merged = bddEngine.orTo(old, n);
+                bddEngine.deref(n);
+                return merged;
+            });
+        }
+
+        for (Map.Entry<Integer, Integer> entry : highResult.entrySet()) {
+            int nextBDD = entry.getKey();
+            int edgeBDD = bddEngine.ref(bddEngine.and(varNode, entry.getValue()));
+            bddEngine.deref(entry.getValue());
+            result.merge(nextBDD, edgeBDD, (old, n) -> {
+                int merged = bddEngine.orTo(old, n);
+                bddEngine.deref(n);
+                return merged;
+            });
+        }
+    }
+
+    /**
+     * Replace expanded variables back to shared variables for a field.
+     * Expanded var (expandedIndex + i) -> shared var (sharedOffset + i)
+     *
+     * Note: expandedBddVars starts from var maxBitNum, so:
+     * - expandedBddVars[0] = var maxBitNum
+     * - expandedIndex = cumulativeOffset - maxBitNum
+     */
+    private static int replaceVarsToShared(int bdd, int field) {
+        if (bdd == 0 || bdd == 1) {
+            return bdd;
+        }
+
+        int bitNum = pendingFieldBitNums.get(field);
+        int sharedOffset = maxBitNum - bitNum;
+
+        int cumulativeOffset = 0;
+        for (int f = 0; f < field; f++) {
+            cumulativeOffset += pendingFieldBitNums.get(f);
+        }
+
+        // For field 0 (or early fields where cumulative < maxBitNum), vars are already in shared space
+        if (cumulativeOffset < maxBitNum) {
+            // If sharedOffset == cumulativeOffset, the vars are already correct
+            if (sharedOffset == cumulativeOffset) {
+                return bddEngine.ref(bdd);
+            }
+            // Otherwise, we'd need to remap within shared space, but for same-size fields this shouldn't happen
+            return bddEngine.ref(bdd);
+        }
+
+        ensureExpandedVars();
+
+        // Calculate index in expandedBddVars
+        int expandedIndex = cumulativeOffset - maxBitNum;
+
+        int[] fromVars = new int[bitNum];
+        int[] toVars = new int[bitNum];
+        for (int i = 0; i < bitNum; i++) {
+            fromVars[i] = expandedBddVars.get(expandedIndex + i);
+            toVars[i] = sharedBddVars[sharedOffset + i];
+        }
+
+        jdd.bdd.Permutation perm = bddEngine.createPermutation(fromVars, toVars);
+        return bddEngine.ref(bddEngine.replace(bdd, perm));
     }
 
     public static ArrayList<int[]> toArray(NDD curr) {
@@ -839,26 +1100,138 @@ public class NDD {
         }
     }
 
+    /**
+     * Convert NDD to BDD.
+     * In shared variable mode, each field's edge BDD needs to be replaced
+     * to use independent variable space before AND-ing together.
+     *
+     * Variable mapping:
+     * - Field i uses shared vars [offset_i, offset_i + bitNum_i) where offset_i = maxBitNum - bitNum_i
+     * - In the output BDD, field i uses vars [cumulative_i, cumulative_i + bitNum_i)
+     *   where cumulative_i = sum of bitNums for fields 0 to i-1
+     *
+     * @param root The NDD root node.
+     * @return The BDD representation with independent variable space per field.
+     */
     public static int toBDD(NDD root) {
-        int result = toBDDRec(root);
-        bddEngine.deref(result);
-        return result;
+        // Ensure we have BDD variables for the expanded space
+        ensureExpandedVars();
+
+        // Note: result is already ref'd by toBDDRec, caller is responsible for deref
+        return toBDDRec(root, 0);
     }
 
-    private static int toBDDRec(NDD current) {
+    /**
+     * Recursive helper for toBDD.
+     * @param current Current NDD node.
+     * @param expectedField The expected field at this level.
+     * @return BDD with replaced variables.
+     */
+    private static int toBDDRec(NDD current, int expectedField) {
         if (current.isTrue()) {
             return 1;
         } else if (current.isFalse()) {
             return 0;
-        } else {
-            int result = 0;
-            for (Map.Entry<NDD, Integer> entry : current.edges.entrySet()) {
-                int temp = bddEngine.andTo(toBDDRec(entry.getKey()), entry.getValue());
-                result = bddEngine.orTo(result, temp);
-                bddEngine.deref(temp);
-            }
-            return result;
         }
+
+        // Handle skipped fields (all values valid)
+        if (current.field > expectedField) {
+            // Skip this field, continue with current node
+            return toBDDRec(current, expectedField + 1);
+        }
+
+        int result = 0;
+        for (Map.Entry<NDD, Integer> entry : current.edges.entrySet()) {
+            // Get the edge BDD and replace its variables
+            int edgeBDD = entry.getValue();
+            int replacedBDD = replaceVarsForField(edgeBDD, current.field);
+
+            // Recursively process child
+            int childBDD = toBDDRec(entry.getKey(), current.field + 1);
+
+            // AND them together
+            int temp = bddEngine.ref(bddEngine.and(replacedBDD, childBDD));
+            bddEngine.deref(replacedBDD);
+            bddEngine.deref(childBDD);
+
+            // OR with result
+            result = bddEngine.orTo(result, temp);
+            bddEngine.deref(temp);
+        }
+        return result;
+    }
+
+    /**
+     * Cache for expanded BDD variables (beyond shared variables).
+     * Index i contains the BDD node for variable i.
+     */
+    private static ArrayList<Integer> expandedBddVars;
+
+    /**
+     * Ensure we have BDD variable nodes for the expanded variable space.
+     */
+    private static void ensureExpandedVars() {
+        if (expandedBddVars == null) {
+            expandedBddVars = new ArrayList<>();
+        }
+
+        // Total expanded vars needed = sum of bits for all fields - maxBitNum
+        // (field 0's bits can reuse shared vars)
+        int totalBits = 0;
+        for (int i = 0; i <= fieldNum; i++) {
+            totalBits += pendingFieldBitNums.get(i);
+        }
+        int expandedVarsNeeded = Math.max(0, totalBits - maxBitNum);
+
+        while (expandedBddVars.size() < expandedVarsNeeded) {
+            expandedBddVars.add(bddEngine.createVar());
+        }
+    }
+
+    /**
+     * Replace shared BDD variables to expanded variables for a specific field.
+     *
+     * Variable layout in output BDD:
+     * - Field 0: vars [0, bitNum0)  - uses shared vars directly
+     * - Field 1: vars [bitNum0, bitNum0+bitNum1)  - uses expandedBddVars
+     * - Field i: vars [cumulativeOffset, cumulativeOffset+bitNum_i)
+     *
+     * @param bdd The BDD to transform.
+     * @param field The field index.
+     * @return BDD with variables replaced to the correct position.
+     */
+    private static int replaceVarsForField(int bdd, int field) {
+        if (bdd == 0 || bdd == 1) {
+            return bdd;
+        }
+
+        int bitNum = pendingFieldBitNums.get(field);
+        int sharedOffset = maxBitNum - bitNum;
+
+        // Calculate cumulative offset for this field in the expanded space
+        int cumulativeOffset = 0;
+        for (int f = 0; f < field; f++) {
+            cumulativeOffset += pendingFieldBitNums.get(f);
+        }
+
+        // For early fields (cumulativeOffset < maxBitNum), use shared vars directly
+        if (cumulativeOffset < maxBitNum) {
+            return bddEngine.ref(bdd);
+        }
+
+        ensureExpandedVars();
+
+        // Build replacement: shared var node -> expanded var node
+        int[] fromVars = new int[bitNum];
+        int[] toVars = new int[bitNum];
+        int expandedIndex = cumulativeOffset - maxBitNum;
+        for (int i = 0; i < bitNum; i++) {
+            fromVars[i] = sharedBddVars[sharedOffset + i];
+            toVars[i] = expandedBddVars.get(expandedIndex + i);
+        }
+
+        jdd.bdd.Permutation perm = bddEngine.createPermutation(fromVars, toVars);
+        return bddEngine.ref(bddEngine.replace(bdd, perm));
     }
 
     public static void print(NDD root) {
@@ -881,7 +1254,7 @@ public class NDD {
             }
         }
     }
-    
+
     public static void printDot(NDD root, String filename) {
         StringBuilder sb = new StringBuilder();
         sb.append("digraph NDD_Graph {\n");
@@ -897,7 +1270,7 @@ public class NDD {
             FileWriter writer = new FileWriter(filename);
             
             HashMap<Integer, Integer> bddRoots = new HashMap<>();
-            collectBDDRoots(root, bddRoots, new HashSet<NDD>());
+            collectBDDRoots(root, bddRoots, new HashSet<>());
             
             for (Integer bddId : bddRoots.keySet()) {
                 if (bddId <= 1) continue;
@@ -910,7 +1283,7 @@ public class NDD {
                 
                 sb.append("    true_").append(bddId).append(" [shape=box, label=\"true#").append(bddId).append("\", style=filled];\n");
                 sb.append("    false_").append(bddId).append(" [shape=box, label=\"false#").append(bddId).append("\", style=filled];\n");
-                printBDDSubgraph(bddId, bddId, sb, new HashSet<Integer>());
+                printBDDSubgraph(bddId, bddId, sb, new HashSet<>());
                 
                 sb.append("  }\n\n");
             }
