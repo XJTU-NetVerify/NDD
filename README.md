@@ -1,22 +1,50 @@
-# A library for Network Decision Diagram
+# A library for Network Decision Diagram (NDD)
 
-This is a prototype implementation of the following [paper](https://xjtu-netverify.github.io/papers/NDD/NDD-final-version.pdf):
+This is an implementation of the following [paper](https://xjtu-netverify.github.io/papers/NDD/NDD-final-version.pdf):
 
 > Zechun Li, Peng Zhang, Yichi Zhang, and Hongkun Yang. "NDD: A Decision Diagram for Network Verification", NSDI 2025
 
 ## Introduction
 
-**Network Decision Diagram (NDD)** is a new decision diagram customized for network verification. It is more efficient than BDD when used for network verification, in terms of memory and computation. NDD wraps BDD with another layers of decision diagram, such that each node represents a **field** of the network, and each edge is labeled with a BDD encoding the values of that field. Due to the **locality** of fields in networks, NDD can significantly reduce the redundant nodes. 
+**Network Decision Diagram (NDD)** is a new decision diagram based on the classical Binary Decision Diagram (BDD).
+In BDD, each node looks at a single **bit**, and branches based on whether the bit is true or false;
+while in NDD, each node looks at a **field** which either bears some semantics meaning, say an IP address, or simply a fixed number of bits.
+Since the node may have more than 2 branches, we represent the branching condition with external data structures.
+Current, NDD uses BDD to represent the branching condition: if the field has $n$ bits, then the condition for each branch is a BDD with $n$ variables.
+In this sense, NDD can be seen as wrapping the original BDD with another layer of decision diagram, and therefore can also be interpreted as "Nested Decision Diagram".
 
-As an example, the figure below shows three BDDs in (a), and three equivalent NDDs in (c), each edge of which is labelled by per-field BDDs in (b).
+## Benchmark
+
+Benchmark (time `second`) on **NQueens**
+
+| N | BDD (JDD) | BDD (JavaBDD - JFactory) | NDD (JNDD) |
+| - | --------- | ------------- | -------------------- |
+| 6 | 0.017 | 0.056 | 0.012 |
+| 7 | 0.023 | 0.072 | 0.019 |
+| 8 | 0.04  | 0.109 | 0.038 |
+| 9 | 0.223 | 0.28 | 0.176 |
+| 10 | 0.615 | 0.913 | 0.344 |
+| 11 | 2.567 | 4.424 | 2.257 |
+| 12 | 19.109 | 33.024 | 12.417 |
+
+More benchmarks will be available soon.
+
+## The Origin of NDD
+
+NDD was originally proposed for network verification, where each NDD node represents a packet header field (destination IP address)
+We observed NDD was more efficient than BDD in terms of memory and computation.
+The reason is due to the **locality** of field-based matching semantics, NDD can significantly reduce the number of BDD nodes for each field.
+The figure below shows an example, where the three BDDs in (a) can be represented by three equivalent NDDs in (c), 
+where each edge of which is labelled by per-field BDDs in (b).
 
 ![fig4 drawio](NDD.svg)
 
+<!--
 **Atomized Network Decision Diagram (Atomized NDD)** is an extension of NDD, which offers a native support for equivalence classes, a key technique underlying most network verifiers.
 In atomized NDD, the label of each edge is a set of atoms, instead of a BDD as in standard NDD.
 Using atomized NDD, network verifiers do not need to implement their own algorithms for computing and updating equivalence classes.
 
-<!--
+
 ### Definitions
 
 **Definition 1.** A **Network Decision Diagram (NDD)** is a rooted, directed acyclic graph with:
@@ -197,19 +225,7 @@ The `triggered by` field indicates whether the NDD GC was:
 - `JDD prehook`: Called automatically before JDD GC to ensure NDD nodes are cleaned up first
 - `NDD self`: Triggered by NDD's own table size limit
 
-## Benchmark
 
-Benchmark (time `second`) on **NQueens**
-
-| N | BDD (JDD) | BDD (JavaBDD - JFactory) | NDD (JNDD) |
-| - | --------- | ------------- | -------------------- |
-| 6 | 0.017 | 0.056 | 0.012 |
-| 7 | 0.023 | 0.072 | 0.019 |
-| 8 | 0.04  | 0.109 | 0.038 |
-| 9 | 0.223 | 0.28 | 0.176 |
-| 10 | 0.615 | 0.913 | 0.344 |
-| 11 | 2.567 | 4.424 | 2.257 |
-| 12 | 19.109 | 33.024 | 12.417 |
 
 ## Bibtex
 
