@@ -77,6 +77,21 @@
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
+                <configuration>
+                    <excludes>
+                        <exclude>**/FiniteDomainZddNDDSolution.java</exclude>
+                        <exclude>**/application/wan/bdd/**</exclude>
+                        <exclude>**/application/wan/ndd/**</exclude>
+                        <exclude>**/AtomizedNDD.java</exclude>
+                        <exclude>**/AtomizedNodeTable.java</exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-assembly-plugin</artifactId>
                 <configuration>
                     <descriptorRefs>
