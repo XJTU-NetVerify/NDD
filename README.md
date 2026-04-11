@@ -1,256 +1,128 @@
-# A library for Network Decision Diagram (NDD)
+# NDD-SoA
 
-This is an implementation of the following [paper](https://xjtu-netverify.github.io/papers/NDD/NDD-final-version.pdf):
+`NDD-SoA` is a performance-oriented branch of **Network Decision Diagram (NDD)**. It keeps the original NDD idea and benchmark targets, but replaces the object-heavy internal representation with a structure-of-arrays layout and a shared edge-collection stack so the hot path allocates less and reuses more.
 
-> Zechun Li, Peng Zhang, Yichi Zhang, and Hongkun Yang. "NDD: A Decision Diagram for Network Verification", NSDI 2025
+This tree is prepared as the optimized branch snapshot for upstreaming back into `NDD`. The original paper is: [NDD: A Decision Diagram for Network Verification](https://xjtu-netverify.github.io/papers/NDD/NDD-final-version.pdf), NSDI 2025.
 
-## Introduction
+## What Changed
 
-**Network Decision Diagram (NDD)** is a new decision diagram based on the classical Binary Decision Diagram (BDD).
-In BDD, each node looks at a single **bit**, and branches based on whether the bit is true or false;
-while in NDD, each node looks at a **field** which either bears some semantics meaning, say an IP address, or simply a fixed number of bits.
-Since the node may have more than 2 branches, we represent the branching condition with external data structures.
-Current, NDD uses BDD to represent the branching condition: if the field has $n$ bits, then the condition for each branch is a BDD with $n$ variables.
-In this sense, NDD can be seen as wrapping the original BDD with another layer of decision diagram, and therefore can also be interpreted as "Nested Decision Diagram".
+- Replaced the original nested `HashMap`-based node representation with array-backed storage in [`NodeTable.java`](src/main/java/org/ants/jndd/nodetable/NodeTable.java).
+- Removed per-node `NDD` objects from the JNDD hot path; JNDD operations now work on integer node IDs backed by SoA storage.
+- Replaced temporary edge maps with one global stack-based edge collector in [`NDD.java`](src/main/java/org/ants/jndd/diagram/NDD.java).
+- Right-aligned fields so compatible domains share the same underlying BDD variables, reducing BDD node counts.
+- Kept `JavaNDD` (`NDDFactory`) usage available for codebases that prefer a `BDDFactory`-style API.
 
-## Benchmark
+## Variant Map
 
-Benchmark (time `second`) on **NQueens**
+The benchmark results in this repository use the following names:
 
-| N | BDD (JDD) | BDD (JavaBDD - JFactory) | NDD (JNDD) |
-| - | --------- | ------------- | -------------------- |
-| 6 | 0.017 | 0.056 | 0.012 |
-| 7 | 0.023 | 0.072 | 0.019 |
-| 8 | 0.04  | 0.109 | 0.038 |
-| 9 | 0.223 | 0.28 | 0.176 |
-| 10 | 0.615 | 0.913 | 0.344 |
-| 11 | 2.567 | 4.424 | 2.257 |
-| 12 | 19.109 | 33.024 | 12.417 |
+| Variant | Meaning |
+| --- | --- |
+| `ndd` | Original object-based NDD baseline |
+| `ndd-reuse` | Baseline NDD plus shared-BDD-variable reuse |
+| `ndd-soa` | The version in this repository: reuse + global edge stack + SoA node table |
 
-More benchmarks will be available soon.
+## Repository Layout
 
-## The Origin of NDD
+- [`src/`](src/) contains the Java source code, including `jndd`, `javandd`, and application examples.
+- [`doc/javadoc/`](doc/javadoc/) contains the regenerated API documentation for the SoA branch.
+- [`lib/`](lib/) contains bundled third-party artifacts such as `jdd-111.jar`.
+- [`results/`](results/) contains the current benchmark data and plots for this branch.
+- [`wiki/Optimization-Summary.md`](wiki/Optimization-Summary.md) summarizes the optimization work in reviewer-facing form.
+- [`wiki/`](wiki/) contains GitHub Wiki-ready pages for installation, usage, parameters, and detailed benchmark results.
 
-NDD was originally proposed for network verification, where each NDD node represents a packet header field (destination IP address)
-We observed NDD was more efficient than BDD in terms of memory and computation.
-The reason is due to the **locality** of field-based matching semantics, NDD can significantly reduce the number of BDD nodes for each field.
-The figure below shows an example, where the three BDDs in (a) can be represented by three equivalent NDDs in (c), 
-where each edge of which is labelled by per-field BDDs in (b).
+## Quick Start
 
-![fig4 drawio](NDD.svg)
+Build the project with Maven:
 
-<!--
-**Atomized Network Decision Diagram (Atomized NDD)** is an extension of NDD, which offers a native support for equivalence classes, a key technique underlying most network verifiers.
-In atomized NDD, the label of each edge is a set of atoms, instead of a BDD as in standard NDD.
-Using atomized NDD, network verifiers do not need to implement their own algorithms for computing and updating equivalence classes.
-
-
-### Definitions
-
-**Definition 1.** A **Network Decision Diagram (NDD)** is a rooted, directed acyclic graph with:
-
-- two terminal nodes ***true*** and ***false***, with an out-degree of zero.
-
-- a set of non-terminal nodes. Each node u is associated with a variable var(u) representing a field of one or multiple bits, and has a set of outgoing edges, denoted as edges(u). Each e $\in$ edges(u) points to a successor of u, denoted as next(e), and has a predicate over the variable var(u), denoted as label(e).
-
-- $\forall u, \forall x, y \in edges(u)$ with $x \ne y$: $label(x)\wedge label(y) = false$, and $\bigvee_{e \in edges(u)}label(e) = true$.
-
-**Todo: add a figure of redundancy in NDD.**
-
-**Definition 2.** A NDD is said to be an **Ordered (ONDD)** if the field variables follow a fixed variable order
-(say $f_1 < f_2 < ...,< f_n$ where $f_i < f_j$ means variable $f_i$ appears before variable $f_j$) on all paths through the graph. An ONDD is said to be a **Reduced (RONDD)** if it satisfies the following three conditions:
-- Uniqueness: no two distinct nodes represent the same variable and have the same successors;
-- No redundant node: no non-terminal node has only edge e with $label(e) = true$;
-- No redundant edges: no two edges from the same node point to the same successor, i.e., $\forall u,\forall x, y \in edge(u) : next(x) = next(y) \Rightarrow x = y$.
-
-**Definition 3.** Given a set of NDDs $N$ for a set of variables $F$, we say $A(f) = {{a_1}^f,...,{a_k}^f}$ is the set of **atoms** for variable $f \in F$, with respect with $N$ , if it satisfies the following conditions:
-- $a_i^f \ne false,\forall i ∈ {1,..., k}$;
-- $\vee_{i=1}^k a_i^f = true$;
-- $a_i^f∧a_j^f = false$, if $i \ne j$;
-- $\forall e \in edges(u)$, $u$ is a node of $N$ $var(u) = f$: there exists a set $atoms(e) \subset A(f)$, s.t., $label(e) = $\bigvee_{a \in atoms(e)}a$;
-- $k$ is the minimum number satisfy the above properties.
-
-**Definition 4.** Given a set of NDDs $N$, we say $N^a$ a is the **atomized NDDs** of $N$, if $N^a = N$ , except that for each $e$ of $N^a$: $label(e) \leftarrow atoms(e)$.
--->
-
-## Project Structure
-
-- `/doc` stores an api documentation generated by `javadoc`.
-- `/lib` stores the third party jar packages.
-    - `jdd-111.jar` is a modified version of [jdd library](https://bitbucket.org/vahidi/jdd). The jar has been decompiled into `/src/main/java/jdd` so it can be edited directly.
-    - `javabdd_1.0b2.tar.gz` is the original version of [javabdd](https://sourceforge.net/projects/javabdd/) (for comparison).
-- `/results` stores some experimental results generated by codes in `/src/experiment`.
-- `/src` stores source code.
-
-## Getting Started
-
-* lib
-    * `/lib/ndd-1.0-jar-with-dependencies.jar`
-    * [`/lib/jdd-111.jar`](https://github.com/Augists/jdd/releases/tag/111-modified)
-    
-add `<dependency>` in `pom.xml`
-
-```xml
-<dependencies>
-    <dependency>
-        <groupId>org.ants</groupId>
-        <artifactId>ndd</artifactId>
-        <version>1.0</version>
-        <scope>system</scope>
-        <systemPath>${project.basedir}/lib/ndd-1.0-jar-with-dependencies.jar</systemPath>
-    </dependency>
-</dependencies>
+```bash
+mvn -DskipTests package
 ```
 
-After Maven sync, `jndd` and `javandd` can be chosen to import by:
+The default Maven build targets the core `JNDD` / `JavaNDD` paths and the maintained examples. Experimental paths that still depend on the pre-SoA object-based API are excluded from the default compile for now:
+
+- `org.ants.jndd.diagram.AtomizedNDD`
+- `org.ants.jndd.nodetable.AtomizedNodeTable`
+- `application.nqueen.FiniteDomainZddNDDSolution`
+- `application.wan.bdd.*`
+- `application.wan.ndd.*`
+
+For the low-level `JNDD` API, the optimized implementation now uses integer node IDs:
 
 ```java
-import org.ants.jndd.*;
-// or
-import org.ants.javandd.*;
-```
+NDD.initNDD(nddTableSize, nddCacheSize, bddTableSize, bddCacheSize);
 
-### JNDD
-
-```java
-/**
- * init NDD library
- * define cache size by `initNDD(NDD_TABLE_SIZE, NDD_CACHE_SIZE, BDD_TABLE_SIZE, BDD_CACHE_SIZE)` if required (default 10000)
- */
-NDD.initNDD(NDD_TABLE_SIZE, BDD_TABLE_SIZE, BDD_CACHE_SIZE);
-
-/**
- * declare ndd fields based on the situation {x, y, z}
- * declareField() only records the bit count, does not create BDD variables yet
- */
-for (int i = 0; i < n; i++) {
-    NDD.declareField(n);    // same number of variables in every field in nqueens
+for (int i = 0; i < fieldCount; i++) {
+    NDD.declareField(fieldBitWidths[i]);
 }
-
-/**
- * generate fields after all declarations
- * this creates shared BDD variables with right-alignment for maximum node reuse
- */
 NDD.generateFields();
 
-/**
- * ndd logical operation
- */
-NDD[] orBatch = new NDD[n];
-for (int i = 0; i < n; i++) {
-    /**
-     * `getTrue()` or `getFalse()` to get NDD terminal nodes
-     */
-    NDD condition = NDD.getFalse();
-    for (int j = 0; j < n; j++) {
-        /**
-         * `getVar(field_num, num)` same as `ithVar` after `createVar` in BDD
-         * `orTo` will free (`deref`) the NDD variable in the first parameter
-         * use `or` instead to keep it
-         */
-        condition = NDD.orTo(condition, NDD.getVar(i, j));
-    }
-    orBatch[i] = condition;
+int acc = NDD.getFalse();
+for (int bit = 0; bit < fieldBitWidths[0]; bit++) {
+    acc = NDD.orTo(acc, NDD.getVar(0, bit));
 }
 
-NDD queen = NDD.getTrue();
-
-/**
- * sat count for result
- */
-NDD.satCount(queen);
+double sat = NDD.satCount(acc);
 ```
 
-### JavaNDD
+For the `JavaNDD` factory-style API, see [`wiki/Usage.md`](wiki/Usage.md) and [`src/main/java/org/ants/javandd/README.md`](src/main/java/org/ants/javandd/README.md).
 
-> If you are using a BDD version of factory and changing to NDD, please refer to [`src/main/java/org/ants/javandd/README.md`](/src/main/java/org/ants/javandd/README.md)
+## Performance Snapshot
 
-```java
-BDDFactory factory = new NDDFactory(BDD_TABLE_SIZE, BDD_CACHE_SIZE);
+### NQueens
 
-int[] fields = {}; // partion fields
+Compared with the original `NDD` baseline, `NDD-SoA` keeps the same solution counts while reducing runtime and memory use on the tested Java NQueens workload:
 
-factory.setVarNum(fields, NDD_TABLE_SIZE);
+| Size | NDD time (s) | NDD-SoA time (s) | Speedup | NDD max RSS (KB) | NDD-SoA max RSS (KB) | RSS reduction |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 10 | 0.744 | 0.221 | 3.37x | 314148 | 134680 | 57.1% |
+| 11 | 2.835 | 0.792 | 3.58x | 603572 | 218416 | 63.8% |
+| 12 | 14.821 | 4.353 | 3.40x | 2233308 | 579796 | 74.0% |
 
-BDD TRUE = factory.one();
-BDD FALSE = factory.zero();
+Detailed tables and plots: [`wiki/Results-NQueens.md`](wiki/Results-NQueens.md)
 
-BDD[] bdd_list = {};
-for () {
-    // or use `factory.getVar(field_num, num)` but it is incompatible with other factory
-    // `ithVar(i)` will find its `field_num` first
-    bdd_list[i] = factory.ithVar(i);
-}
+### SRE
 
-for (BDD bdd : bdd_list) {
-    TRUE.and(bdd);
-    FALSE.orWith(bdd);  // `applyWith` will free (`deref`) the BDD in parameter
-}
+On the SRE benchmark set, the SoA implementation consistently improves over the original `ndd` variant on medium and large cases:
 
-return TRUE.satCount();
-```
+| Dataset | Metric | NDD | NDD-SoA | Improvement |
+| --- | --- | ---: | ---: | ---: |
+| `bgp_fattree08`, `MF=3` | total time (s) | 60.829 | 25.602 | 2.38x faster |
+| `bgp_fattree08`, `MF=3` | peak RSS (MB) | 4220.4 | 2046.0 | 51.5% lower |
+| `bgp_fattree08`, `MF=3` | BDD nodes | 38199434 | 3208829 | 91.6% fewer |
+| `bgp_fattree12`, `MF=3` | total time (s) | 636.086 | 230.906 | 2.75x faster |
+| `bgp_fattree12`, `MF=3` | peak RSS (MB) | 26274.3 | 18113.7 | 31.1% lower |
+| `bgp_fattree16`, `MF=2` | total time (s) | 1178.287 | 472.056 | 2.50x faster |
 
-> It is our first time to get access to the APIs in `JavaBDD`. If some are misunderstood, please contact us or Pull Request if you can. Your contribution to **N**etwork **D**ecision **D**iagram is much appreciated.
+Detailed tables: [`wiki/Results-SRE.md`](wiki/Results-SRE.md)
 
-## GC Log Output
+## Documentation
 
-NDD provides optional GC (Garbage Collection) log output for debugging and performance analysis. When enabled, detailed logs will be printed before and after GC operations for both JDD (BDD layer) and NDD layers.
+- Overview: [`wiki/Home.md`](wiki/Home.md)
+- Optimization summary: [`wiki/Optimization-Summary.md`](wiki/Optimization-Summary.md)
+- Installation and build: [`wiki/Installation.md`](wiki/Installation.md)
+- API usage: [`wiki/Usage.md`](wiki/Usage.md)
+- Parameter guide: [`wiki/Parameters.md`](wiki/Parameters.md)
+- Benchmark methodology: [`wiki/Benchmarks.md`](wiki/Benchmarks.md)
+- Design notes for this branch: [`wiki/Design-Notes.md`](wiki/Design-Notes.md)
 
-### Enable GC Log
+## Paper and Citation
 
-```java
-import jdd.util.Options;
-
-// Enable GC log output
-Options.gc_log = true;
-
-// Disable GC log output (default)
-Options.gc_log = false;
-```
-
-### Log Output Format
-
-When `Options.gc_log = true`, GC operations will output logs like:
-
-```
-[JDD GC] Start: table_size=10000, free_nodes=500, dead_nodes=100
-[NDD GC] Start (triggered by JDD prehook): currentSize=5000, tableSize=100000
-[NDD GC] End (triggered by JDD prehook): freed=200, currentSize=4800, time=15ms
-[JDD GC] End: #5, freed=300, free_nodes=800, time=25ms
-```
-
-For JavaNDD (NDDFactory), the log prefix is `[JavaNDD GC]` instead of `[NDD GC]`.
-
-The `triggered by` field indicates whether the NDD GC was:
-- `JDD prehook`: Called automatically before JDD GC to ensure NDD nodes are cleaned up first
-- `NDD self`: Triggered by NDD's own table size limit
-
-
-
-## Bibtex
+- Paper PDF: <https://xjtu-netverify.github.io/papers/NDD/NDD-final-version.pdf>
+- NSDI 2025 page: <https://www.usenix.org/conference/nsdi25/presentation>
 
 ```bibtex
-@inproceedings {NDD,
-  author = {Zechun Li, Peng Zhang, Yichi Zhang, Hongkun Yang},
+@inproceedings{NDD,
+  author = {Zechun Li and Peng Zhang and Yichi Zhang and Hongkun Yang},
   title = {{NDD}: A Decision Diagram for Network Verification},
   booktitle = {22th USENIX Symposium on Networked Systems Design and Implementation (NSDI 25)},
   year = {2025},
-  isbn = {},
-  address = {},
-  pages = {},
   url = {https://www.usenix.org/conference/nsdi25/presentation},
   publisher = {USENIX Association},
   month = apr
 }
 ```
 
-### Contact
-
-- Zechun Li (1467874668@qq.com)
-- Peng Zhang (p-zhang@xjtu.edu.cn)
-- Yichi Zhang (augists@outlook.com)
-- Hongkun Yang (hkyang@google.com)
-
 ## License
 
-Apache-2.0 License, see [LICENSE](LICENSE).
+Apache-2.0. See [`LICENSE`](LICENSE).
