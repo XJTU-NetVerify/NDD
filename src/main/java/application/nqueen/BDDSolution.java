@@ -115,9 +115,24 @@ public class BDDSolution {
         }
 
         double endTime = System.currentTimeMillis();
+        printResourceUsage(queen);
         return "\t" + String.format("" + (endTime - startTime) / 1000, ".3f") + "\t" + bddEngine.satCount(queen);
     }
+    private static void printResourceUsage(int rootBDD) {
+        
+        
+        // 1. 内存统计
+        Runtime runtime = Runtime.getRuntime();
+        long totalMem = runtime.totalMemory();
+        long freeMem = runtime.freeMemory();
+        long usedMem = (totalMem - freeMem) / 1024 / 1024;
+        
+        System.out.println("Heap Memory Used : " + usedMem + " MB");
 
+        long nodeCount = bddEngine.nodeCount(rootBDD);
+        System.out.println("BDD Active Nodes : " + nodeCount);
+
+    }
     public static void main(String[] args) {
         // Solution(1);
         // Solution(2);
