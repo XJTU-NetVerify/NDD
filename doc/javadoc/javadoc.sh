@@ -1,1 +1,0 @@
-/usr/local/java/jdk-23/bin/javadoc -J-Duser.language= -J-Duser.country= @options @packages
