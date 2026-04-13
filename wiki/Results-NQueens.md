@@ -1,19 +1,20 @@
-# Results: NQueens
+# NQueens Benchmark
 
-The detailed NQueens measurements below are taken from [`results/nqueens_metrics.csv`](../results/nqueens_metrics.csv). This page now includes the full cross-library table for sizes `8` through `12`.
+This page shows a detailed NQueens benchmark [`results/nqueens_metrics.csv`](../results/nqueens_metrics.csv). 
 
 ## Libraries Included
 
 - `BuDDy`
-- `Sylvan`
 - `CUDD`
 - `JDD`
+- `Sylvan`
 - `JSylvan`
+- `DD-BDD`
+- `DD-CBDD`
 - `NDD`
 - `NDD-reuse`
 - `NDD-SoA`
-- `DD-BDD`
-- `DD-CBDD`
+
 
 ## Full Results Table
 
@@ -76,13 +77,9 @@ The detailed NQueens measurements below are taken from [`results/nqueens_metrics
 
 ![NQueens time](../results/nqueens_time_sec.png)
 
-![NQueens time log](../results/nqueens_time_sec_log.png)
-
 ### Memory
 
 ![NQueens max RSS](../results/nqueens_max_rss_kb.png)
-
-![NQueens max RSS log](../results/nqueens_max_rss_kb_log.png)
 
 ### Node Counts
 
