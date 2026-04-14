@@ -14,6 +14,7 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
@@ -1266,30 +1267,165 @@ public class NDD {
      * @param filename Output file path.
      */
     public static void printDot(int root, String filename) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("digraph NDD_Graph {\n");
+        sb.append("  forcelabels=true;\n");
+        sb.append("  rankdir=TD;\n");
+        sb.append("  compound=true;\n");
+        sb.append("  overlap=false;\n");
+        sb.append("  splines=true;\n");
+        sb.append("  ranksep=0.5;\n");
+        sb.append("  nodesep=0.5;\n");
+
+        IntHashSet visitedNDD = new IntHashSet(1024);
+        sb.append("  NDD_TRUE [shape=box, style=filled, label=\"NDD TRUE\"];\n");
+
+        // Collect BDD roots per field.
+        Map<Integer, Set<Integer>> fieldToBDDRoots = new HashMap<>();
+        collectFieldBDDs(root, fieldToBDDRoots, visitedNDD);
+        visitedNDD.clear();
+
+        // Draw BDD subgraphs.
+        for (Map.Entry<Integer, Set<Integer>> entry : fieldToBDDRoots.entrySet()) {
+            int field = entry.getKey();
+            Set<Integer> bddRoots = entry.getValue();
+
+            sb.append("  subgraph cluster_field_").append(field).append(" {\n");
+            sb.append("    label=\"\";\n");
+            sb.append("    style=dashed;\n");
+            sb.append("    color=blue;\n");
+            sb.append("    bgcolor=lightgrey;\n");
+            sb.append("    margin=0;\n");
+            sb.append("    pad=0;\n");
+
+            HashSet<Integer> visitedBDD = new HashSet<>();
+            for (int bddId : bddRoots) {
+                printBDDSubgraph(bddId, field, sb, visitedBDD, bddRoots);
+            }
+
+            sb.append("    TRUE_").append(field).append(" [shape=box, style=filled, label=\"TRUE\", fillcolor=lightgrey];\n");
+
+            sb.append("    title_").append(field)
+                    .append(" [shape=plaintext, label=\"Field ").append(field + 1)
+                    .append("\", fontcolor=black, fontsize=12, group=field").append(field).append("];\n");
+            sb.append("    { rank=sink; title_").append(field).append("; }\n");
+
+            sb.append("    TRUE_").append(field).append(" -> title_").append(field)
+                    .append(" [style=invis, minlen=1];\n");
+
+            sb.append("  }\n\n");
+        }
+
+        visitedNDD.clear();
+        printNDDStructure(root, sb, visitedNDD);
+
+        sb.append("}\n");
+
         try (FileWriter writer = new FileWriter(filename)) {
-            StringBuilder sb = new StringBuilder();
-            sb.append("digraph NDD_Graph {\nrankdir=TD;\ncompound=true;\n");
-            sb.append("  NDD_TRUE [shape=box, style=filled, label=\"TRUE\"];\n");
-            sb.append("  NDD_FALSE [shape=box, style=filled, label=\"FALSE\"];\n");
-            IntHashSet visited = new IntHashSet(1024);
-            printNDDStructure(root, sb, visited);
-            sb.append("}\n");
             writer.write(sb.toString());
-        } catch (IOException e) { e.printStackTrace(); }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
-    /** Recursively append current node and edges to Dot output. */
+    private static void collectFieldBDDs(int node, Map<Integer, Set<Integer>> fieldToBDDRoots, IntHashSet visited) {
+        if (isTerminal(node) || visited.contains(node)) return;
+        visited.add(node);
+        int field = nodeTable.getField(node);
+        int count = nodeTable.getEdgeCount(node);
+        for (int i = 0; i < count; i++) {
+            int next = nodeTable.getEdgeTarget(node, i);
+            int bddId = nodeTable.getEdgeLabel(node, i);
+            if (bddId > 1) {
+                fieldToBDDRoots.computeIfAbsent(field, k -> new HashSet<>()).add(bddId);
+            }
+            collectFieldBDDs(next, fieldToBDDRoots, visited);
+        }
+    }
+
+    private static void printBDDSubgraph(int currentBDD, int field, StringBuilder sb,
+                                         HashSet<Integer> visited, Set<Integer> rootSet) {
+        if (currentBDD <= 1 || visited.contains(currentBDD)) return;
+        visited.add(currentBDD);
+
+        int var = bddEngine.getVar(currentBDD);
+        int high = bddEngine.getHigh(currentBDD);
+        int low = bddEngine.getLow(currentBDD);
+
+        int[] fieldVars = bddVarsPerField.get(field);
+        int startVar = fieldVars[0];
+        int localVar = var - startVar;
+        if (localVar < 0 || localVar >= fieldVars.length) {
+            localVar = var;
+        }
+
+        String nodeName = "bdd_" + currentBDD + "_f" + field;
+
+        if (rootSet.contains(currentBDD)) {
+            String blankNodeName = "blank_" + currentBDD + "_f" + field;
+            String clusterName = "cluster_root_" + currentBDD + "_f" + field;
+            String groupName = "field" + field;
+
+            sb.append("    subgraph ").append(clusterName).append(" {\n");
+            sb.append("        label=\"\";\n");
+            sb.append("        style=invis;\n");
+            sb.append("        rankdir=TB;\n");
+            sb.append("        ranksep=0.8;\n");
+
+            sb.append("        ").append(blankNodeName)
+                    .append(" [shape=point, width=0, height=0, style=invis, group=").append(groupName).append("];\n");
+
+            sb.append("        ").append(nodeName)
+                    .append(" [shape=circle, label=\"x").append(localVar).append("\", group=").append(groupName).append("];\n");
+
+            sb.append("        ").append(blankNodeName).append(" -> ").append(nodeName)
+                    .append(" [color=black, style=dashed, arrowhead=normal, arrowsize=1.5, label=\"#").append(currentBDD)
+                    .append("\", labelfontcolor=black, fontcolor=black, labeldistance=2.0, labelangle=0, minlen=1];\n");
+
+            sb.append("    }\n");
+        } else {
+            sb.append("    ").append(nodeName)
+                    .append(" [shape=circle, label=\"x").append(localVar).append("\"];\n");
+        }
+
+        if (high == 1) {
+            sb.append("    ").append(nodeName).append(" -> TRUE_").append(field).append(";\n");
+        } else if (high > 1) {
+            sb.append("    ").append(nodeName).append(" -> bdd_").append(high).append("_f").append(field).append(";\n");
+            printBDDSubgraph(high, field, sb, visited, rootSet);
+        }
+
+        if (low == 1) {
+            sb.append("    ").append(nodeName).append(" -> TRUE_").append(field).append(" [style=dotted];\n");
+        } else if (low > 1) {
+            sb.append("    ").append(nodeName).append(" -> bdd_").append(low).append("_f").append(field).append(" [style=dotted];\n");
+            printBDDSubgraph(low, field, sb, visited, rootSet);
+        }
+    }
+
+    /** Recursively append current NDD node and edges to Dot output. */
     private static void printNDDStructure(int current, StringBuilder sb, IntHashSet visited) {
         if (isTerminal(current) || visited.contains(current)) return;
         visited.add(current);
-        String nodeId = "N" + current;
-        sb.append("  ").append(nodeId).append(" [shape=circle, label=\"F").append(nodeTable.getField(current)).append("\"];\n");
+
+        String nodeId = "NDD_" + current;
+        sb.append("  ").append(nodeId)
+                .append(" [shape=circle, label=\"f").append(nodeTable.getField(current) + 1).append("\"];\n");
+
         int count = nodeTable.getEdgeCount(current);
         for (int i = 0; i < count; i++) {
             int next = nodeTable.getEdgeTarget(current, i);
-            String nextId = isTrue(next) ? "NDD_TRUE" : (isFalse(next) ? "NDD_FALSE" : "N" + next);
+            int bddId = nodeTable.getEdgeLabel(current, i);
+
+            String nextId;
+            if (isTrue(next)) nextId = "NDD_TRUE";
+            else if (isFalse(next)) nextId = "NDD_FALSE";
+            else nextId = "NDD_" + next;
+
             sb.append("  ").append(nodeId).append(" -> ").append(nextId)
-                    .append(" [label=\"").append(nodeTable.getEdgeLabel(current, i)).append("\"];\n");
+                    .append(" [label=\"#").append(bddId)
+                    .append("\", labelfontcolor=black, labeldistance=3, labelangle=15];\n");
+
             printNDDStructure(next, sb, visited);
         }
     }
