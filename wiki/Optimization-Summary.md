@@ -1,6 +1,6 @@
 # Optimization Summary
 
-This page summarizes the changes that distinguish `NDD-SoA` from the upstream `NDD` baseline. It is written for reviewers who want to understand the optimization scope before reading the code.
+This page summarizes the changes that distinguish `NDD-Array` from the upstream `NDD` baseline. It is written for reviewers who want to understand the optimization scope before reading the code.
 
 ## Goals
 
@@ -13,7 +13,7 @@ This page summarizes the changes that distinguish `NDD-SoA` from the upstream `N
 
 ### 1. Structure-of-Arrays Node Storage
 
-The original implementation represented each NDD node as an object that owned a `HashMap<NDD, Integer>` edge map. `NDD-SoA` replaces that layout with array-backed storage in [`src/main/java/org/ants/jndd/nodetable/NodeTable.java`](../src/main/java/org/ants/jndd/nodetable/NodeTable.java):
+The original implementation represented each NDD node as an object that owned a `HashMap<NDD, Integer>` edge map. `NDD-Array` replaces that layout with array-backed storage in [`src/main/java/org/ants/jndd/nodetable/NodeTable.java`](../src/main/java/org/ants/jndd/nodetable/NodeTable.java):
 
 - node metadata is stored in parallel arrays (`nodeField`, `nodeEdgeBlock`, `nodeEdgeCount`, `refCount`, ...)
 - edge payload is stored in shared arrays (`edgeTarget`, `edgeLabel`)
@@ -37,7 +37,7 @@ Field declaration is now split into:
 1. `declareField(bitNum)`
 2. `generateFields()`
 
-During `generateFields()`, fields are right-aligned against the maximum bit width, which means equal-width suffixes can share the same underlying BDD variables. This reduces duplicated BDD structure across domains and is the main reason the `ndd-reuse` and `ndd-soa` variants need far fewer BDD nodes than the baseline.
+During `generateFields()`, fields are right-aligned against the maximum bit width, which means equal-width suffixes can share the same underlying BDD variables. This reduces duplicated BDD structure across domains and is the main reason the `ndd-reuse` and `ndd-array` variants need far fewer BDD nodes than the baseline.
 
 ## Benchmark Takeaways
 
@@ -45,9 +45,9 @@ During `generateFields()`, fields are right-aligned against the maximum bit widt
 
 From [`results/nqueens_metrics.csv`](../results/nqueens_metrics.csv):
 
-- size 10: `0.744s -> 0.221s` (`3.37x` faster), `314148KB -> 134680KB`
-- size 11: `2.835s -> 0.792s` (`3.58x` faster), `603572KB -> 218416KB`
-- size 12: `14.821s -> 4.353s` (`3.40x` faster), `2233308KB -> 579796KB`
+- size 10: `0.732s -> 0.214s` (`3.42x` faster), `316372KB -> 124168KB`
+- size 11: `2.750s -> 0.762s` (`3.61x` faster), `568980KB -> 216364KB`
+- size 12: `14.605s -> 4.101s` (`3.56x` faster), `2226480KB -> 537192KB`
 
 ### SRE
 

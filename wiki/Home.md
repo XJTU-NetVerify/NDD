@@ -1,10 +1,10 @@
-# NDD-SoA Wiki
+# NDD-Array Wiki
 
-Welcome to the `NDD-SoA` wiki. This wiki is intended to hold the long-form material that does not belong on the repository front page.
+Welcome to the `NDD-Array` wiki. This wiki is intended to hold the long-form material that does not belong on the repository front page.
 
 ## What This Branch Is
 
-`NDD-SoA` is the optimized branch of `NDD` that combines:
+`NDD-Array` is the optimized branch of `NDD` that combines:
 
 - right-aligned shared BDD variables across compatible fields
 - a global edge-collection stack for recursive operations

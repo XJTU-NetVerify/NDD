@@ -1,6 +1,6 @@
-# NDD-SoA
+# NDD-Array
 
-`NDD-SoA` is a performance-oriented branch of **Network Decision Diagram (NDD)**. It keeps the original NDD idea and benchmark targets, but replaces the object-heavy internal representation with a structure-of-arrays layout and a shared edge-collection stack so the hot path allocates less and reuses more.
+`NDD-Array` is a performance-oriented branch of **Network Decision Diagram (NDD)**. It keeps the original NDD idea and benchmark targets, but replaces the object-heavy internal representation with a structure-of-arrays layout and a shared edge-collection stack so the hot path allocates less and reuses more.
 
 This tree is prepared as the optimized branch snapshot for upstreaming back into `NDD`. The original paper is: [NDD: A Decision Diagram for Network Verification](https://xjtu-netverify.github.io/papers/NDD/NDD-final-version.pdf), NSDI 2025.
 
@@ -20,7 +20,7 @@ The benchmark results in this repository use the following names:
 | --- | --- |
 | `ndd` | Original object-based NDD baseline |
 | `ndd-reuse` | Baseline NDD plus shared-BDD-variable reuse |
-| `ndd-soa` | The version in this repository: reuse + global edge stack + SoA node table |
+| `ndd-array` | The version in this repository: reuse + global edge stack + SoA node table |
 
 ## Repository Layout
 
@@ -71,13 +71,15 @@ For the `JavaNDD` factory-style API, see [`wiki/Usage.md`](wiki/Usage.md) and [`
 
 ### NQueens
 
-Compared with the original `NDD` baseline, `NDD-SoA` keeps the same solution counts while reducing runtime and memory use on the tested Java NQueens workload:
+Compared with the original `NDD` baseline, `NDD-Array` keeps the same solution counts while reducing runtime and memory use on the tested Java NQueens workload:
 
-| Size | NDD time (s) | NDD-SoA time (s) | Speedup | NDD max RSS (KB) | NDD-SoA max RSS (KB) | RSS reduction |
+| Size | NDD time (s) | NDD-Array time (s) | Speedup | NDD max RSS (KB) | NDD-Array max RSS (KB) | RSS reduction |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| 10 | 0.744 | 0.221 | 3.37x | 314148 | 134680 | 57.1% |
-| 11 | 2.835 | 0.792 | 3.58x | 603572 | 218416 | 63.8% |
-| 12 | 14.821 | 4.353 | 3.40x | 2233308 | 579796 | 74.0% |
+| 10 | 0.732 | 0.214 | 3.42x | 316372 | 124168 | 60.8% |
+| 11 | 2.750 | 0.762 | 3.61x | 568980 | 216364 | 62.0% |
+| 12 | 14.605 | 4.101 | 3.56x | 2226480 | 537192 | 75.9% |
+
+`Sylvan` and `JSylvan` in the full NQueens table are parallel BDD libraries run with 48 worker threads; all other implementations (including `NDD`, `NDD-reuse`, and `NDD-Array`) are single-threaded.
 
 Detailed tables and plots: [`wiki/Results-NQueens.md`](wiki/Results-NQueens.md)
 
@@ -85,7 +87,7 @@ Detailed tables and plots: [`wiki/Results-NQueens.md`](wiki/Results-NQueens.md)
 
 On the SRE benchmark set, the SoA implementation consistently improves over the original `ndd` variant on medium and large cases:
 
-| Dataset | Metric | NDD | NDD-SoA | Improvement |
+| Dataset | Metric | NDD | NDD-Array | Improvement |
 | --- | --- | ---: | ---: | ---: |
 | `bgp_fattree08`, `MF=3` | total time (s) | 60.829 | 25.602 | 2.38x faster |
 | `bgp_fattree08`, `MF=3` | peak RSS (MB) | 4220.4 | 2046.0 | 51.5% lower |

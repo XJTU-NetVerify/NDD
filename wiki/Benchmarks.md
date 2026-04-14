@@ -21,6 +21,8 @@ This repository keeps the traditional NQueens benchmark used in DD papers and li
 
 The copied PNGs provide the plotting artifacts for time, memory, and node statistics.
 
+> Note: in the NQueens results, `Sylvan` and `JSylvan` are parallel BDD libraries and were run with 48 worker threads. All other implementations (including `NDD`, `NDD-reuse`, and `NDD-Array`) are single-threaded.
+
 ### WAN / SRE
 
 The WAN benchmark set exercises larger network-verification-style workloads and is summarized in [`results/SRE-results.md`](../results/SRE-results.md). The wiki version groups the same results by dataset and `MF`.
@@ -29,17 +31,17 @@ The WAN benchmark set exercises larger network-verification-style workloads and 
 
 ### NQueens Highlights
 
-| Size | NDD time (s) | NDD-SoA time (s) | Speedup | NDD max RSS (KB) | NDD-SoA max RSS (KB) |
+| Size | NDD time (s) | NDD-Array time (s) | Speedup | NDD max RSS (KB) | NDD-Array max RSS (KB) |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| 8 | 0.091 | 0.055 | 1.67x | 146220 | 48216 |
-| 9 | 0.236 | 0.100 | 2.36x | 252820 | 78304 |
-| 10 | 0.744 | 0.221 | 3.37x | 314148 | 134680 |
-| 11 | 2.835 | 0.792 | 3.58x | 603572 | 218416 |
-| 12 | 14.821 | 4.353 | 3.40x | 2233308 | 579796 |
+| 8 | 0.092 | 0.053 | 1.74x | 129764 | 44032 |
+| 9 | 0.238 | 0.092 | 2.58x | 254136 | 78768 |
+| 10 | 0.732 | 0.214 | 3.42x | 316372 | 124168 |
+| 11 | 2.750 | 0.762 | 3.61x | 568980 | 216364 |
+| 12 | 14.605 | 4.101 | 3.56x | 2226480 | 537192 |
 
 ### WAN / SRE Highlights
 
-| Dataset | Metric | NDD | NDD-SoA | Improvement |
+| Dataset | Metric | NDD | NDD-Array | Improvement |
 | --- | --- | ---: | ---: | ---: |
 | `bgp_fattree08`, `MF=3` | total time (s) | 60.829 | 25.602 | 2.38x faster |
 | `bgp_fattree08`, `MF=3` | peak RSS (MB) | 4220.4 | 2046.0 | 51.5% lower |

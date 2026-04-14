@@ -2,7 +2,7 @@
 
 ## Overview
 
-`NDD-SoA` keeps the semantics of NDD but changes the storage and execution model of the JNDD implementation to reduce allocation and improve reuse on realistic workloads.
+`NDD-Array` keeps the semantics of NDD but changes the storage and execution model of the JNDD implementation to reduce allocation and improve reuse on realistic workloads.
 
 ## 1. Array-Backed Node Table
 
@@ -29,7 +29,7 @@ Why this matters:
 
 The `declareField(...)` / `generateFields()` split exists so the implementation can wait until all field widths are known. It then right-aligns every field against the maximum width and reuses the same underlying BDD variables for compatible suffix positions.
 
-This is what the benchmark name `ndd-reuse` isolates, and it is also part of `ndd-soa`.
+This is what the benchmark name `ndd-reuse` isolates, and it is also part of `ndd-array`.
 
 ## 4. Safe-Point Recycling
 
@@ -57,6 +57,6 @@ When reading the benchmark tables:
 
 - `ndd` shows the original baseline
 - `ndd-reuse` isolates the variable-reuse optimization
-- `ndd-soa` adds the SoA storage and stack-based execution changes
+- `ndd-array` adds the SoA storage and stack-based execution changes
 
 That split is useful in review because it shows which gains come from BDD reuse and which gains come from the new data layout.
