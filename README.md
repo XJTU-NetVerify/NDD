@@ -1,129 +1,73 @@
-# NDD-Array
+# A library for Network Decision Diagram (NDD)
 
-`NDD-Array` is a performance-oriented branch of **Network Decision Diagram (NDD)**. It keeps the original NDD idea and benchmark targets, but replaces the object-heavy internal representation with a structure-of-arrays layout and a shared edge-collection stack so the hot path allocates less and reuses more.
+This is an implementation of **N**etwork **D**ecision **D**iagram published on NDSI 2025.
 
-This tree is prepared as the optimized branch snapshot for upstreaming back into `NDD`. The original paper is: [NDD: A Decision Diagram for Network Verification](https://xjtu-netverify.github.io/papers/NDD/NDD-final-version.pdf), NSDI 2025.
+> Zechun Li, Peng Zhang, Yichi Zhang, and Hongkun Yang. "NDD: A Decision Diagram for Network Verification", NSDI 2025
 
-## What Changed
+- Paper PDF: <https://www.usenix.org/system/files/nsdi25-li-zechun.pdf>
+- NSDI 2025 page: <https://dl.acm.org/doi/10.5555/3767955.3767969>
+- Paper slides: <https://xjtu-netverify.github.io/papers/NDD/NDD-A-Decision-Diagram-for-Network-Verification.pdf>
+- Video: <https://www.youtube.com/watch?v=9Ni6Z7qKGV4>
 
-- Replaced the original nested `HashMap`-based node representation with array-backed storage in [`NodeTable.java`](src/main/java/org/ants/jndd/nodetable/NodeTable.java).
-- Removed per-node `NDD` objects from the JNDD hot path; JNDD operations now work on integer node IDs backed by SoA storage.
-- Replaced temporary edge maps with one global stack-based edge collector in [`NDD.java`](src/main/java/org/ants/jndd/diagram/NDD.java).
-- Right-aligned fields so compatible domains share the same underlying BDD variables, reducing BDD node counts.
-- Kept `JavaNDD` (`NDDFactory`) usage available for codebases that prefer a `BDDFactory`-style API.
+## Introduction
 
-## Variant Map
+**Network Decision Diagram (NDD)** is a new decision diagram based on the classical Binary Decision Diagram (BDD).
+In BDD, each node looks at a single **bit**, and branches based on whether the bit is true or false;
+while in NDD, each node looks at a **field** which either bears some semantics meaning, say an IP address, or simply a fixed number of bits.
+Since the node may have more than 2 branches, we represent the branching condition with external data structures.
+Current, NDD uses BDD to represent the branching condition: if the field has $n$ bits, then the condition for each branch is a BDD with $n$ variables.
+In this sense, NDD can be seen as wrapping the original BDD with another layer of decision diagram, and therefore can also be interpreted as "Nested Decision Diagram".
 
-The benchmark results in this repository use the following names:
+## Branches
 
-| Variant | Meaning |
-| --- | --- |
-| `ndd` | Original object-based NDD baseline |
-| `ndd-reuse` | Baseline NDD plus shared-BDD-variable reuse |
-| `ndd-array` | The version in this repository: reuse + global edge stack + SoA node table |
+* Array(main): Reuse branch -> rewrite node and node table in array with global edge stack.
+* Reuse: Original branch -> reuse backend BDD node tables in different fields.
+* Original: Separate fields and assemble as NDD.
 
-## Repository Layout
+## Benchmark
 
-- [`src/`](src/) contains the Java source code, including `jndd`, `javandd`, and application examples.
-- [`doc/javadoc/`](doc/javadoc/) contains the regenerated API documentation for the SoA branch.
-- [`lib/`](lib/) contains bundled third-party artifacts such as `jdd-111.jar`.
-- [`results/`](results/) contains the current benchmark data and plots for this branch.
-- [`wiki/Optimization-Summary.md`](wiki/Optimization-Summary.md) summarizes the optimization work in reviewer-facing form.
-- [`wiki/`](wiki/) contains GitHub Wiki-ready pages for installation, usage, parameters, and detailed benchmark results.
+Benchmark (time `second`) on **NQueens**
 
-## Quick Start
+|  N | BDD (JDD) | NDD-Original | NDD-Array |
+| -- | --------- | ------------ | --------- |
+| 10 |     0.615 |        0.344 |     0.214 |
+| 11 |     2.567 |        2.257 |     0.762 |
+| 12 |    19.109 |       12.417 |     4.101 |
 
-Build the project with Maven:
+BDDs and NDDs benchmark is available on [nqueensBenchmarkDD](https://github.com/XJTU-NetVerify/nqueensBenchmarkDD)
 
-```bash
-mvn -DskipTests package
-```
+## The Origin of NDD
 
-The default Maven build targets the core `JNDD` / `JavaNDD` paths and the maintained examples. Experimental paths that still depend on the pre-SoA object-based API are excluded from the default compile for now:
+NDD was originally proposed for network verification, where each NDD node represents a packet header field (destination IP address)
+We observed NDD was more efficient than BDD in terms of memory and computation.
+The reason is due to the **locality** of field-based matching semantics, NDD can significantly reduce the number of BDD nodes for each field.
+The figure below shows an example, where the three BDDs in (a) can be represented by three equivalent NDDs in (c), 
+where each edge of which is labelled by per-field BDDs in (b).
 
-- `org.ants.jndd.diagram.AtomizedNDD`
-- `org.ants.jndd.nodetable.AtomizedNodeTable`
-- `application.nqueen.FiniteDomainZddNDDSolution`
-- `application.wan.bdd.*`
-- `application.wan.ndd.*`
+![fig4 drawio](NDD.svg)
 
-For the low-level `JNDD` API, the optimized implementation now uses integer node IDs:
+## Getting Started
 
-```java
-NDD.initNDD(nddTableSize, nddCacheSize, bddTableSize, bddCacheSize);
+Access details on [wiki](https://github.com/XJTU-NetVerify/NDD/wiki).
 
-for (int i = 0; i < fieldCount; i++) {
-    NDD.declareField(fieldBitWidths[i]);
-}
-NDD.generateFields();
-
-int acc = NDD.getFalse();
-for (int bit = 0; bit < fieldBitWidths[0]; bit++) {
-    acc = NDD.orTo(acc, NDD.getVar(0, bit));
-}
-
-double sat = NDD.satCount(acc);
-```
-
-For the `JavaNDD` factory-style API, see [`wiki/Usage.md`](wiki/Usage.md) and [`src/main/java/org/ants/javandd/README.md`](src/main/java/org/ants/javandd/README.md).
-
-## Performance Snapshot
-
-### NQueens
-
-Compared with the original `NDD` baseline, `NDD-Array` keeps the same solution counts while reducing runtime and memory use on the tested Java NQueens workload:
-
-| Size | NDD time (s) | NDD-Array time (s) | Speedup | NDD max RSS (KB) | NDD-Array max RSS (KB) | RSS reduction |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| 10 | 0.732 | 0.214 | 3.42x | 316372 | 124168 | 60.8% |
-| 11 | 2.750 | 0.762 | 3.61x | 568980 | 216364 | 62.0% |
-| 12 | 14.605 | 4.101 | 3.56x | 2226480 | 537192 | 75.9% |
-
-`Sylvan` and `JSylvan` in the full NQueens table are parallel BDD libraries run with 48 worker threads; all other implementations (including `NDD`, `NDD-reuse`, and `NDD-Array`) are single-threaded.
-
-Detailed tables and plots: [`wiki/Results-NQueens.md`](wiki/Results-NQueens.md)
-
-### SRE
-
-On the SRE benchmark set, the SoA implementation consistently improves over the original `ndd` variant on medium and large cases:
-
-| Dataset | Metric | NDD | NDD-Array | Improvement |
-| --- | --- | ---: | ---: | ---: |
-| `bgp_fattree08`, `MF=3` | total time (s) | 60.829 | 25.602 | 2.38x faster |
-| `bgp_fattree08`, `MF=3` | peak RSS (MB) | 4220.4 | 2046.0 | 51.5% lower |
-| `bgp_fattree08`, `MF=3` | BDD nodes | 38199434 | 3208829 | 91.6% fewer |
-| `bgp_fattree12`, `MF=3` | total time (s) | 636.086 | 230.906 | 2.75x faster |
-| `bgp_fattree12`, `MF=3` | peak RSS (MB) | 26274.3 | 18113.7 | 31.1% lower |
-| `bgp_fattree16`, `MF=2` | total time (s) | 1178.287 | 472.056 | 2.50x faster |
-
-Detailed tables: [`wiki/Results-SRE.md`](wiki/Results-SRE.md)
-
-## Documentation
-
-- Overview: [`wiki/Home.md`](wiki/Home.md)
-- Optimization summary: [`wiki/Optimization-Summary.md`](wiki/Optimization-Summary.md)
-- Installation and build: [`wiki/Installation.md`](wiki/Installation.md)
-- API usage: [`wiki/Usage.md`](wiki/Usage.md)
-- Parameter guide: [`wiki/Parameters.md`](wiki/Parameters.md)
-- Benchmark methodology: [`wiki/Benchmarks.md`](wiki/Benchmarks.md)
-- Design notes for this branch: [`wiki/Design-Notes.md`](wiki/Design-Notes.md)
-
-## Paper and Citation
-
-- Paper PDF: <https://xjtu-netverify.github.io/papers/NDD/NDD-final-version.pdf>
-- NSDI 2025 page: <https://www.usenix.org/conference/nsdi25/presentation>
+## Bibtex
 
 ```bibtex
 @inproceedings{NDD,
-  author = {Zechun Li and Peng Zhang and Yichi Zhang and Hongkun Yang},
-  title = {{NDD}: A Decision Diagram for Network Verification},
-  booktitle = {22th USENIX Symposium on Networked Systems Design and Implementation (NSDI 25)},
-  year = {2025},
-  url = {https://www.usenix.org/conference/nsdi25/presentation},
-  publisher = {USENIX Association},
-  month = apr
+  title={$\{$NDD$\}$: A Decision Diagram for Network Verification},
+  author={Li, Zechun and Zhang, Peng and Zhang, Yichi and Yang, Hongkun},
+  booktitle={22nd USENIX Symposium on Networked Systems Design and Implementation (NSDI 25)},
+  pages={237--258},
+  year={2025}
 }
 ```
+
+### Contact
+
+- Zechun Li (1467874668@qq.com)
+- Peng Zhang (p-zhang@xjtu.edu.cn)
+- Yichi Zhang (augists@outlook.com)
+- Hongkun Yang (hkyang@google.com)
 
 ## License
 
