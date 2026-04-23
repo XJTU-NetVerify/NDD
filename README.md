@@ -19,9 +19,9 @@ Run time (`second`) on different sizes of **NQueens** problem.
 
 |  N | BDD (JDD) | NDD-Original | NDD       |
 | -- | --------- | ------------ | --------- |
-| 10 |     0.615 |        0.344 |     0.214 |
-| 11 |     2.567 |        2.257 |     0.762 |
-| 12 |    19.109 |       12.417 |     4.101 |
+| 10 |     0.5479|        0.7315|     0.2136|
+| 11 |     2.7947|        2.7497|     0.7619|
+| 12 |    22.8852|       14.6047|     4.1006|
 
 Detailed benchmark results are available on [nqueensBenchmarkDD](https://github.com/XJTU-NetVerify/nqueensBenchmarkDD)
 
