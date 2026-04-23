@@ -1,28 +1,15 @@
-# A library for Network Decision Diagram (NDD)
-
-This is an implementation of **N**etwork **D**ecision **D**iagram published on NDSI 2025.
-
-> Zechun Li, Peng Zhang, Yichi Zhang, and Hongkun Yang. "NDD: A Decision Diagram for Network Verification", NSDI 2025
-
-- Paper PDF: <https://www.usenix.org/system/files/nsdi25-li-zechun.pdf>
-- NSDI 2025 page: <https://dl.acm.org/doi/10.5555/3767955.3767969>
-- Paper slides: <https://xjtu-netverify.github.io/papers/NDD/NDD-A-Decision-Diagram-for-Network-Verification.pdf>
-- Video: <https://www.youtube.com/watch?v=9Ni6Z7qKGV4>
-
-## Introduction
-
-**Network Decision Diagram (NDD)** is a new decision diagram based on the classical Binary Decision Diagram (BDD).
+**Network Decision Diagram (NDD)** is a new decision diagram data structure based on the classical Binary Decision Diagram (BDD).
 In BDD, each node looks at a single **bit**, and branches based on whether the bit is true or false;
-while in NDD, each node looks at a **field** which either bears some semantics meaning, say an IP address, or simply a fixed number of bits.
-Since the node may have more than 2 branches, we represent the branching condition with external data structures.
-Current, NDD uses BDD to represent the branching condition: if the field has $n$ bits, then the condition for each branch is a BDD with $n$ variables.
-In this sense, NDD can be seen as wrapping the original BDD with another layer of decision diagram, and therefore can also be interpreted as "Nested Decision Diagram".
+while in NDD, each node looks at a **field** consisting of a fixed number of bits, and branches based on the value of the corresponding field.
+Since there can be more than 2 branches, NDD encodes the branching condition with external data structures.
+Currently, NDD uses BDD to represent the branching condition: if the field has $n$ bits, then the condition is a BDD with $n$ variables.
+In this sense, NDD can be seen as wrapping the original BDD with an outter layer of decision diagram, and therefore the name of NDD can also be interpreted as "Nested Decision Diagram".
 
 ## Branches
 
-* Array(main): Reuse branch -> rewrite node and node table in array with global edge stack.
-* Reuse: Original branch -> reuse backend BDD node tables in different fields.
-* Original: Separate fields and assemble as NDD.
+* Main: Featuring an efficient design of node table.
+* Reuse: Featuring the reuse of BDD node tables among all fields.
+* Original: The original prototype for NSDI '25 paper.
 
 ## Benchmark
 
@@ -34,7 +21,7 @@ Benchmark (time `second`) on **NQueens**
 | 11 |     2.567 |        2.257 |     0.762 |
 | 12 |    19.109 |       12.417 |     4.101 |
 
-BDDs and NDDs benchmark is available on [nqueensBenchmarkDD](https://github.com/XJTU-NetVerify/nqueensBenchmarkDD)
+Detailed benchmark results are available on [nqueensBenchmarkDD](https://github.com/XJTU-NetVerify/nqueensBenchmarkDD)
 
 ## The Origin of NDD
 
@@ -46,15 +33,18 @@ where each edge of which is labelled by per-field BDDs in (b).
 
 ![fig4 drawio](NDD.svg)
 
-## Getting Started
+## Resources
 
-Access details on [wiki](https://github.com/XJTU-NetVerify/NDD/wiki).
+- [wiki](https://github.com/XJTU-NetVerify/NDD/wiki).
+- NSDI Paper: <https://www.usenix.org/system/files/nsdi25-li-zechun.pdf>
+- Talk slides: <https://xjtu-netverify.github.io/papers/NDD/NDD-A-Decision-Diagram-for-Network-Verification.pdf>
+- Talk video: <https://www.youtube.com/watch?v=9Ni6Z7qKGV4>
 
 ## Bibtex
 
 ```bibtex
 @inproceedings{NDD,
-  title={$\{$NDD$\}$: A Decision Diagram for Network Verification},
+  title={NDD: A Decision Diagram for Network Verification},
   author={Li, Zechun and Zhang, Peng and Zhang, Yichi and Yang, Hongkun},
   booktitle={22nd USENIX Symposium on Networked Systems Design and Implementation (NSDI 25)},
   pages={237--258},
