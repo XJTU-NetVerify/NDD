@@ -15,7 +15,7 @@ In this sense, NDD can be seen as wrapping the original BDD with an outter layer
 
 ## Benchmark
 
-Benchmark (time `second`) on **NQueens**
+Run time (`second`) on different sizes of **NQueens** problem.
 
 |  N | BDD (JDD) | NDD-Original | NDD       |
 | -- | --------- | ------------ | --------- |
@@ -38,9 +38,9 @@ where each edge of which is labelled by per-field BDDs in (b).
 ## Resources
 
 - [wiki](https://github.com/XJTU-NetVerify/NDD/wiki).
-- NSDI Paper: <https://www.usenix.org/system/files/nsdi25-li-zechun.pdf>
-- Talk slides: <https://xjtu-netverify.github.io/papers/NDD/NDD-A-Decision-Diagram-for-Network-Verification.pdf>
-- Talk video: <https://www.youtube.com/watch?v=9Ni6Z7qKGV4>
+- [NSDI Paper](https://www.usenix.org/system/files/nsdi25-li-zechun.pdf)
+- [NSDI talk slides](https://xjtu-netverify.github.io/papers/NDD/NDD-A-Decision-Diagram-for-Network-Verification.pdf)
+- [NSDI talk video](https://www.youtube.com/watch?v=9Ni6Z7qKGV4)
 
 ## Bibtex
 
