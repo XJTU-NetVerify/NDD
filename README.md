@@ -1,3 +1,5 @@
+## About
+
 **Network Decision Diagram (NDD)** is a new decision diagram data structure based on the classical Binary Decision Diagram (BDD).
 In BDD, each node looks at a single **bit**, and branches based on whether the bit is true or false;
 while in NDD, each node looks at a **field** consisting of a fixed number of bits, and branches based on the value of the corresponding field.
@@ -15,7 +17,7 @@ In this sense, NDD can be seen as wrapping the original BDD with an outter layer
 
 Benchmark (time `second`) on **NQueens**
 
-|  N | BDD (JDD) | NDD-Original | NDD-Array |
+|  N | BDD (JDD) | NDD-Original | NDD       |
 | -- | --------- | ------------ | --------- |
 | 10 |     0.615 |        0.344 |     0.214 |
 | 11 |     2.567 |        2.257 |     0.762 |
