@@ -17,13 +17,13 @@ In this sense, NDD can be seen as wrapping the original BDD with an outter layer
 
 Run time (`second`) on different sizes of **NQueens** problem.
 
-|  N | BDD (JDD) | NDD-Original | NDD       |
-| -- | --------- | ------------ | --------- |
-| 10 |     0.5479|        0.7315|     0.2136|
-| 11 |     2.7947|        2.7497|     0.7619|
-| 12 |    22.8852|       14.6047|     4.1006|
+|  N | BDD (JDD) | NDD-Original  | NDD    |
+| -- | --------- | ------------- | ------ |
+| 10 |    0.5479 |        0.7315 | 0.2136 |
+| 11 |    2.7947 |        2.7497 | 0.7619 |
+| 12 |   22.8852 |       14.6047 | 4.1006 |
 
-Detailed benchmark results are available on [nqueensBenchmarkDD](https://github.com/XJTU-NetVerify/nqueensBenchmarkDD)
+Detailed benchmark results are available on [nqueensBenchmarkDDs](https://github.com/XJTU-NetVerify/nqueensBenchmarkDDs)
 
 ## The Origin of NDD
 
@@ -37,7 +37,7 @@ where each edge of which is labelled by per-field BDDs in (b).
 
 ## Resources
 
-- [wiki](https://github.com/XJTU-NetVerify/NDD/wiki).
+- [wiki](https://github.com/XJTU-NetVerify/NDD/wiki)
 - [NSDI Paper](https://www.usenix.org/system/files/nsdi25-li-zechun.pdf)
 - [NSDI talk slides](https://xjtu-netverify.github.io/papers/NDD/NDD-A-Decision-Diagram-for-Network-Verification.pdf)
 - [NSDI talk video](https://www.youtube.com/watch?v=9Ni6Z7qKGV4)
