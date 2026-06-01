@@ -24,7 +24,8 @@
 
 
     <properties>
-        <maven.compiler.source>8</maven.compiler.source>
+        
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding><maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
     </properties>
 
@@ -82,10 +83,10 @@
                 <configuration>
                     <excludes>
                         <exclude>**/FiniteDomainZddNDDSolution.java</exclude>
-                        <exclude>**/application/wan/bdd/**</exclude>
-                        <exclude>**/application/wan/ndd/**</exclude>
-                        <exclude>**/AtomizedNDD.java</exclude>
                         <exclude>**/AtomizedNodeTable.java</exclude>
+                        <exclude>**/AtomizedNDD.java</exclude>
+                        <exclude>**/application/wan/ndd/**</exclude>
+                        <exclude>**/application/wan/bdd/**</exclude>
                     </excludes>
                 </configuration>
             </plugin>
