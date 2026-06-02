@@ -32,11 +32,11 @@ public class NDDGCBenchmark{
     private static void runStepByStepWithMonitoring(int n) {
         declareFields(n);
         
-        int[] orBatch = new int[n];
+        NDD[] orBatch = new NDD[n];
         
         System.out.println("Phase 1: Building Existence Constraints (Low GC Pressure)...");
         for (int i = 0; i < n; i++) {
-            int condition = NDD.getFalse();
+            NDD condition = NDD.getFalse();
             for (int j = 0; j < n; j++) {
                 condition = NDD.orTo(condition, NDD.getVar(i, j));
             }
@@ -47,13 +47,13 @@ public class NDDGCBenchmark{
 
         System.out.println("\nPhase 2: Building Conflict Constraints (HIGH GC Pressure)...");
         
-        int queen = NDD.getTrue();
+        NDD queen = NDD.getTrue();
         
         for(int i=0; i<n; i++) {
             queen = NDD.andTo(queen, orBatch[i]);
             NDD.deref(orBatch[i]);
         }
-        int[][] impBatch = new int[n][n];
+        NDD[][] impBatch = new NDD[n][n];
         long peakMemory = 0;
 
         for (int i = 0; i < n; i++) {
@@ -90,19 +90,19 @@ public class NDDGCBenchmark{
         for (int i = 0; i < n; i++) NDD.declareField(n);
     }
 
-    private static void build(int i, int j, int n, int[][] impBatch) {
-        int a, b, c, d;
+    private static void build(int i, int j, int n, NDD[][] impBatch) {
+        NDD a, b, c, d;
         a = b = c = d = NDD.getTrue();
         int k, l;
         for (l = 0; l < n; l++) {
             if (l != j) {
-                int mp = NDD.ref(NDD.imp(NDD.getVar(i, j), NDD.getNotVar(i, l)));
+                NDD mp = NDD.ref(NDD.imp(NDD.getVar(i, j), NDD.getNotVar(i, l)));
                 a = NDD.andTo(a, mp); NDD.deref(mp);
             }
         }
         for (k = 0; k < n; k++) {
             if (k != i) {
-                int mp = NDD.ref(NDD.imp(NDD.getVar(i, j), NDD.getNotVar(k, j)));
+                NDD mp = NDD.ref(NDD.imp(NDD.getVar(i, j), NDD.getNotVar(k, j)));
                 b = NDD.andTo(b, mp); NDD.deref(mp);
             }
         }
@@ -110,7 +110,7 @@ public class NDDGCBenchmark{
             int ll = k - i + j;
             if (ll >= 0 && ll < n) {
                 if (k != i) {
-                    int mp = NDD.ref(NDD.imp(NDD.getVar(i, j), NDD.getNotVar(k, ll)));
+                    NDD mp = NDD.ref(NDD.imp(NDD.getVar(i, j), NDD.getNotVar(k, ll)));
                     c = NDD.andTo(c, mp); NDD.deref(mp);
                 }
             }
@@ -119,7 +119,7 @@ public class NDDGCBenchmark{
             int ll = i + j - k;
             if (ll >= 0 && ll < n) {
                 if (k != i) {
-                    int mp = NDD.ref(NDD.imp(NDD.getVar(i, j), NDD.getNotVar(k, ll)));
+                    NDD mp = NDD.ref(NDD.imp(NDD.getVar(i, j), NDD.getNotVar(k, ll)));
                     d = NDD.andTo(d, mp); NDD.deref(mp);
                 }
             }

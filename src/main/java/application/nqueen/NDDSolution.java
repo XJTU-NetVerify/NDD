@@ -46,8 +46,8 @@ public class NDDSolution {
         }
     }
 
-    private static void build(int i, int j, int n, int[][] impBatch) {
-        int a, b, c, d;
+    private static void build(int i, int j, int n, NDD[][] impBatch) {
+        NDD a, b, c, d;
         a = b = c = d = NDD.getTrue();
 
         int k, l;
@@ -55,7 +55,7 @@ public class NDDSolution {
         /* No one in the same column */
         for (l = 0; l < n; l++) {
             if (l != j) {
-                int mp = NDD.ref(NDD.imp(NDD.getVar(i, j), NDD.getNotVar(i, l)));
+                NDD mp = NDD.ref(NDD.imp(NDD.getVar(i, j), NDD.getNotVar(i, l)));
                 a = NDD.andTo(a, mp);
                 NDD.deref(mp);
             }
@@ -64,7 +64,7 @@ public class NDDSolution {
         /* No one in the same row */
         for (k = 0; k < n; k++) {
             if (k != i) {
-                int mp = NDD.ref(NDD.imp(NDD.getVar(i, j), NDD.getNotVar(k, j)));
+                NDD mp = NDD.ref(NDD.imp(NDD.getVar(i, j), NDD.getNotVar(k, j)));
                 b = NDD.andTo(b, mp);
                 NDD.deref(mp);
             }
@@ -75,7 +75,7 @@ public class NDDSolution {
             int ll = k - i + j;
             if (ll >= 0 && ll < n) {
                 if (k != i) {
-                    int mp = NDD.ref(NDD.imp(NDD.getVar(i, j), NDD.getNotVar(k, ll)));
+                    NDD mp = NDD.ref(NDD.imp(NDD.getVar(i, j), NDD.getNotVar(k, ll)));
                     c = NDD.andTo(c, mp);
                     NDD.deref(mp);
                 }
@@ -87,7 +87,7 @@ public class NDDSolution {
             int ll = i + j - k;
             if (ll >= 0 && ll < n) {
                 if (k != i) {
-                    int mp = NDD.ref(NDD.imp(NDD.getVar(i, j), NDD.getNotVar(k, ll)));
+                    NDD mp = NDD.ref(NDD.imp(NDD.getVar(i, j), NDD.getNotVar(k, ll)));
                     d = NDD.andTo(d, mp);
                     NDD.deref(mp);
                 }
@@ -115,11 +115,11 @@ public class NDDSolution {
         declareFields(n);
         NDD.generateFields();
 
-        int[] orBatch = new int[n];
-        int[][] impBatch = new int[n][n];
+        NDD[] orBatch = new NDD[n];
+        NDD[][] impBatch = new NDD[n][n];
 
         for (int i = 0; i < n; i++) {
-            int condition = NDD.getFalse();
+            NDD condition = NDD.getFalse();
             for (int j = 0; j < n; j++) {
                 condition = NDD.orTo(condition, NDD.getVar(i, j));
             }
@@ -132,7 +132,7 @@ public class NDDSolution {
             }
         }
 
-        int queen = NDD.getTrue();
+        NDD queen = NDD.getTrue();
 
         for (int i = 0; i < n; i++) {
             queen = NDD.andTo(queen, orBatch[i]);

@@ -144,6 +144,20 @@ public class OperationCache<T> {
     }
 
     /**
+     * Get the result of an ordered binary operation.
+     */
+    public boolean getEntryOrdered(T operand1, T operand2) {
+        int hash = goodHash(operand1, operand2);
+        if (getOperand(hash, 1) == operand1 && getOperand(hash, 2) == operand2) {
+            result = getResult(hash);
+            return true;
+        } else {
+            hashValue = hash;
+            return false;
+        }
+    }
+
+    /**
      * Calculate the hash value of the operand, which will be the index in the cache.
      * @param operand1 The only operand of a unary operation.
      * @return The hash value.
