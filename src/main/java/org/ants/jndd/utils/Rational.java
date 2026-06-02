@@ -33,7 +33,6 @@ public class Rational {
         this(n, 1);
     }
 
-
     public Rational(double value) {
         if (Double.isNaN(value) || Double.isInfinite(value)) {
             throw new IllegalArgumentException("Cannot convert NaN or Infinity.");
