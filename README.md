@@ -4,13 +4,14 @@
 In BDD, each node looks at a single **bit**, and branches based on whether the bit is true or false;
 while in NDD, each node looks at a **field** consisting of a fixed number of bits, and branches based on the value of the corresponding field.
 Since there can be more than 2 branches, NDD encodes the branching condition with external data structures.
-Currently, NDD uses BDD to represent the branching condition: if the field has $n$ bits, then the condition is a BDD with $n$ variables.
-In this sense, NDD can be seen as wrapping the original BDD with an outter layer of decision diagram, and therefore the name of NDD can also be interpreted as "Nested Decision Diagram".
+NDD edges can use several label backends: the default standard BDD backend, a complemented-edge BDD backend (BCDD), or a finite-domain ZDD backend.
+The low-level NDD implementation selects these engines through a common factory-created label backend interface, so core NDD operations call one label API instead of depending on a concrete BDD/ZDD/BCDD engine.
+In this sense, NDD can be seen as wrapping a lower-level decision diagram with an outer field-aware layer, and therefore the name of NDD can also be interpreted as "Nested Decision Diagram".
 
 ## Branches
 
 * Main: Featuring an efficient design of node table.
-* Reuse: Featuring the reuse of BDD node tables among all fields.
+* Reuse: Featuring the reuse of label decision-diagram variables among all fields.
 * Original: The original prototype for NSDI '25 paper.
 
 ## Benchmark
@@ -29,7 +30,7 @@ Detailed benchmark results are available on [nqueensBenchmarkDDs](https://github
 
 NDD was originally proposed for network verification, where each NDD node represents a packet header field (destination IP address)
 We observed NDD was more efficient than BDD in terms of memory and computation.
-The reason is due to the **locality** of field-based matching semantics, NDD can significantly reduce the number of BDD nodes for each field.
+The reason is due to the **locality** of field-based matching semantics, NDD can significantly reduce the number of label decision-diagram nodes for each field.
 The figure below shows an example, where the three BDDs in (a) can be represented by three equivalent NDDs in (c), 
 where each edge of which is labelled by per-field BDDs in (b).
 

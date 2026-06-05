@@ -2,6 +2,7 @@ package org.ants.jndd.bdd;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 
 /**
@@ -51,6 +52,24 @@ public final class ComplementedBDD {
 
     public int getTotalCreated() {
         return nodes.size() - 1;
+    }
+
+    public int nodeCount(int root) {
+        HashSet<Integer> visited = new HashSet<>();
+        countReachable(root, visited);
+        return visited.size();
+    }
+
+    public int gc() {
+        return 0;
+    }
+
+    public int getNodeId(int handle) {
+        return regularNodeId(handle);
+    }
+
+    public boolean isComplemented(int handle) {
+        return isInternalComplemented(handle);
     }
 
     public int not(int handle) {
@@ -210,6 +229,19 @@ public final class ComplementedBDD {
 
     private int encodeRegular(int nodeId) {
         return nodeId << 1;
+    }
+
+    private void countReachable(int handle, HashSet<Integer> visited) {
+        if (isConstant(handle)) {
+            return;
+        }
+        int nodeId = regularNodeId(handle);
+        if (!visited.add(Integer.valueOf(nodeId))) {
+            return;
+        }
+        Node node = nodes.get(nodeId);
+        countReachable(node.low, visited);
+        countReachable(node.high, visited);
     }
 
     private Node nodeFor(int handle) {

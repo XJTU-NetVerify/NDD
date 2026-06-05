@@ -10,7 +10,6 @@ package org.ants.jndd.diagram;
 
 import java.io.FileWriter;
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -63,6 +62,11 @@ public class NDD {
      * Active edge-label representation.
      */
     private static LabelMode labelMode = LabelMode.BOOLEAN_BDD;
+
+    /**
+     * Active edge-label decision diagram backend.
+     */
+    private static LabelDecisionDiagramBackend labelBackend;
 
     /**
      * Current number of declared fields (0-based).
@@ -213,11 +217,16 @@ public class NDD {
 
     public static void initNDD(int nddTableSize, int nddCacheSize, int bddTableSize, int bddCacheSize, LabelMode mode) {
         CACHE_SIZE = nddCacheSize;
-        nodeTable = new NodeTable(nddTableSize, bddTableSize, bddCacheSize);
-        bddEngine = nodeTable.getBddEngine();
         labelMode = mode;
-        bcddEngine = (mode == LabelMode.COMPLEMENTED_BDD) ? new ComplementedBDD(bddTableSize, bddCacheSize) : null;
-        zddEngine = (mode == LabelMode.FINITE_DOMAIN_ZDD) ? new ZDD(bddTableSize, bddCacheSize) : null;
+        nodeTable = new NodeTable(nddTableSize, bddTableSize, bddCacheSize, mode == LabelMode.BOOLEAN_BDD);
+        if (mode == LabelMode.BOOLEAN_BDD) {
+            labelBackend = LabelDecisionDiagramBackends.forBooleanBdd(nodeTable.getBddEngine());
+        } else {
+            labelBackend = LabelDecisionDiagramBackends.create(mode, bddTableSize, bddCacheSize);
+        }
+        bddEngine = mode == LabelMode.BOOLEAN_BDD ? (BDD) labelBackend.rawEngine() : null;
+        bcddEngine = mode == LabelMode.COMPLEMENTED_BDD ? (ComplementedBDD) labelBackend.rawEngine() : null;
+        zddEngine = mode == LabelMode.FINITE_DOMAIN_ZDD ? (ZDD) labelBackend.rawEngine() : null;
 
         fieldNum = -1;
         fieldsGenerated = false;
@@ -297,22 +306,22 @@ public class NDD {
             sharedBddVars = new int[maxBitNum];
             sharedBddNotVars = new int[maxBitNum];
             for (int i = maxBitNum - 1; i >= 0; i--) {
-                sharedBddVars[i] = bddEngine.ref(bddEngine.createVar());
-                sharedBddNotVars[i] = bddEngine.ref(bddEngine.not(sharedBddVars[i]));
+                sharedBddVars[i] = labelBackend.ref(labelBackend.createVariableLabel());
+                sharedBddNotVars[i] = labelBackend.ref(labelBackend.not(1, sharedBddVars[i]));
             }
         } else if (labelMode == LabelMode.COMPLEMENTED_BDD) {
             sharedBddVars = new int[maxBitNum];
             sharedBddNotVars = new int[maxBitNum];
             for (int i = maxBitNum - 1; i >= 0; i--) {
-                sharedBddVars[i] = bcddEngine.ref(bcddEngine.createVar());
-                sharedBddNotVars[i] = bcddEngine.ref(bcddEngine.not(sharedBddVars[i]));
+                sharedBddVars[i] = labelBackend.ref(labelBackend.createVariableLabel());
+                sharedBddNotVars[i] = labelBackend.ref(labelBackend.not(1, sharedBddVars[i]));
             }
         } else {
             sharedZddVarIds = new int[maxBitNum];
             sharedZddSingletons = new int[maxBitNum];
             for (int i = 0; i < maxBitNum; i++) {
-                sharedZddVarIds[i] = zddEngine.createVar();
-                sharedZddSingletons[i] = zddEngine.ref(zddEngine.single(sharedZddVarIds[i]));
+                sharedZddSingletons[i] = labelBackend.ref(labelBackend.createVariableLabel());
+                sharedZddVarIds[i] = labelBackend.variableId(sharedZddSingletons[i]);
             }
         }
 
@@ -341,7 +350,7 @@ public class NDD {
                     nddNotVars[i] = nodeTable.mk(f, new int[]{TRUE}, new int[]{refLabel(bddNotVars[i])});
                     nodeTable.fixNDDNodeRefCount(nddNotVars[i]);
                 } else {
-                    int singleton = sharedZddSingletons[i];
+                    int singleton = sharedZddSingletons[offset + i];
                     universe = labelOrTo(universe, refLabel(singleton), f);
                     nddVars[i] = nodeTable.mk(f, new int[]{TRUE}, new int[]{refLabel(singleton)});
                     nodeTable.fixNDDNodeRefCount(nddVars[i]);
@@ -350,7 +359,7 @@ public class NDD {
 
             if (labelMode == LabelMode.FINITE_DOMAIN_ZDD) {
                 for (int i = 0; i < bitNum; i++) {
-                    int negative = refLabel(zddEngine.diff(universe, sharedZddSingletons[i]));
+                    int negative = refLabel(labelBackend.diff(universe, universe, sharedZddSingletons[offset + i]));
                     nddNotVars[i] = nodeTable.mk(f, new int[]{TRUE}, new int[]{negative});
                     nodeTable.fixNDDNodeRefCount(nddNotVars[i]);
                 }
@@ -386,7 +395,7 @@ public class NDD {
             if (maxVariablePerField.size() > 1) {
                 totalBitsBefore = maxVariablePerField.get(maxVariablePerField.size() - 2) + 1;
             }
-            satCountDiv.add(labelMode == LabelMode.FINITE_DOMAIN_ZDD ? 1.0 : Math.pow(2.0, totalBitsBefore));
+            satCountDiv.add(labelBackend.isFiniteDomain() ? 1.0 : Math.pow(2.0, totalBitsBefore));
         }
     }
 
@@ -438,75 +447,23 @@ public class NDD {
     public static BDD getBDDEngine() { return bddEngine; }
 
     public static long getLabelNodeCount() {
-        if (labelMode == LabelMode.COMPLEMENTED_BDD) {
-            return bcddEngine.getNodeCount();
-        }
-        if (labelMode == LabelMode.FINITE_DOMAIN_ZDD) {
-            return reflectActiveNodeCount(zddEngine);
-        }
-        return reflectActiveNodeCount(bddEngine);
+        return labelBackend.nodeCount();
     }
 
     public static long getLabelTotalCreated() {
-        if (labelMode == LabelMode.COMPLEMENTED_BDD) {
-            return bcddEngine.getTotalCreated();
-        }
-        return jdd.bdd.NodeTable.mkCount;
+        return labelBackend.totalCreated();
     }
 
     public static void gcLabelEngine() {
-        if (labelMode == LabelMode.COMPLEMENTED_BDD) {
-            return;
-        }
-        if (labelMode == LabelMode.FINITE_DOMAIN_ZDD) {
-            zddEngine.gc();
-            return;
-        }
-        bddEngine.gc();
-    }
-
-    private static long reflectActiveNodeCount(Object engine) {
-        try {
-            long tableSize = readLongField(engine, "table_size");
-            long freeNodes = readLongField(engine, "free_nodes_count");
-            return tableSize - freeNodes;
-        } catch (ReflectiveOperationException e) {
-            throw new RuntimeException("Failed to read active label-node count", e);
-        }
-    }
-
-    private static long readLongField(Object target, String fieldName) throws ReflectiveOperationException {
-        Class<?> type = target.getClass();
-        while (type != null) {
-            try {
-                Field field = type.getDeclaredField(fieldName);
-                field.setAccessible(true);
-                return ((Number) field.get(target)).longValue();
-            } catch (NoSuchFieldException ignored) {
-                type = type.getSuperclass();
-            }
-        }
-        throw new NoSuchFieldException(fieldName);
+        labelBackend.gc();
     }
 
     public static int refLabel(int label) {
-        if (labelMode == LabelMode.COMPLEMENTED_BDD) {
-            return bcddEngine.ref(label);
-        }
-        if (labelMode == LabelMode.FINITE_DOMAIN_ZDD) {
-            return zddEngine.ref(label);
-        }
-        return bddEngine.ref(label);
+        return labelBackend.ref(label);
     }
 
     public static void derefLabel(int label) {
-        if (labelMode == LabelMode.COMPLEMENTED_BDD) {
-            bcddEngine.deref(label);
-        } else if (labelMode == LabelMode.FINITE_DOMAIN_ZDD) {
-            zddEngine.deref(label);
-        } else {
-            bddEngine.deref(label);
-        }
+        labelBackend.deref(label);
     }
 
     public static boolean isUniverseEdgeLabel(int field, int label) {
@@ -530,82 +487,33 @@ public class NDD {
     }
 
     private static double fieldCardinality(int fieldSize) {
-        return labelMode == LabelMode.FINITE_DOMAIN_ZDD ? fieldSize : Math.pow(2.0, fieldSize);
+        return labelBackend.isFiniteDomain() ? fieldSize : Math.pow(2.0, fieldSize);
     }
 
     private static int labelAnd(int a, int b) {
-        if (labelMode == LabelMode.FINITE_DOMAIN_ZDD) {
-            return zddEngine.intersect(a, b);
-        }
-        if (labelMode == LabelMode.COMPLEMENTED_BDD) {
-            return bcddEngine.and(a, b);
-        }
-        return bddEngine.and(a, b);
+        return labelBackend.and(a, b);
     }
 
     private static int labelDiff(int a, int b) {
-        if (labelMode == LabelMode.FINITE_DOMAIN_ZDD) {
-            return zddEngine.diff(a, b);
-        }
-        if (labelMode == LabelMode.COMPLEMENTED_BDD) {
-            return bcddEngine.and(a, bcddEngine.not(b));
-        }
-        return bddEngine.and(a, bddEngine.not(b));
+        return labelBackend.diff(0, a, b);
     }
 
     private static int labelNot(int field, int label) {
-        if (labelMode == LabelMode.FINITE_DOMAIN_ZDD) {
-            return zddEngine.diff(getFieldUniverseLabel(field), label);
-        }
-        if (labelMode == LabelMode.COMPLEMENTED_BDD) {
-            return bcddEngine.not(label);
-        }
-        return bddEngine.not(label);
+        return labelBackend.not(getFieldUniverseLabel(field), label);
     }
 
     private static int labelOrTo(int current, int add, int field) {
-        if (labelMode == LabelMode.FINITE_DOMAIN_ZDD) {
-            if (current == 0) {
-                return add;
-            }
-            int result = zddEngine.ref(zddEngine.union(current, add));
-            zddEngine.deref(current);
-            zddEngine.deref(add);
-            return result;
-        }
-        if (labelMode == LabelMode.COMPLEMENTED_BDD) {
-            int result = bcddEngine.ref(bcddEngine.or(current, add));
-            bcddEngine.deref(current);
-            bcddEngine.deref(add);
-            return result;
-        }
-        return bddEngine.orTo(current, add);
+        return labelBackend.orTo(current, add);
     }
 
     private static int labelAndTo(int current, int other, int field) {
-        if (labelMode == LabelMode.FINITE_DOMAIN_ZDD) {
-            int result = zddEngine.ref(zddEngine.intersect(current, other));
-            zddEngine.deref(current);
-            return result;
-        }
-        if (labelMode == LabelMode.COMPLEMENTED_BDD) {
-            int result = bcddEngine.ref(bcddEngine.and(current, other));
-            bcddEngine.deref(current);
-            return result;
-        }
-        return bddEngine.andTo(current, other);
+        return labelBackend.andTo(current, other);
     }
 
     private static double labelSatCount(int field, int label) {
-        if (labelMode == LabelMode.FINITE_DOMAIN_ZDD) {
-            return zddEngine.count(label);
-        }
         int fieldBits = pendingFieldBitNums.get(field);
-        double satDivisor = Math.pow(2.0, sharedBddVars.length - fieldBits);
-        if (labelMode == LabelMode.COMPLEMENTED_BDD) {
-            return bcddEngine.satCount(label) / satDivisor;
-        }
-        return bddEngine.satCount(label) / satDivisor;
+        int maxBits = labelBackend.isFiniteDomain() ? fieldBits : sharedBddVars.length;
+        return labelBackend.satCount(label, fieldBits, maxBits);
     }
 
     /**

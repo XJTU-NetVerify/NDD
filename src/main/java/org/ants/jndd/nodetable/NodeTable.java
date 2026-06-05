@@ -170,11 +170,15 @@ public class NodeTable {
      * @param bddCacheSize The BDD cache size.
      */
     public NodeTable(long nddTableSize, int bddTableSize, int bddCacheSize) {
+        this(nddTableSize, bddTableSize, bddCacheSize, true);
+    }
+
+    public NodeTable(long nddTableSize, int bddTableSize, int bddCacheSize, boolean allocateBddEngine) {
         this.totalCreated = 0L;
         this.currentSize = 0L;
         this.nddTableSize = nddTableSize;
         this.nodeTable = new ArrayList<>();
-        this.bddEngine = new BDD(bddTableSize, bddCacheSize);
+        this.bddEngine = allocateBddEngine ? new BDD(bddTableSize, bddCacheSize) : null;
 
         int initialNodeCap = (int) Math.max(4, Math.min(4096, nddTableSize + 2));
         int initialEdgeCap = Math.max(16, initialNodeCap * 4);
