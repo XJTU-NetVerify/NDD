@@ -560,11 +560,12 @@ public class NDD {
     public static void deref(int nodeId) { nodeTable.deref(nodeId); }
 
     /**
-     * Collect one edge (target, label) into the stack; merge with same target by OR-ing labels.
-     * Each recursive operation owns a stack frame `[frameStart, stackTop)`, which lets us reuse
-     * one global edge buffer instead of allocating a fresh per-node map or list on the hot path.
+     * Collect one edge (target, label) into the current stack frame `[frameStart, stackTop)`.
+     * Plain O(1) append: duplicate targets are tolerated here and merged later in {@link #edgeFlush}
+     * after sorting. Deferring dedup keeps this hot path branch-free and avoids the O(D^2) linear
+     * scan that the previous merge-on-collect implementation paid at every node.
      *
-     * @param frameStart Start of current frame in stack.
+     * @param frameStart Start of current frame in stack (kept for call-site symmetry with edgeFlush).
      * @param target     Target node id.
      * @param label      BDD handle for edge label (caller ref'd).
      */
@@ -573,25 +574,26 @@ public class NDD {
             derefLabel(label);
             return;
         }
-
-        for (int i = frameStart; i < stackTop; i++) {
-            if (stackTargets[i] == target) {
-                int oldLabel = stackLabels[i];
-                stackLabels[i] = labelOrTo(oldLabel, label, nodeTable.getField(target));
-                return;
-            }
-        }
-
         if (stackTop >= stackTargets.length) growStack();
         stackTargets[stackTop] = target;
         stackLabels[stackTop] = label;
         stackTop++;
     }
 
+    /** Frame size at/above which LSD radix sort beats comparison/insertion sort. */
+    private static final int RADIX_THRESHOLD = Integer.getInteger("ndd.radixThreshold", 64);
+    /** Scratch for radix sort: (target << 32 | label) packed; second is the ping-pong buffer. */
+    private static long[] packScratch = new long[1024];
+    private static long[] packScratch2 = new long[1024];
+    private static final int[] radixCount = new int[257];
+
     /**
-     * Flush collected edges: sort by target, then create/reuse node via nodeTable.mk.
-     * Sorting gives the unique table a canonical edge order even though edgeCollect appends in
-     * traversal order while opportunistically merging duplicate targets.
+     * Flush collected edges: sort by target, merge duplicate targets (consuming OR on labels),
+     * then create/reuse the node via {@link NodeTable#mk}. mk needs a canonical (sorted, deduped)
+     * edge order. Sort is size-adaptive: in-place quicksort/insertion for small frames (the common
+     * case — NDD fan-out is typically tiny, so this matches the old insertion-sort cost exactly),
+     * and O(n) LSD radix sort for large frames (high fan-out), where it avoids the O(n log n) /
+     * O(n^2) blow-up.
      *
      * @param frameStart Start of current frame in stack.
      * @param field      Field index for the new node.
@@ -604,18 +606,100 @@ public class NDD {
             stackTop = frameStart;
             return FALSE;
         }
-
         if (size == 1 && isUniverseEdgeLabel(field, stackLabels[frameStart])) {
             int target = stackTargets[frameStart];
             stackTop = frameStart;
             return target;
         }
 
-        for (int i = frameStart + 1; i < stackTop; i++) {
+        int res = (size >= RADIX_THRESHOLD)
+                ? flushRadixMerge(frameStart, field, size)
+                : flushQsortMerge(frameStart, field, size);
+        stackTop = frameStart;
+        return res;
+    }
+
+    /** Small/medium frames: in-place quicksort (insertion for short runs) by target + merge + mk. */
+    private static int flushQsortMerge(int frameStart, int field, int size) {
+        qsortPairs(frameStart, frameStart + size - 1);
+        return mergeRunsAndMk(frameStart, field, size);
+    }
+
+    /** Large frames: pack + O(n) LSD radix sort by target + merge + mk. */
+    private static int flushRadixMerge(int frameStart, int field, int size) {
+        if (packScratch.length < size) packScratch = new long[Math.max(size, packScratch.length * 2)];
+        if (packScratch2.length < size) packScratch2 = new long[Math.max(size, packScratch2.length * 2)];
+        long[] pk = packScratch;
+        for (int i = 0; i < size; i++) {
+            pk[i] = (((long) stackTargets[frameStart + i]) << 32)
+                    | (stackLabels[frameStart + i] & 0xffffffffL);
+        }
+        radixSortByTarget(size);
+        pk = packScratch; // radixSortByTarget leaves the sorted result here
+        // unpack back into the frame, then merge adjacent equal targets in place
+        for (int i = 0; i < size; i++) {
+            stackTargets[frameStart + i] = (int) (pk[i] >>> 32);
+            stackLabels[frameStart + i] = (int) pk[i];
+        }
+        return mergeRunsAndMk(frameStart, field, size);
+    }
+
+    /**
+     * Given the frame `[frameStart, frameStart+size)` sorted by target ascending, merge runs of
+     * equal targets via the consuming labelOrTo (each input label consumed once, each output label
+     * left with one ref), compact in place, and create the node.
+     */
+    private static int mergeRunsAndMk(int frameStart, int field, int size) {
+        int w = frameStart;
+        int curT = stackTargets[frameStart];
+        int curL = stackLabels[frameStart];
+        for (int i = frameStart + 1; i < frameStart + size; i++) {
             int t = stackTargets[i];
             int l = stackLabels[i];
-            int j = i - 1;
-            while (j >= frameStart && stackTargets[j] > t) {
+            if (t == curT) {
+                curL = labelOrTo(curL, l, field); // consuming OR
+            } else {
+                stackTargets[w] = curT;
+                stackLabels[w] = curL;
+                w++;
+                curT = t;
+                curL = l;
+            }
+        }
+        stackTargets[w] = curT;
+        stackLabels[w] = curL;
+        w++;
+        return nodeTable.mk(field, stackTargets, stackLabels, frameStart, w - frameStart);
+    }
+
+    /** Quicksort over stackTargets/stackLabels[lo..hi] keyed by target; insertion sort for short runs. */
+    private static void qsortPairs(int lo, int hi) {
+        while (hi - lo > 16) {
+            int mid = (lo + hi) >>> 1;
+            int a = stackTargets[lo], b = stackTargets[mid], c = stackTargets[hi];
+            int pivotIdx = (a < b) ? (b < c ? mid : (a < c ? hi : lo)) : (a < c ? lo : (b < c ? hi : mid));
+            swapPair(pivotIdx, hi);
+            int pivot = stackTargets[hi];
+            int i = lo - 1;
+            for (int j = lo; j < hi; j++) {
+                if (stackTargets[j] < pivot) {
+                    i++;
+                    swapPair(i, j);
+                }
+            }
+            swapPair(i + 1, hi);
+            int p = i + 1;
+            if (p - lo < hi - p) { // recurse on smaller side, loop on larger (bounded stack depth)
+                qsortPairs(lo, p - 1);
+                lo = p + 1;
+            } else {
+                qsortPairs(p + 1, hi);
+                hi = p - 1;
+            }
+        }
+        for (int i = lo + 1; i <= hi; i++) {
+            int t = stackTargets[i], l = stackLabels[i], j = i - 1;
+            while (j >= lo && stackTargets[j] > t) {
                 stackTargets[j + 1] = stackTargets[j];
                 stackLabels[j + 1] = stackLabels[j];
                 j--;
@@ -623,11 +707,26 @@ public class NDD {
             stackTargets[j + 1] = t;
             stackLabels[j + 1] = l;
         }
+    }
 
-        int res = nodeTable.mk(field, stackTargets, stackLabels, frameStart, size);
+    private static void swapPair(int i, int j) {
+        int t = stackTargets[i]; stackTargets[i] = stackTargets[j]; stackTargets[j] = t;
+        int l = stackLabels[i]; stackLabels[i] = stackLabels[j]; stackLabels[j] = l;
+    }
 
-        stackTop = frameStart;
-        return res;
+    /** Stable LSD radix sort of packScratch[0,size) by the high-32-bit target, 8 bits x 4 passes. */
+    private static void radixSortByTarget(int size) {
+        long[] src = packScratch, dst = packScratch2;
+        int[] count = radixCount;
+        for (int shift = 32; shift < 64; shift += 8) {
+            Arrays.fill(count, 0);
+            for (int i = 0; i < size; i++) count[((int) (src[i] >>> shift) & 0xFF) + 1]++;
+            for (int i = 0; i < 256; i++) count[i + 1] += count[i];
+            for (int i = 0; i < size; i++) dst[count[(int) (src[i] >>> shift) & 0xFF]++] = src[i];
+            long[] t = src; src = dst; dst = t;
+        }
+        packScratch = src;  // 4 passes (even) -> sorted result is back in the original packScratch
+        packScratch2 = dst;
     }
 
     /**
@@ -651,6 +750,23 @@ public class NDD {
         edges.forEach((target, label) -> {
             edgeCollect(frameStart, target, refLabel(label));
         });
+        return edgeFlush(frameStart, field);
+    }
+
+    /**
+     * Create or reuse an NDD node at {@code field} from a plain target-&gt;label edge map.
+     * Public counterpart of {@link #mk(int, IntIntMap)} for callers that hold a {@link Map}
+     * (e.g. ACL/TC encoders). Each label is ref'd into the new node; the map is not consumed.
+     *
+     * @param field Field index.
+     * @param edges Map from target node id to BDD label handle.
+     * @return The node id.
+     */
+    public static int addAtField(int field, Map<Integer, Integer> edges) {
+        int frameStart = stackTop;
+        for (Map.Entry<Integer, Integer> e : edges.entrySet()) {
+            edgeCollect(frameStart, e.getKey(), refLabel(e.getValue()));
+        }
         return edgeFlush(frameStart, field);
     }
 
