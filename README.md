@@ -22,9 +22,20 @@ Run time (`second`) on different sizes of **NQueens** problem.
 | -- | --------- | ------------- | ------ |
 | 10 |    0.5479 |        0.7315 | 0.2136 |
 | 11 |    2.7947 |        2.7497 | 0.7619 |
-| 12 |   22.8852 |       14.6047 | 4.1006 |
+| 12 |   19.0108 |       10.2289 | 3.4391 |
+| 13 |  148.9701 |       66.7104 |23.6618 |
 
 Detailed benchmark results are available on [nqueensBenchmarkDDs](https://github.com/XJTU-NetVerify/nqueensBenchmarkDDs)
+
+Recent N-Queens label-backend comparison at `N=12`:
+
+| target | time (s) | memory (MB) | 
+| --- | ---: | ---: |
+| ndd-bdd | 3.0199 | 567.2 | 
+| ndd-zdd | 2.8683 | 559.4 | 
+| ndd-bcdd | 3.0480 | 742.1 | 
+
+Full backend comparison results are in [`results/nqueens_backend_results.md`](results/nqueens_backend_results.md) and the wiki.
 
 ## The Origin of NDD
 
