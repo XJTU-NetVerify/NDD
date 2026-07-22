@@ -11,7 +11,7 @@ Currently, our NDD libray supports several external data structures, including: 
 An example of using BDD as the external data structure is shown in the figure below.
 In this figure, we represent Hadamard matrix _H_<sub>4</sub>'s values on each coordinate (_x_<sub>0</sub>_x_<sub>1</sub>, _y_<sub>0</sub>_y_<sub>1</sub>) as a BDD (in (b)) and an NDD (in (c)). Each NDD node represents a 2-bit field (_f_<sub>1</sub> and _f_<sub>2</sub>), and the branching condition is encoded with 2 BDDs (in (d)).
 
-![ndd-diagram](ndd_diagram.svg)
+<img src="ndd_diagram.svg" width="100%">
 
 NDD can be seen as wrapping a lower-level decision diagram with an outer field-aware layer, and therefore the name of NDD can also be interpreted as "Nested Decision Diagram".
 
