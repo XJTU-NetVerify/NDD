@@ -17,19 +17,39 @@ NDD can be seen as wrapping a lower-level decision diagram with an outer field-a
 
 ## Benchmark
 
-The following table compares the performance of our NDD libray with the [JDD library](), and our original version of NDD submitted to NSDI '25.
-We use different sizes of **NQueens** problem, and the time is in `seconds`. 
+NDD is designed to make the field structure in symbolic workloads explicit. The following results show the effect on the two largest completed **N-Queens** instances in our cross-library run. `NDD` is the current optimized implementation and `NDD-Origin` is the original NDD version; lower is better.
 
-|  N | BDD (JDD) | NDD-Original  | NDD    |
-| -- | --------- | ------------- | ------ |
-| 10 |    0.5479 |        0.7315 | 0.2136 |
-| 11 |    2.7947 |        2.7497 | 0.7619 |
-| 12 |   19.0108 |       10.2289 | 3.4391 |
-| 13 |  148.9701 |       66.7104 |23.6618 |
+| Implementation | Language | N=12 time (s) | N=13 time (s) |
+| --- | --- | ---: | ---: |
+| BuDDy | C | 41.098 | >500 (timeout) |
+| CUDD | C | 28.663 | 194.928 |
+| JDD | Java | 19.011 | 148.970 |
+| JSylvan* | Java | 4.816 | 42.857 |
+| DD-BDD | C# | 13.931 | 81.584 |
+| DD-CBDD | C# | 9.730 | 55.487 |
+| NDD-Origin | Java | 10.229 | 66.710 |
+| **NDD** | **Java** | **3.439** | **23.662** |
 
-Detailed benchmark results, compared with more BDD libraries, are available on [nqueensBenchmarkDDs](https://github.com/XJTU-NetVerify/nqueensBenchmarkDDs)
+On these instances, NDD is the fastest implementation in this run: **1.40x faster at N=12** and **1.81x faster at N=13** than the next fastest completed implementation. It is also **2.97x** and **2.82x** faster than NDD-Origin, and **5.53x** and **6.30x** faster than JDD, respectively. All implementations are single-threaded except JSylvan, which used 48 worker threads.
 
-The following table compares the performance of different external data structures for N-Queens `N=12`.
+The [N-Queens results in the Wiki](https://github.com/XJTU-NetVerify/NDD/wiki/Results-NQueens) include the full table, memory footprint, node counts, NDD variants, and a comparison of BDD, ZDD, and complemented-edge BDD label backends. The dedicated [nqueensBenchmarkDDs](https://github.com/XJTU-NetVerify/nqueensBenchmarkDDs) repository contains the broader benchmarking harness and related implementations.
+
+### Network Verification: WAN / SRE
+
+N-Queens is easy to reproduce; WAN/SRE is the network-verification-oriented benchmark used to evaluate larger field-structured BGP/fattree workloads. A compact view of representative cases is below. `NDD-Origin` is the original baseline and `NDD` is the current optimized implementation.
+
+| WAN / SRE dataset | Metric | BDD | NDD-Origin | NDD |
+| --- | --- | ---: | ---: | ---: |
+| `bgp_fattree08`, `MF=3` | total time | 103.809 s | 60.829 s | **25.602 s** |
+| `bgp_fattree08`, `MF=3` | BDD nodes | 85.6 M | 38.2 M | **3.2 M** |
+| `bgp_fattree12`, `MF=3` | total time | 2,350.774 s | 636.086 s | **230.906 s** |
+| `bgp_fattree16`, `MF=2` | total time | >14,400 s (timeout) | 1,178.287 s | **472.056 s** |
+
+See the [WAN/SRE results in the Wiki](https://github.com/XJTU-NetVerify/NDD/wiki/Results-SRE) for the complete experiment matrix, including peak memory, route counts, timeouts, and methodology notes. These research drivers require external datasets and are not part of the default Maven build.
+
+### NDD Label Backends
+
+The following table compares external data structures for N-Queens `N=12`.
 
 | target | time (s) | memory (MB) | 
 | --- | ---: | ---: |
