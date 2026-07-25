@@ -15,6 +15,18 @@ In this figure, we represent Hadamard matrix _H_<sub>4</sub>'s values on each co
 
 NDD can be seen as wrapping a lower-level decision diagram with an outer field-aware layer, and therefore the name of NDD can also be interpreted as "Nested Decision Diagram".
 
+## Manipulation APIs
+
+Alongside `mk`, `and`, `or`, and `not`, NDD provides field-aware operations commonly expected from a decision-diagram package:
+
+- `apply(...)` for named binary Boolean operations, plus `simplify(function, careSet)`
+- `restrict(...)` to fix a field value and obtain its cofactor
+- `satCount`, `anySat`, and callback-based `allSat`
+- existential quantification over one or more fields: `exist(root, fields...)`
+- field substitution/renaming: `substitute(root, sourceField, targetField)`
+
+The [Manipulation API guide](https://github.com/XJTU-NetVerify/NDD/wiki/Manipulation-APIs) explains the field-level semantics, backend-specific value representation, and complete call examples.
+
 ## Benchmark
 
 NDD is designed to make the field structure in symbolic workloads explicit. The following results show the effect on the two largest completed **N-Queens** instances in our cross-library run. `NDD` is the current optimized implementation and `NDD-Origin` is the original NDD version; lower is better.

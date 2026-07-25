@@ -33,6 +33,20 @@ public class NDD {
         FINITE_DOMAIN_ZDD
     }
 
+    /** Operations accepted by {@link #apply(BinaryOperation, int, int)}. */
+    public enum BinaryOperation {
+        AND, OR, XOR, NAND, NOR, BIIMP, IMP, DIFF
+    }
+
+    /**
+     * Receives one complete satisfying assignment during {@link #allSat(int, AssignmentConsumer)}.
+     * Return {@code false} to stop enumeration early.
+     */
+    @FunctionalInterface
+    public interface AssignmentConsumer {
+        boolean accept(int[][] assignment);
+    }
+
     /**
      * Size of operation caches (not, and, or).
      */
@@ -1035,6 +1049,63 @@ public class NDD {
     }
 
     /**
+     * Apply a named Boolean operation to two NDDs.
+     *
+     * @param operation Operation to apply.
+     * @param a Left operand.
+     * @param b Right operand.
+     * @return The result node id.
+     */
+    public static int apply(BinaryOperation operation, int a, int b) {
+        if (operation == null) throw new IllegalArgumentException("operation must not be null");
+        switch (operation) {
+            case AND: return and(a, b);
+            case OR: return or(a, b);
+            case IMP: return imp(a, b);
+            case DIFF: return diff(a, b);
+            case XOR: {
+                int aOnly = ref(diff(a, b));
+                int bOnly = ref(diff(b, a));
+                int result = or(aOnly, bOnly);
+                deref(aOnly);
+                deref(bOnly);
+                return result;
+            }
+            case NAND: {
+                int conjunction = ref(and(a, b));
+                int result = not(conjunction);
+                deref(conjunction);
+                return result;
+            }
+            case NOR: {
+                int disjunction = ref(or(a, b));
+                int result = not(disjunction);
+                deref(disjunction);
+                return result;
+            }
+            case BIIMP: {
+                int exclusiveOr = ref(apply(BinaryOperation.XOR, a, b));
+                int result = not(exclusiveOr);
+                deref(exclusiveOr);
+                return result;
+            }
+            default: throw new AssertionError("Unhandled binary operation: " + operation);
+        }
+    }
+
+    /**
+     * Return a conservative simplification of {@code function} under {@code careSet}.
+     * The returned NDD is equal to {@code function} on the care set and FALSE outside it.
+     *
+     * @param function Function to simplify.
+     * @param careSet Assignments whose function value must be preserved.
+     * @return A function equivalent to {@code function} on {@code careSet}.
+     */
+    public static int simplify(int function, int careSet) {
+        return and(function, careSet);
+    }
+
+    /**
      * Number of satisfying assignments of the NDD (via conversion to BDD).
      *
      * @param ndd Root node id.
@@ -1745,10 +1816,296 @@ public class NDD {
      * @return Result node id.
      */
     public static int exist(int a, int field) {
+        validateField(field);
         temporarilyProtect.clear();
         int res = existRec(a, field);
         runSafePointMaintenance();
         return res;
+    }
+
+    /**
+     * Existentially quantify several fields. Fields may be supplied in any order.
+     *
+     * @param a Root NDD node id.
+     * @param fields Fields to project out.
+     * @return The projected NDD.
+     */
+    public static int exist(int a, int... fields) {
+        if (fields == null) throw new IllegalArgumentException("fields must not be null");
+        int result = ref(a);
+        boolean[] seen = new boolean[fieldNum + 1];
+        for (int field : fields) {
+            validateField(field);
+            if (seen[field]) throw new IllegalArgumentException("field specified more than once: " + field);
+            seen[field] = true;
+            int next = ref(exist(result, field));
+            deref(result);
+            result = next;
+        }
+        deref(result);
+        return result;
+    }
+
+    /**
+     * Restrict a Boolean/complemented-BDD field to a concrete bit vector and project that field out.
+     * Bit 0 is the most significant bit, matching {@link #getVar(int, int)} and prefix encoders.
+     *
+     * @param a Root NDD node id.
+     * @param field Field to fix.
+     * @param valueBits Field value, one 0/1 entry per field bit.
+     * @return The cofactor with {@code field} removed.
+     */
+    public static int restrict(int a, int field, int[] valueBits) {
+        validateField(field);
+        if (labelMode == LabelMode.FINITE_DOMAIN_ZDD) {
+            throw new UnsupportedOperationException("Use restrict(a, field, value) in FINITE_DOMAIN_ZDD mode");
+        }
+        if (valueBits == null || valueBits.length != fieldWidth(field)) {
+            throw new IllegalArgumentException("valueBits must contain exactly " + fieldWidth(field) + " bits");
+        }
+        int assignment = buildBooleanFieldAssignment(field, valueBits);
+        return restrictWithAssignment(a, field, assignment);
+    }
+
+    /**
+     * Restrict a field to a concrete value and project that field out. In BOOLEAN_BDD and
+     * COMPLEMENTED_BDD modes, {@code value} is interpreted as an unsigned field value. In
+     * FINITE_DOMAIN_ZDD mode, it is the selected domain-value index.
+     *
+     * @param a Root NDD node id.
+     * @param field Field to fix.
+     * @param value Unsigned field value or finite-domain value index.
+     * @return The cofactor with {@code field} removed.
+     */
+    public static int restrict(int a, int field, long value) {
+        validateField(field);
+        if (value < 0) throw new IllegalArgumentException("value must be non-negative");
+        if (labelMode == LabelMode.FINITE_DOMAIN_ZDD) {
+            if (value >= fieldWidth(field)) {
+                throw new IllegalArgumentException("finite-domain value index out of range: " + value);
+            }
+            return restrictWithAssignment(a, field, ref(getVar(field, (int) value)));
+        }
+        int width = fieldWidth(field);
+        if (width > 63) {
+            throw new IllegalArgumentException("fields wider than 63 bits require restrict(a, field, int[])");
+        }
+        if (width < 63 && value >= (1L << width)) {
+            throw new IllegalArgumentException("value does not fit in field " + field);
+        }
+        int[] valueBits = new int[width];
+        for (int i = 0; i < width; i++) {
+            valueBits[i] = (int) ((value >>> (width - 1 - i)) & 1L);
+        }
+        return restrict(a, field, valueBits);
+    }
+
+    /**
+     * Find one complete satisfying assignment, or {@code null} when {@code a} is FALSE.
+     * BOOLEAN_BDD and COMPLEMENTED_BDD assignments contain one 0/1 entry per field bit.
+     * FINITE_DOMAIN_ZDD assignments contain one selected domain-value index per field.
+     */
+    public static int[][] anySat(int a) {
+        if (satCount(a) == 0) return null;
+        int[][] assignment = new int[fieldNum + 1][];
+        int working = ref(a);
+        for (int field = 0; field <= fieldNum; field++) {
+            int width = fieldWidth(field);
+            if (labelMode == LabelMode.FINITE_DOMAIN_ZDD) {
+                boolean found = false;
+                for (int value = 0; value < width; value++) {
+                    int candidate = ref(and(working, getVar(field, value)));
+                    if (satCount(candidate) != 0) {
+                        assignment[field] = new int[]{value};
+                        deref(working);
+                        working = candidate;
+                        found = true;
+                        break;
+                    }
+                    deref(candidate);
+                }
+                if (!found) throw new IllegalStateException("satisfying assignment disappeared during search");
+            } else {
+                assignment[field] = new int[width];
+                for (int bit = 0; bit < width; bit++) {
+                    int zero = ref(and(working, getNotVar(field, bit)));
+                    if (satCount(zero) != 0) {
+                        assignment[field][bit] = 0;
+                        deref(working);
+                        working = zero;
+                    } else {
+                        deref(zero);
+                        int one = ref(and(working, getVar(field, bit)));
+                        if (satCount(one) == 0) {
+                            deref(one);
+                            throw new IllegalStateException("satisfying assignment disappeared during search");
+                        }
+                        assignment[field][bit] = 1;
+                        deref(working);
+                        working = one;
+                    }
+                }
+            }
+        }
+        deref(working);
+        return assignment;
+    }
+
+    /**
+     * Enumerate complete satisfying assignments. The consumer may stop enumeration by returning false.
+     * Enumeration is intentionally explicit: a function with wide fields can have exponentially many
+     * assignments, so callers should normally stop early or use {@link #anySat(int)}.
+     *
+     * @param a Root NDD node id.
+     * @param consumer Receives a defensive copy of each assignment.
+     * @return Number of assignments delivered to the consumer.
+     */
+    public static long allSat(int a, AssignmentConsumer consumer) {
+        if (consumer == null) throw new IllegalArgumentException("consumer must not be null");
+        if (satCount(a) == 0) return 0;
+        long[] count = new long[]{0};
+        int[][] assignment = new int[fieldNum + 1][];
+        int working = ref(a);
+        allSatFields(working, 0, assignment, consumer, count);
+        deref(working);
+        return count[0];
+    }
+
+    /**
+     * Substitute {@code targetField} for {@code sourceField}: the result is equivalent to
+     * {@code a[sourceField := targetField]}. The fields must have the same width/domain size.
+     */
+    public static int substitute(int a, int sourceField, int targetField) {
+        validateField(sourceField);
+        validateField(targetField);
+        if (sourceField == targetField) return a;
+        if (fieldWidth(sourceField) != fieldWidth(targetField)) {
+            throw new IllegalArgumentException("source and target fields must have the same width/domain size");
+        }
+        int equality = buildFieldEquality(sourceField, targetField);
+        int constrained = ref(and(a, equality));
+        deref(equality);
+        int result = exist(constrained, sourceField);
+        deref(constrained);
+        return result;
+    }
+
+    /** Alias for {@link #substitute(int, int, int)}. */
+    public static int replaceField(int a, int sourceField, int targetField) {
+        return substitute(a, sourceField, targetField);
+    }
+
+    private static int restrictWithAssignment(int a, int field, int assignment) {
+        int constrained = ref(and(a, assignment));
+        deref(assignment);
+        int result = exist(constrained, field);
+        deref(constrained);
+        return result;
+    }
+
+    private static int buildBooleanFieldAssignment(int field, int[] valueBits) {
+        int assignment = TRUE;
+        for (int bit = 0; bit < valueBits.length; bit++) {
+            if (valueBits[bit] != 0 && valueBits[bit] != 1) {
+                if (!isTerminal(assignment)) deref(assignment);
+                throw new IllegalArgumentException("valueBits entries must be 0 or 1");
+            }
+            int literal = valueBits[bit] == 0 ? getNotVar(field, bit) : getVar(field, bit);
+            int next = ref(and(assignment, literal));
+            if (!isTerminal(assignment)) deref(assignment);
+            assignment = next;
+        }
+        return assignment;
+    }
+
+    private static int buildFieldEquality(int leftField, int rightField) {
+        int equality = labelMode == LabelMode.FINITE_DOMAIN_ZDD ? FALSE : TRUE;
+        int width = fieldWidth(leftField);
+        for (int index = 0; index < width; index++) {
+            int equalAtIndex;
+            if (labelMode == LabelMode.FINITE_DOMAIN_ZDD) {
+                equalAtIndex = ref(and(getVar(leftField, index), getVar(rightField, index)));
+            } else {
+                int bothTrue = ref(and(getVar(leftField, index), getVar(rightField, index)));
+                int bothFalse = ref(and(getNotVar(leftField, index), getNotVar(rightField, index)));
+                equalAtIndex = ref(or(bothTrue, bothFalse));
+                deref(bothTrue);
+                deref(bothFalse);
+            }
+            int next = labelMode == LabelMode.FINITE_DOMAIN_ZDD
+                    ? ref(or(equality, equalAtIndex))
+                    : ref(and(equality, equalAtIndex));
+            if (!isTerminal(equality)) deref(equality);
+            deref(equalAtIndex);
+            equality = next;
+        }
+        return equality;
+    }
+
+    private static boolean allSatFields(int working, int field, int[][] assignment,
+            AssignmentConsumer consumer, long[] count) {
+        if (field > fieldNum) {
+            count[0]++;
+            return consumer.accept(copyAssignment(assignment));
+        }
+        int width = fieldWidth(field);
+        if (labelMode == LabelMode.FINITE_DOMAIN_ZDD) {
+            for (int value = 0; value < width; value++) {
+                int candidate = ref(and(working, getVar(field, value)));
+                if (satCount(candidate) != 0) {
+                    assignment[field] = new int[]{value};
+                    boolean continueEnumeration = allSatFields(candidate, field + 1, assignment, consumer, count);
+                    deref(candidate);
+                    if (!continueEnumeration) return false;
+                } else {
+                    deref(candidate);
+                }
+            }
+            assignment[field] = null;
+            return true;
+        }
+        assignment[field] = new int[width];
+        boolean result = allSatBits(working, field, 0, assignment, consumer, count);
+        assignment[field] = null;
+        return result;
+    }
+
+    private static boolean allSatBits(int working, int field, int bit, int[][] assignment,
+            AssignmentConsumer consumer, long[] count) {
+        if (bit == assignment[field].length) {
+            return allSatFields(working, field + 1, assignment, consumer, count);
+        }
+        for (int value = 0; value <= 1; value++) {
+            int literal = value == 0 ? getNotVar(field, bit) : getVar(field, bit);
+            int candidate = ref(and(working, literal));
+            if (satCount(candidate) != 0) {
+                assignment[field][bit] = value;
+                boolean continueEnumeration = allSatBits(candidate, field, bit + 1, assignment, consumer, count);
+                deref(candidate);
+                if (!continueEnumeration) return false;
+            } else {
+                deref(candidate);
+            }
+        }
+        return true;
+    }
+
+    private static int[][] copyAssignment(int[][] assignment) {
+        int[][] copy = new int[assignment.length][];
+        for (int i = 0; i < assignment.length; i++) {
+            copy[i] = assignment[i] == null ? null : Arrays.copyOf(assignment[i], assignment[i].length);
+        }
+        return copy;
+    }
+
+    private static void validateField(int field) {
+        if (field < 0 || field > fieldNum) {
+            throw new IllegalArgumentException("field out of range: " + field);
+        }
+    }
+
+    private static int fieldWidth(int field) {
+        return pendingFieldBitNums.get(field);
     }
 
     private static int existRec(int a, int field) {
