@@ -137,7 +137,7 @@ final class LabelDecisionDiagramBackends {
 
         @Override
         public long totalCreated() {
-            return jdd.bdd.NodeTable.mkCount;
+            return engine.getTotalCreated();
         }
 
         @Override
@@ -341,7 +341,7 @@ final class LabelDecisionDiagramBackends {
 
         @Override
         public long totalCreated() {
-            return jdd.bdd.NodeTable.mkCount;
+            return engine.getTotalCreated();
         }
 
         @Override

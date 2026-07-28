@@ -17,6 +17,7 @@ import jdd.util.math.HashFunctions;
 
 public class NodeTable {
     public static int mkCount = 0;
+    private long totalCreated;
     public static final int NODE_MARK = Integer.MIN_VALUE;
     public static final int NODE_UNMARK = Integer.MAX_VALUE;
     public static final short MAX_REFCOUNT = Short.MAX_VALUE;
@@ -256,12 +257,18 @@ public class NodeTable {
             hash = this.compute_hash(v, l, h);
         }
         ++mkCount;
+        ++this.totalCreated;
         curr = this.first_free_node;
         this.first_free_node = this.getNext(this.first_free_node);
         --this.free_nodes_count;
         this.setAll(curr, v, l, h, (short)-1);
         this.connect_list(curr, hash);
         return curr;
+    }
+
+    /** Per-engine node creation count; unlike the legacy mkCount this is not process-global. */
+    public long getTotalCreated() {
+        return this.totalCreated;
     }
 
     public Collection<CacheBase> addDebugger(BDDDebuger d) {

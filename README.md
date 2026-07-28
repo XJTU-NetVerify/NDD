@@ -61,6 +61,11 @@ See the [WAN/SRE results in the Wiki](https://github.com/XJTU-NetVerify/NDD/wiki
 
 ### NDD Label Backends
 
+NDD supports both homogeneous and mixed label backends: each field may select BDD, BCDD, or
+finite-domain ZDD labels, while fields of the same type share one backend engine and right-aligned
+variable layout. See the [Usage](https://github.com/XJTU-NetVerify/NDD/wiki/Usage) and
+[Design Notes](https://github.com/XJTU-NetVerify/NDD/wiki/Design-Notes) pages for details.
+
 The following table compares external data structures for N-Queens `N=12`.
 
 | target | time (s) | memory (MB) | 

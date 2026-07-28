@@ -314,7 +314,7 @@ public class NodeTable {
      *
      * @param field  The field index.
      * @param targets Array of target node ids.
-     * @param labels  Array of BDD label handles (same length as targets).
+     * @param labels  Array of field-backend label handles (same length as targets).
      * @return The node id (new or reused).
      */
     public int mk(int field, int[] targets, int[] labels) {
@@ -328,14 +328,14 @@ public class NodeTable {
      *
      * @param field   The field index.
      * @param targets Array of target node ids.
-     * @param labels  Array of BDD label handles.
+     * @param labels  Array of field-backend label handles.
      * @param offset  Start index in targets/labels.
      * @param length  Number of edges.
      * @return The node id (new or reused).
      */
     public int mk(int field, int[] targets, int[] labels, int offset, int length) {
         if (length == 1 && NDD.isUniverseEdgeLabel(field, labels[offset])) {
-            NDD.derefLabel(labels[offset]);
+            NDD.derefLabel(field, labels[offset]);
             return targets[offset];
         }
 
@@ -344,7 +344,7 @@ public class NodeTable {
         int nodeId = table.lookup(hash, targets, labels, offset, length, this);
 
         if (nodeId != 0) {
-            for (int i = 0; i < length; i++) NDD.derefLabel(labels[offset + i]);
+            for (int i = 0; i < length; i++) NDD.derefLabel(field, labels[offset + i]);
             return nodeId;
         }
 
@@ -494,7 +494,8 @@ public class NodeTable {
                 }
             }
 
-            for (int i = 0; i < count; i++) NDD.derefLabel(edgeLabel[start + i]);
+            int field = nodeField[deadNode];
+            for (int i = 0; i < count; i++) NDD.derefLabel(field, edgeLabel[start + i]);
 
             nodeTable.get(nodeField[deadNode]).remove(deadNode, this);
             // DON'T clear nodeField/nodeEdgeBlock/nodeEdgeCount - recursive operations
