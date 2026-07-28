@@ -633,6 +633,16 @@ public class NDD {
         return res;
     }
 
+    /**
+     * Discard a partially collected edge frame, releasing every caller-owned label reference.
+     */
+    private static void edgeDiscard(int frameStart) {
+        for (int i = frameStart; i < stackTop; i++) {
+            derefLabel(stackLabels[i]);
+        }
+        stackTop = frameStart;
+    }
+
     /** Small/medium frames: in-place quicksort (insertion for short runs) by target + merge + mk. */
     private static int flushQsortMerge(int frameStart, int field, int size) {
         qsortPairs(frameStart, frameStart + size - 1);
@@ -1094,15 +1104,134 @@ public class NDD {
     }
 
     /**
-     * Return a conservative simplification of {@code function} under {@code careSet}.
-     * The returned NDD is equal to {@code function} on the care set and FALSE outside it.
+     * Generalized cofactor of {@code function} under {@code careSet}. The result agrees with
+     * {@code function} wherever {@code careSet} is TRUE, while values outside the care set are
+     * chosen recursively to eliminate fields and merge equal subgraphs where possible.
      *
      * @param function Function to simplify.
      * @param careSet Assignments whose function value must be preserved.
-     * @return A function equivalent to {@code function} on {@code careSet}.
+     * @return A simplified function equivalent to {@code function} on {@code careSet}.
      */
     public static int simplify(int function, int careSet) {
-        return and(function, careSet);
+        temporarilyProtect.clear();
+        HashMap<Long, Integer> memo = new HashMap<>();
+        int result = simplifyRec(function, careSet, memo);
+        runSafePointMaintenance();
+        return result;
+    }
+
+    private static int simplifyRec(int function, int careSet, HashMap<Long, Integer> memo) {
+        if (careSet == FALSE) return FALSE;
+        if (careSet == TRUE || isTerminal(function)) return function;
+        if (function == careSet) return TRUE;
+
+        long key = (((long) function) << 32) | (careSet & 0xffffffffL);
+        Integer cached = memo.get(key);
+        if (cached != null) return cached;
+
+        int functionField = nodeTable.getField(function);
+        int careField = nodeTable.getField(careSet);
+        int result;
+
+        if (careField < functionField) {
+            /*
+             * The care set constrains an earlier field that the function does not inspect.
+             * Simplify under each cared-for branch. If every branch yields the same result,
+             * the entire care-only field is a don't-care and can be removed.
+             */
+            int frameStart = stackTop;
+            boolean hasRequiredTarget = false;
+            boolean uniform = true;
+            int commonTarget = FALSE;
+            int count = nodeTable.getEdgeCount(careSet);
+            for (int i = 0; i < count; i++) {
+                int sub = simplifyRec(function, nodeTable.getEdgeTarget(careSet, i), memo);
+                if (!hasRequiredTarget) {
+                    commonTarget = sub;
+                    hasRequiredTarget = true;
+                } else if (commonTarget != sub) {
+                    uniform = false;
+                }
+                edgeCollect(frameStart, sub, refLabel(nodeTable.getEdgeLabel(careSet, i)));
+            }
+            if (!hasRequiredTarget || uniform) {
+                edgeDiscard(frameStart);
+                result = hasRequiredTarget ? commonTarget : FALSE;
+            } else {
+                result = edgeFlush(frameStart, careField);
+            }
+        } else if (functionField < careField) {
+            /*
+             * The care set does not constrain this function field, so its complete behavior,
+             * including the implicit FALSE residual, must be preserved.
+             */
+            int frameStart = stackTop;
+            int count = nodeTable.getEdgeCount(function);
+            for (int i = 0; i < count; i++) {
+                int sub = simplifyRec(nodeTable.getEdgeTarget(function, i), careSet, memo);
+                edgeCollect(frameStart, sub, refLabel(nodeTable.getEdgeLabel(function, i)));
+            }
+            result = edgeFlush(frameStart, functionField);
+        } else {
+            /*
+             * Both operands inspect the same field. Intersections identify the regions where
+             * function behavior is required by the care set. Regions outside care are omitted.
+             */
+            int frameStart = stackTop;
+            boolean hasRequiredTarget = false;
+            boolean uniform = true;
+            int commonTarget = FALSE;
+            int careCount = nodeTable.getEdgeCount(careSet);
+            int functionCount = nodeTable.getEdgeCount(function);
+
+            for (int i = 0; i < careCount; i++) {
+                int careLabel = nodeTable.getEdgeLabel(careSet, i);
+                int careTarget = nodeTable.getEdgeTarget(careSet, i);
+                int remainingCareLabel = refLabel(careLabel);
+
+                for (int j = 0; j < functionCount; j++) {
+                    int functionLabel = nodeTable.getEdgeLabel(function, j);
+                    int intersection = refLabel(labelAnd(careLabel, functionLabel));
+                    if (intersection != FALSE) {
+                        int sub = simplifyRec(nodeTable.getEdgeTarget(function, j), careTarget, memo);
+                        if (!hasRequiredTarget) {
+                            commonTarget = sub;
+                            hasRequiredTarget = true;
+                        } else if (commonTarget != sub) {
+                            uniform = false;
+                        }
+                        edgeCollect(frameStart, sub, intersection);
+                    } else {
+                        derefLabel(intersection);
+                    }
+
+                    int nextRemaining = refLabel(labelDiff(remainingCareLabel, functionLabel));
+                    derefLabel(remainingCareLabel);
+                    remainingCareLabel = nextRemaining;
+                }
+
+                if (remainingCareLabel != FALSE) {
+                    if (!hasRequiredTarget) {
+                        commonTarget = FALSE;
+                        hasRequiredTarget = true;
+                    } else if (commonTarget != FALSE) {
+                        uniform = false;
+                    }
+                }
+                derefLabel(remainingCareLabel);
+            }
+
+            if (!hasRequiredTarget || uniform) {
+                edgeDiscard(frameStart);
+                result = hasRequiredTarget ? commonTarget : FALSE;
+            } else {
+                result = edgeFlush(frameStart, functionField);
+            }
+        }
+
+        memo.put(key, result);
+        temporarilyProtect.add(result);
+        return result;
     }
 
     /**
@@ -1863,8 +1992,12 @@ public class NDD {
         if (valueBits == null || valueBits.length != fieldWidth(field)) {
             throw new IllegalArgumentException("valueBits must contain exactly " + fieldWidth(field) + " bits");
         }
-        int assignment = buildBooleanFieldAssignment(field, valueBits);
-        return restrictWithAssignment(a, field, assignment);
+        for (int bit : valueBits) {
+            if (bit != 0 && bit != 1) {
+                throw new IllegalArgumentException("valueBits entries must be 0 or 1");
+            }
+        }
+        return restrictWithAssignmentLabel(a, field, buildBooleanFieldAssignmentLabel(field, valueBits));
     }
 
     /**
@@ -1884,7 +2017,8 @@ public class NDD {
             if (value >= fieldWidth(field)) {
                 throw new IllegalArgumentException("finite-domain value index out of range: " + value);
             }
-            return restrictWithAssignment(a, field, ref(getVar(field, (int) value)));
+            int valueNode = getVar(field, (int) value);
+            return restrictWithAssignmentLabel(a, field, refLabel(nodeTable.getEdgeLabel(valueNode, 0)));
         }
         int width = fieldWidth(field);
         if (width > 63) {
@@ -1990,29 +2124,65 @@ public class NDD {
         return result;
     }
 
-    /** Alias for {@link #substitute(int, int, int)}. */
-    public static int replaceField(int a, int sourceField, int targetField) {
-        return substitute(a, sourceField, targetField);
+    /**
+     * Complete-field cofactor for every label backend. The assignment is a backend label, not an
+     * NDD node, so only the original NDD is traversed and the target field is eliminated directly.
+     */
+    private static int restrictWithAssignmentLabel(int a, int field, int assignmentLabel) {
+        temporarilyProtect.clear();
+        try {
+            HashMap<Integer, Integer> memo = new HashMap<>();
+            int result = restrictRec(a, field, assignmentLabel, memo);
+            runSafePointMaintenance();
+            return result;
+        } finally {
+            derefLabel(assignmentLabel);
+        }
     }
 
-    private static int restrictWithAssignment(int a, int field, int assignment) {
-        int constrained = ref(and(a, assignment));
-        deref(assignment);
-        int result = exist(constrained, field);
-        deref(constrained);
+    private static int restrictRec(int a, int field, int assignmentLabel,
+            HashMap<Integer, Integer> memo) {
+        if (isTerminal(a)) return a;
+        Integer cached = memo.get(a);
+        if (cached != null) return cached;
+
+        int aField = nodeTable.getField(a);
+        if (aField > field) return a;
+
+        int result;
+        if (aField == field) {
+            result = FALSE;
+            int count = nodeTable.getEdgeCount(a);
+            for (int i = 0; i < count; i++) {
+                int label = nodeTable.getEdgeLabel(a, i);
+                if (labelBackend.matches(label, assignmentLabel)) {
+                    result = orRec(result, nodeTable.getEdgeTarget(a, i));
+                }
+            }
+        } else {
+            int frameStart = stackTop;
+            int count = nodeTable.getEdgeCount(a);
+            for (int i = 0; i < count; i++) {
+                int target = nodeTable.getEdgeTarget(a, i);
+                int restrictedTarget = restrictRec(target, field, assignmentLabel, memo);
+                edgeCollect(frameStart, restrictedTarget, refLabel(nodeTable.getEdgeLabel(a, i)));
+            }
+            result = edgeFlush(frameStart, aField);
+        }
+
+        memo.put(a, result);
+        temporarilyProtect.add(result);
         return result;
     }
 
-    private static int buildBooleanFieldAssignment(int field, int[] valueBits) {
-        int assignment = TRUE;
+    private static int buildBooleanFieldAssignmentLabel(int field, int[] valueBits) {
+        int assignment = refLabel(TRUE);
         for (int bit = 0; bit < valueBits.length; bit++) {
-            if (valueBits[bit] != 0 && valueBits[bit] != 1) {
-                if (!isTerminal(assignment)) deref(assignment);
-                throw new IllegalArgumentException("valueBits entries must be 0 or 1");
-            }
-            int literal = valueBits[bit] == 0 ? getNotVar(field, bit) : getVar(field, bit);
-            int next = ref(and(assignment, literal));
-            if (!isTerminal(assignment)) deref(assignment);
+            int literal = valueBits[bit] == 0
+                    ? bddNotVarsPerField.get(field)[bit]
+                    : bddVarsPerField.get(field)[bit];
+            int next = refLabel(labelAnd(assignment, literal));
+            derefLabel(assignment);
             assignment = next;
         }
         return assignment;

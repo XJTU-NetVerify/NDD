@@ -96,6 +96,11 @@ final class LabelDecisionDiagramBackends {
         }
 
         @Override
+        public boolean matches(int label, int assignment) {
+            return engine.and(label, assignment) != 0;
+        }
+
+        @Override
         public int or(int left, int right) {
             return engine.or(left, right);
         }
@@ -189,6 +194,11 @@ final class LabelDecisionDiagramBackends {
         }
 
         @Override
+        public boolean matches(int label, int assignment) {
+            return engine.and(label, assignment) != 0;
+        }
+
+        @Override
         public int or(int left, int right) {
             return engine.or(left, right);
         }
@@ -279,6 +289,11 @@ final class LabelDecisionDiagramBackends {
         @Override
         public int and(int left, int right) {
             return engine.intersect(left, right);
+        }
+
+        @Override
+        public boolean matches(int label, int assignment) {
+            return engine.intersect(label, assignment) != 0;
         }
 
         @Override

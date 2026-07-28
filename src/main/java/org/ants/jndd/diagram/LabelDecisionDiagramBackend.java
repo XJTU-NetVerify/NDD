@@ -17,6 +17,12 @@ interface LabelDecisionDiagramBackend {
 
     int and(int left, int right);
 
+    /**
+     * Whether {@code label} contains the concrete field assignment represented by
+     * {@code assignment}. Both handles belong to this backend.
+     */
+    boolean matches(int label, int assignment);
+
     int or(int left, int right);
 
     int diff(int universe, int left, int right);
