@@ -6,7 +6,7 @@ in contrast, each NDD node looks at a **field** consisting of a fixed number of 
 As a result, there can be more than 2 branches for each NDD node. 
 
 Different from other multi-valued decision diagram like MDD, NDD encodes the branching condition with **external data structures**.
-Currently, our NDD libray supports several external data structures, including: BDD, complemented-edge BDD (BCDD), and zero-suppressed decision diagrams (ZDD).
+Currently, our NDD library supports several external data structures, including: BDD, complemented-edge BDD (BCDD), and zero-suppressed decision diagrams (ZDD).
 
 An example of using BDD as the external data structure is shown in the figure below.
 In this figure, we represent Hadamard matrix _H_<sub>4</sub>'s values on each coordinate (_x_<sub>0</sub>_x_<sub>1</sub>, _y_<sub>0</sub>_y_<sub>1</sub>) as a BDD (in (b)) and an NDD (in (c)). Each NDD node represents a 2-bit field (_f_<sub>1</sub> and _f_<sub>2</sub>), and the branching condition is encoded with 2 BDDs (in (d)).
@@ -15,17 +15,7 @@ In this figure, we represent Hadamard matrix _H_<sub>4</sub>'s values on each co
 
 NDD can be seen as wrapping a lower-level decision diagram with an outer field-aware layer, and therefore the name of NDD can also be interpreted as "Nested Decision Diagram".
 
-## Manipulation APIs
-
-Alongside `mk`, `and`, `or`, and `not`, NDD provides field-aware operations commonly expected from a decision-diagram package:
-
-- `apply(...)` for named binary Boolean operations, plus `simplify(function, careSet)`
-- `restrict(...)` to fix a field value and obtain its cofactor
-- `satCount`, `anySat`, and callback-based `allSat`
-- existential quantification over one or more fields: `exist(root, fields...)`
-- field substitution/renaming: `substitute(root, sourceField, targetField)`
-
-The [Manipulation API guide](https://github.com/XJTU-NetVerify/NDD/wiki/Manipulation-APIs) explains the field-level semantics, backend-specific value representation, and complete call examples.
+## How to use
 
 ## Benchmark
 
@@ -75,6 +65,18 @@ The following table compares external data structures for N-Queens `N=12`.
 | ndd-bcdd | 3.0480 | 742.1 | 
 
 Full backend comparison results are in [`results/nqueens_backend_results.md`](results/nqueens_backend_results.md) and the wiki.
+
+## Manipulation APIs
+
+Alongside `mk`, `and`, `or`, and `not`, NDD provides field-aware operations commonly expected from a decision-diagram package:
+
+- `apply(...)` for named binary Boolean operations, plus `simplify(function, careSet)`
+- `restrict(...)` to fix a field value and obtain its cofactor
+- `satCount`, `anySat`, and callback-based `allSat`
+- existential quantification over one or more fields: `exist(root, fields...)`
+- field substitution/renaming: `substitute(root, sourceField, targetField)`
+
+The [Manipulation API guide](https://github.com/XJTU-NetVerify/NDD/wiki/Manipulation-APIs) explains the field-level semantics, backend-specific value representation, and complete call examples.
 
 ## The Origin of NDD
 
