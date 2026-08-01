@@ -4,6 +4,7 @@
 For BDD, each node looks at a single **bit** each time, and branches based on whether the bit is true or false;
 in contrast, each NDD node looks at a **field** consisting of a fixed number of bits each time, and branches based on the value of the field.
 As a result, there can be more than 2 branches for each NDD node. 
+
 Different from the multi-valued decision diagram (MDD), where the branching conditions are **concrete**, i.e., a specific field should take a concrete value, the branching conditions in NDD are **symbolic**, i.e., a specific field can take any value of a set. 
 The branching conditions are compactly encoded with **external data structures**, including but not limited to BDDs.
 Currently, our NDD library supports several external data structures, including: BDD, complemented-edge BDD (BCDD), and zero-suppressed decision diagrams (ZDD).
