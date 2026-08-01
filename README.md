@@ -20,15 +20,14 @@ The following table shows the benchmark for **N-Queens** with N=12 and N=13.
 
 | Implementation | Language | N=12 time (s) | N=13 time (s) |
 | --- | --- | ---: | ---: |
-| BuDDy | C | 41.098 | >500 (timeout) |
+| BuDDy | C | 41.098 | >500 |
 | CUDD | C | 28.663 | 194.928 |
 | JDD | Java | 19.011 | 148.970 |
 | DD-BDD | C# | 13.931 | 81.584 |
 | DD-CBDD | C# | 9.730 | 55.487 |
 | **NDD** | **Java** | **3.439** | **23.662** |
 
-The [N-Queens results in the Wiki](https://github.com/XJTU-NetVerify/NDD/wiki/Results-NQueens) include the full table, memory footprint, node counts, NDD variants, and a comparison of BDD, ZDD, and complemented-edge BDD label backends. The dedicated [nqueensBenchmarkDDs](https://github.com/XJTU-NetVerify/nqueensBenchmarkDDs) repository contains the broader benchmarking harness and related implementations.
-
+For more details, please refer to [N-Queens Benchmark](https://github.com/XJTU-NetVerify/NDD/wiki/Results-NQueens). 
 
 ## How to use
 
