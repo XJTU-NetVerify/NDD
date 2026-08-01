@@ -4,18 +4,14 @@
 For BDD, each node looks at a single **bit** each time, and branches based on whether the bit is true or false;
 in contrast, each NDD node looks at a **field** consisting of a fixed number of bits each time, and branches based on the value of the field.
 As a result, there can be more than 2 branches for each NDD node. 
-
-Different from other multi-valued decision diagram like MDD, NDD encodes the branching condition with **external data structures**.
+Different from the multi-valued decision diagram (MDD), where the branching conditions are ``concrete'', i.e., a specific field takes a concrete value, the branching conditions in NDD are ``symbolic'', i.e., a specific field takes a set of values. 
+The branching conditions are compactly encoded with **external data structures**, including but not limited to BDDs.
 Currently, our NDD library supports several external data structures, including: BDD, complemented-edge BDD (BCDD), and zero-suppressed decision diagrams (ZDD).
+In this sense, NDD can be seen as wrapping a lower-level decision diagram with an outer field-aware layer, and therefore the name of NDD can also be interpreted as "Nested Decision Diagram".
 
-An example of using BDD as the external data structure is shown in the figure below.
-In this figure, we represent Hadamard matrix _H_<sub>4</sub>'s values on each coordinate (_x_<sub>0</sub>_x_<sub>1</sub>, _y_<sub>0</sub>_y_<sub>1</sub>) as a BDD (in (b)) and an NDD (in (c)). Each NDD node represents a 2-bit field (_f_<sub>1</sub> and _f_<sub>2</sub>), and the branching condition is encoded with 2 BDDs (in (d)).
+**An example of NDD** In this figure, we represent Hadamard matrix _H_<sub>4</sub>'s values on each coordinate (_x_<sub>0</sub>_x_<sub>1</sub>, _y_<sub>0</sub>_y_<sub>1</sub>) as a BDD (in (b)) and an NDD (in (c)). Each NDD node represents a 2-bit field (_f_<sub>1</sub> and _f_<sub>2</sub>), and the branching condition is encoded with 2 BDDs (in (d)).
 
 <img src="ndd_diagram.svg" width="100%">
-
-NDD can be seen as wrapping a lower-level decision diagram with an outer field-aware layer, and therefore the name of NDD can also be interpreted as "Nested Decision Diagram".
-
-## How to use
 
 ## Benchmark
 
@@ -48,6 +44,9 @@ N-Queens is easy to reproduce; WAN/SRE is the network-verification-oriented benc
 | `bgp_fattree16`, `MF=2` | total time | >14,400 s (timeout) | 1,178.287 s | **472.056 s** |
 
 See the [WAN/SRE results in the Wiki](https://github.com/XJTU-NetVerify/NDD/wiki/Results-SRE) for the complete experiment matrix, including peak memory, route counts, timeouts, and methodology notes. These research drivers require external datasets and are not part of the default Maven build.
+
+## How to use
+
 
 ### NDD Label Backends
 
