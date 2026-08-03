@@ -2,6 +2,7 @@ package org.ants.jndd.diagram;
 
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -19,7 +20,6 @@ public class NDD {
     public enum LabelMode { BOOLEAN_BDD, COMPLEMENTED_BDD, FINITE_DOMAIN_ZDD }
     private static int CACHE_SIZE = 10000;
     private static final int INITIAL_STACK_SIZE = 100000;
-    private static final int EDGE_INDEX_THRESHOLD = 8;
     private static final int FALSE_ID = 0;
     private static final int TRUE_ID = 1;
 
@@ -45,10 +45,11 @@ public class NDD {
     private static IntOperationCache subCache;
     private static IntOperationCache mulCache;
     private static IntOperationCache divCache;
+    private static IntOperationCache sumAbstractCache;
     private static int[] stackTargets;
     private static int[] stackLabels;
     private static int stackTop;
-    private static HashMap<Integer, NDD> wrappers;
+    private static NDD[] wrappers;
     private static Runnable externalCacheCleaner = () -> {};
     private static double eps = 0.000001;
 
@@ -63,15 +64,6 @@ public class NDD {
     protected NDD(int nodeId) {
         this.id = nodeId;
         this.field = nodeTable == null ? NodeTable.TERMINAL_FIELD : nodeTable.getField(nodeId);
-    }
-
-    private static final class EdgeFrame {
-        final int start;
-        HashMap<Integer, Integer> targetIndex;
-
-        EdgeFrame() {
-            this.start = stackTop;
-        }
     }
 
     public static void initNDD(int nddTableSize, int bddTableSize, int bddCacheSize) {
@@ -95,10 +87,11 @@ public class NDD {
         subCache = new IntOperationCache(CACHE_SIZE);
         mulCache = new IntOperationCache(CACHE_SIZE);
         divCache = new IntOperationCache(CACHE_SIZE);
+        sumAbstractCache = new IntOperationCache(CACHE_SIZE);
         stackTargets = new int[INITIAL_STACK_SIZE];
         stackLabels = new int[INITIAL_STACK_SIZE];
         stackTop = 0;
-        wrappers = new HashMap<>();
+        wrappers = new NDD[16];
         wrap(FALSE_ID);
         wrap(TRUE_ID);
     }
@@ -236,6 +229,7 @@ public class NDD {
         subCache.clear();
         mulCache.clear();
         divCache.clear();
+        sumAbstractCache.clear();
         externalCacheCleaner.run();
     }
 
@@ -245,6 +239,9 @@ public class NDD {
 
     public static void forEachTemporarilyProtect(IntConsumer consumer) {
         temporarilyProtect.forEach(consumer);
+        for (NDD ndd : temporarilyProtectObjects) {
+            consumer.accept(ndd.id);
+        }
     }
 
     private static void runSafePointMaintenance() {
@@ -254,15 +251,33 @@ public class NDD {
     }
 
     private static NDD wrap(int nodeId) {
-        NDD existing = wrappers.get(nodeId);
+        ensureWrapperCapacity(nodeId);
+        NDD existing = wrappers[nodeId];
         if (existing != null) {
             return existing;
         }
         NDD created = nodeTable.isTerminal(nodeId)
                 ? new Terminal(nodeId, nodeTable.getTerminalValue(nodeId))
                 : new NDD(nodeId);
-        wrappers.put(nodeId, created);
+        wrappers[nodeId] = created;
         return created;
+    }
+
+    private static void ensureWrapperCapacity(int nodeId) {
+        if (nodeId < wrappers.length) {
+            return;
+        }
+        int newCapacity = wrappers.length;
+        while (newCapacity <= nodeId) {
+            newCapacity <<= 1;
+        }
+        wrappers = Arrays.copyOf(wrappers, newCapacity);
+    }
+
+    public static void onNodeRetired(int nodeId) {
+        if (wrappers != null && nodeId >= 0 && nodeId < wrappers.length) {
+            wrappers[nodeId] = null;
+        }
     }
 
     private static int id(NDD ndd) {
@@ -293,48 +308,25 @@ public class NDD {
         return nodeTable.mkTerminal(value);
     }
 
-    private static void edgeCollect(EdgeFrame frame, int target, int label) {
+    private static void edgeCollect(int frameStart, int target, int label) {
         if (target == FALSE_ID) {
             derefLabel(label);
             return;
         }
-        if (frame.targetIndex != null) {
-            Integer index = frame.targetIndex.get(target);
-            if (index != null) {
-                int oldLabel = stackLabels[index];
-                stackLabels[index] = bddEngine.orTo(oldLabel, label);
-                return;
-            }
-        } else {
-            for (int i = frame.start; i < stackTop; i++) {
-                if (stackTargets[i] == target) {
-                    int oldLabel = stackLabels[i];
-                    stackLabels[i] = bddEngine.orTo(oldLabel, label);
-                    return;
-                }
-            }
-            if (stackTop - frame.start >= EDGE_INDEX_THRESHOLD) {
-                frame.targetIndex = new HashMap<>((stackTop - frame.start + 1) * 2);
-                for (int i = frame.start; i < stackTop; i++) {
-                    frame.targetIndex.put(stackTargets[i], i);
-                }
-            }
-        }
         if (stackTop >= stackTargets.length) {
-            int newCap = stackTargets.length * 2;
-            stackTargets = Arrays.copyOf(stackTargets, newCap);
-            stackLabels = Arrays.copyOf(stackLabels, newCap);
+            growStack();
         }
         stackTargets[stackTop] = target;
         stackLabels[stackTop] = label;
-        if (frame.targetIndex != null) {
-            frame.targetIndex.put(target, stackTop);
-        }
         stackTop++;
     }
 
-    private static int edgeFlush(EdgeFrame frame, int field) {
-        int frameStart = frame.start;
+    private static final int RADIX_THRESHOLD = Integer.getInteger("ndd.radixThreshold", 64);
+    private static long[] packScratch = new long[1024];
+    private static long[] packScratch2 = new long[1024];
+    private static final int[] radixCount = new int[257];
+
+    private static int edgeFlush(int frameStart, int field) {
         int size = stackTop - frameStart;
         if (size == 0) {
             stackTop = frameStart;
@@ -345,21 +337,136 @@ public class NDD {
             stackTop = frameStart;
             return target;
         }
-        for (int i = frameStart + 1; i < stackTop; i++) {
-            int t = stackTargets[i];
-            int l = stackLabels[i];
+        int res = size >= RADIX_THRESHOLD
+                ? flushRadixMerge(frameStart, field, size)
+                : flushQsortMerge(frameStart, field, size);
+        stackTop = frameStart;
+        return res;
+    }
+
+    private static int flushQsortMerge(int frameStart, int field, int size) {
+        qsortPairs(frameStart, frameStart + size - 1);
+        return mergeRunsAndMk(frameStart, field, size);
+    }
+
+    private static int flushRadixMerge(int frameStart, int field, int size) {
+        if (packScratch.length < size) {
+            packScratch = new long[Math.max(size, packScratch.length << 1)];
+        }
+        if (packScratch2.length < size) {
+            packScratch2 = new long[Math.max(size, packScratch2.length << 1)];
+        }
+        long[] packed = packScratch;
+        for (int i = 0; i < size; i++) {
+            packed[i] = ((long) stackTargets[frameStart + i] << 32)
+                    | (stackLabels[frameStart + i] & 0xffffffffL);
+        }
+        radixSortByTarget(size);
+        packed = packScratch;
+        for (int i = 0; i < size; i++) {
+            stackTargets[frameStart + i] = (int) (packed[i] >>> 32);
+            stackLabels[frameStart + i] = (int) packed[i];
+        }
+        return mergeRunsAndMk(frameStart, field, size);
+    }
+
+    private static int mergeRunsAndMk(int frameStart, int field, int size) {
+        int write = frameStart;
+        int currentTarget = stackTargets[frameStart];
+        int currentLabel = stackLabels[frameStart];
+        for (int i = frameStart + 1; i < frameStart + size; i++) {
+            int target = stackTargets[i];
+            int label = stackLabels[i];
+            if (target == currentTarget) {
+                currentLabel = bddEngine.orTo(currentLabel, label);
+            } else {
+                stackTargets[write] = currentTarget;
+                stackLabels[write++] = currentLabel;
+                currentTarget = target;
+                currentLabel = label;
+            }
+        }
+        stackTargets[write] = currentTarget;
+        stackLabels[write++] = currentLabel;
+        return nodeTable.mk(field, stackTargets, stackLabels, frameStart, write - frameStart);
+    }
+
+    private static void qsortPairs(int low, int high) {
+        while (high - low > 16) {
+            int middle = (low + high) >>> 1;
+            int a = stackTargets[low];
+            int b = stackTargets[middle];
+            int c = stackTargets[high];
+            int pivotIndex = a < b
+                    ? (b < c ? middle : (a < c ? high : low))
+                    : (a < c ? low : (b < c ? high : middle));
+            swapPair(pivotIndex, high);
+            int pivot = stackTargets[high];
+            int i = low - 1;
+            for (int j = low; j < high; j++) {
+                if (stackTargets[j] < pivot) {
+                    swapPair(++i, j);
+                }
+            }
+            swapPair(i + 1, high);
+            int partition = i + 1;
+            if (partition - low < high - partition) {
+                qsortPairs(low, partition - 1);
+                low = partition + 1;
+            } else {
+                qsortPairs(partition + 1, high);
+                high = partition - 1;
+            }
+        }
+        for (int i = low + 1; i <= high; i++) {
+            int target = stackTargets[i];
+            int label = stackLabels[i];
             int j = i - 1;
-            while (j >= frameStart && stackTargets[j] > t) {
+            while (j >= low && stackTargets[j] > target) {
                 stackTargets[j + 1] = stackTargets[j];
                 stackLabels[j + 1] = stackLabels[j];
                 j--;
             }
-            stackTargets[j + 1] = t;
-            stackLabels[j + 1] = l;
+            stackTargets[j + 1] = target;
+            stackLabels[j + 1] = label;
         }
-        int res = nodeTable.mk(field, stackTargets, stackLabels, frameStart, size);
-        stackTop = frameStart;
-        return res;
+    }
+
+    private static void swapPair(int i, int j) {
+        int target = stackTargets[i];
+        stackTargets[i] = stackTargets[j];
+        stackTargets[j] = target;
+        int label = stackLabels[i];
+        stackLabels[i] = stackLabels[j];
+        stackLabels[j] = label;
+    }
+
+    private static void radixSortByTarget(int size) {
+        long[] source = packScratch;
+        long[] destination = packScratch2;
+        for (int shift = 32; shift < 64; shift += 8) {
+            Arrays.fill(radixCount, 0);
+            for (int i = 0; i < size; i++) {
+                radixCount[((int) (source[i] >>> shift) & 0xff) + 1]++;
+            }
+            for (int i = 0; i < 256; i++) {
+                radixCount[i + 1] += radixCount[i];
+            }
+            for (int i = 0; i < size; i++) {
+                destination[radixCount[(int) (source[i] >>> shift) & 0xff]++] = source[i];
+            }
+            long[] swap = source;
+            source = destination;
+            destination = swap;
+        }
+        packScratch = source;
+        packScratch2 = destination;
+    }
+
+    private static void growStack() {
+        int newCapacity = stackTargets.length << 1;
+        stackTargets = Arrays.copyOf(stackTargets, newCapacity);
+        stackLabels = Arrays.copyOf(stackLabels, newCapacity);
     }
 
     protected static void addEdge(HashMap<NDD, Integer> edges, NDD descendant, int labelBDD) {
@@ -373,22 +480,22 @@ public class NDD {
     }
 
     public static NDD mk(int field, HashMap<NDD, Integer> edges) {
-        EdgeFrame frame = new EdgeFrame();
+        int frameStart = stackTop;
         for (Map.Entry<NDD, Integer> edge : edges.entrySet()) {
-            edgeCollect(frame, id(edge.getKey()), edge.getValue());
+            edgeCollect(frameStart, id(edge.getKey()), edge.getValue());
         }
-        return wrap(edgeFlush(frame, field));
+        return wrap(edgeFlush(frameStart, field));
     }
 
     public static NDD mk(int field, NDD[] targets, int[] labels) {
         if (targets.length != labels.length) {
             throw new IllegalArgumentException("targets and labels must have the same length");
         }
-        EdgeFrame frame = new EdgeFrame();
+        int frameStart = stackTop;
         for (int i = 0; i < targets.length; i++) {
-            edgeCollect(frame, id(targets[i]), refLabel(labels[i]));
+            edgeCollect(frameStart, id(targets[i]), refLabel(labels[i]));
         }
-        return wrap(edgeFlush(frame, field));
+        return wrap(edgeFlush(frameStart, field));
     }
 
     public static NDD and(NDD a, NDD b) {
@@ -462,8 +569,9 @@ public class NDD {
         if (isZeroId(a) || isOneId(b)) return a;
         if (isOneId(a) || isZeroId(b) || a == b) return b;
         if (andCache.getEntry(a, b)) return andCache.result;
+        int cacheIndex = andCache.hashValue;
 
-        EdgeFrame frame = new EdgeFrame();
+        int frameStart = stackTop;
         int aField = nodeTable.getField(a);
         int bField = nodeTable.getField(b);
         if (aField == bField) {
@@ -475,7 +583,7 @@ public class NDD {
                 for (int j = 0; j < bCount; j++) {
                     int intersect = bddEngine.ref(bddEngine.and(aLabel, nodeTable.getEdgeLabel(b, j)));
                     if (intersect != 0) {
-                        edgeCollect(frame, andRec(aTarget, nodeTable.getEdgeTarget(b, j)), intersect);
+                        edgeCollect(frameStart, andRec(aTarget, nodeTable.getEdgeTarget(b, j)), intersect);
                     }
                 }
             }
@@ -487,12 +595,12 @@ public class NDD {
             int aCount = nodeTable.getEdgeCount(a);
             for (int i = 0; i < aCount; i++) {
                 int sub = andRec(nodeTable.getEdgeTarget(a, i), b);
-                edgeCollect(frame, sub, refLabel(nodeTable.getEdgeLabel(a, i)));
+                edgeCollect(frameStart, sub, refLabel(nodeTable.getEdgeLabel(a, i)));
             }
         }
-        int res = edgeFlush(frame, aField);
+        int res = edgeFlush(frameStart, aField);
         temporarilyProtect.add(res);
-        andCache.setEntry(andCache.hashValue, a, b, res);
+        andCache.setEntry(cacheIndex, a, b, res);
         return res;
     }
 
@@ -500,12 +608,13 @@ public class NDD {
         if (isOneId(a) || isZeroId(b)) return a;
         if (isZeroId(a) || isOneId(b) || a == b) return b;
         if (orCache.getEntry(a, b)) return orCache.result;
+        int cacheIndex = orCache.hashValue;
 
-        EdgeFrame frame = new EdgeFrame();
+        int frameStart = stackTop;
         int aField = nodeTable.getField(a);
         int bField = nodeTable.getField(b);
         if (aField == bField) {
-            combineSameField(a, b, frame, true, TerminalOp.OR);
+            combineSameField(a, b, frameStart, true, TerminalOp.OR);
         } else {
             if (aField > bField) {
                 int t = a; a = b; b = t;
@@ -519,13 +628,13 @@ public class NDD {
                 residualB = bddEngine.andTo(residualB, notInt);
                 bddEngine.deref(notInt);
                 int sub = orRec(nodeTable.getEdgeTarget(a, i), b);
-                edgeCollect(frame, sub, refLabel(aLabel));
+                edgeCollect(frameStart, sub, refLabel(aLabel));
             }
-            if (residualB != 0) edgeCollect(frame, b, residualB);
+            if (residualB != 0) edgeCollect(frameStart, b, residualB);
         }
-        int res = edgeFlush(frame, aField);
+        int res = edgeFlush(frameStart, aField);
         temporarilyProtect.add(res);
-        orCache.setEntry(orCache.hashValue, a, b, res);
+        orCache.setEntry(cacheIndex, a, b, res);
         return res;
     }
 
@@ -536,8 +645,9 @@ public class NDD {
             return value(a).doubleValue() == 0.0 ? TRUE_ID : FALSE_ID;
         }
         if (notCache.getEntry(a)) return notCache.result;
+        int cacheIndex = notCache.hashValue;
 
-        EdgeFrame frame = new EdgeFrame();
+        int frameStart = stackTop;
         int residual = refLabel(1);
         int count = nodeTable.getEdgeCount(a);
         for (int i = 0; i < count; i++) {
@@ -545,12 +655,12 @@ public class NDD {
             int notIntersect = bddEngine.ref(bddEngine.not(label));
             residual = bddEngine.andTo(residual, notIntersect);
             bddEngine.deref(notIntersect);
-            edgeCollect(frame, notRec(nodeTable.getEdgeTarget(a, i)), refLabel(label));
+            edgeCollect(frameStart, notRec(nodeTable.getEdgeTarget(a, i)), refLabel(label));
         }
-        if (residual != 0) edgeCollect(frame, TRUE_ID, residual);
-        int res = edgeFlush(frame, nodeTable.getField(a));
+        if (residual != 0) edgeCollect(frameStart, TRUE_ID, residual);
+        int res = edgeFlush(frameStart, nodeTable.getField(a));
         temporarilyProtect.add(res);
-        notCache.setEntry(notCache.hashValue, a, res);
+        notCache.setEntry(cacheIndex, a, res);
         return res;
     }
 
@@ -577,44 +687,61 @@ public class NDD {
     }
 
     private static int addRec(int a, int b) {
-        if (isTerminalId(a) && isTerminalId(b)) return terminalOp(a, b, TerminalOp.ADD);
+        if (isZeroId(a)) return b;
+        if (isZeroId(b)) return a;
         if (addCache.getEntry(a, b)) return addCache.result;
-        int res = arithmeticRec(a, b, TerminalOp.ADD);
-        addCache.setEntry(addCache.hashValue, a, b, res);
+        int cacheIndex = addCache.hashValue;
+        int res = isTerminalId(a) && isTerminalId(b)
+                ? terminalOp(a, b, TerminalOp.ADD)
+                : arithmeticRec(a, b, TerminalOp.ADD);
+        addCache.setEntry(cacheIndex, a, b, res);
         return res;
     }
 
     private static int subRec(int a, int b) {
-        if (isTerminalId(a) && isTerminalId(b)) return terminalOp(a, b, TerminalOp.SUB);
+        if (isZeroId(b)) return a;
+        if (a == b) return FALSE_ID;
         if (subCache.getEntryOrdered(a, b)) return subCache.result;
-        int res = arithmeticRec(a, b, TerminalOp.SUB);
-        subCache.setEntry(subCache.hashValue, a, b, res);
+        int cacheIndex = subCache.hashValue;
+        int res = isTerminalId(a) && isTerminalId(b)
+                ? terminalOp(a, b, TerminalOp.SUB)
+                : arithmeticRec(a, b, TerminalOp.SUB);
+        subCache.setEntry(cacheIndex, a, b, res);
         return res;
     }
 
     private static int mulRec(int a, int b) {
-        if (isTerminalId(a) && isTerminalId(b)) return terminalOp(a, b, TerminalOp.MUL);
+        if (isZeroId(a) || isZeroId(b)) return FALSE_ID;
+        if (isOneId(a)) return b;
+        if (isOneId(b)) return a;
         if (mulCache.getEntry(a, b)) return mulCache.result;
-        int res = arithmeticRec(a, b, TerminalOp.MUL);
-        mulCache.setEntry(mulCache.hashValue, a, b, res);
+        int cacheIndex = mulCache.hashValue;
+        int res = isTerminalId(a) && isTerminalId(b)
+                ? terminalOp(a, b, TerminalOp.MUL)
+                : arithmeticRec(a, b, TerminalOp.MUL);
+        mulCache.setEntry(cacheIndex, a, b, res);
         return res;
     }
 
     private static int divRec(int a, int b) {
-        if (isTerminalId(a) && isTerminalId(b)) return terminalOp(a, b, TerminalOp.DIV);
+        if (isZeroId(a)) return FALSE_ID;
+        if (isOneId(b)) return a;
         if (divCache.getEntryOrdered(a, b)) return divCache.result;
-        int res = arithmeticRec(a, b, TerminalOp.DIV);
-        divCache.setEntry(divCache.hashValue, a, b, res);
+        int cacheIndex = divCache.hashValue;
+        int res = isTerminalId(a) && isTerminalId(b)
+                ? terminalOp(a, b, TerminalOp.DIV)
+                : arithmeticRec(a, b, TerminalOp.DIV);
+        divCache.setEntry(cacheIndex, a, b, res);
         return res;
     }
 
     private static int arithmeticRec(int a, int b, TerminalOp op) {
-        EdgeFrame frame = new EdgeFrame();
+        int frameStart = stackTop;
         int aField = nodeTable.getField(a);
         int bField = nodeTable.getField(b);
         if (aField == bField) {
-            combineSameField(a, b, frame, false, op);
-            int res = edgeFlush(frame, aField);
+            combineSameField(a, b, frameStart, false, op);
+            int res = edgeFlush(frameStart, aField);
             temporarilyProtect.add(res);
             return res;
         }
@@ -629,15 +756,15 @@ public class NDD {
                 residualB = bddEngine.andTo(residualB, notInt);
                 bddEngine.deref(notInt);
                 int sub = arithmeticChild(nodeTable.getEdgeTarget(a, i), b, op);
-                edgeCollect(frame, sub, refLabel(label));
+                edgeCollect(frameStart, sub, refLabel(label));
             }
             if (op != TerminalOp.MUL && residualB != 0) {
                 int sub = arithmeticChild(FALSE_ID, b, op);
-                edgeCollect(frame, sub, residualB);
+                edgeCollect(frameStart, sub, residualB);
             } else {
                 derefLabel(residualB);
             }
-            int res = edgeFlush(frame, aField);
+            int res = edgeFlush(frameStart, aField);
             temporarilyProtect.add(res);
             return res;
         }
@@ -650,15 +777,15 @@ public class NDD {
             residualA = bddEngine.andTo(residualA, notInt);
             bddEngine.deref(notInt);
             int sub = arithmeticChild(a, nodeTable.getEdgeTarget(b, i), op);
-            edgeCollect(frame, sub, refLabel(label));
+            edgeCollect(frameStart, sub, refLabel(label));
         }
         if (op != TerminalOp.MUL && residualA != 0) {
             int sub = arithmeticChild(a, FALSE_ID, op);
-            edgeCollect(frame, sub, residualA);
+            edgeCollect(frameStart, sub, residualA);
         } else {
             derefLabel(residualA);
         }
-        int res = edgeFlush(frame, bField);
+        int res = edgeFlush(frameStart, bField);
         temporarilyProtect.add(res);
         return res;
     }
@@ -673,13 +800,75 @@ public class NDD {
         }
     }
 
-    private static void combineSameField(int a, int b, EdgeFrame frame, boolean isOr, TerminalOp op) {
+    public static NDD sumAbstract(NDD a, int field) {
+        if (field < 0 || field > fieldNum) {
+            throw new IllegalArgumentException("invalid field: " + field);
+        }
+        temporarilyProtect.clear();
+        int result = sumAbstractRec(id(a), field);
+        runSafePointMaintenance();
+        return wrap(result);
+    }
+
+    private static int sumAbstractRec(int a, int field) {
+        if (sumAbstractCache.getEntryOrdered(a, field)) {
+            return sumAbstractCache.result;
+        }
+        int cacheIndex = sumAbstractCache.hashValue;
+        int currentField = nodeTable.getField(a);
+        int result;
+        if (isTerminalId(a) || currentField > field) {
+            result = mulRec(a, terminal(new Rational(fieldCardinality(field))));
+        } else if (currentField == field) {
+            result = FALSE_ID;
+            int count = nodeTable.getEdgeCount(a);
+            for (int i = 0; i < count; i++) {
+                int label = nodeTable.getEdgeLabel(a, i);
+                long multiplicity = Math.round(
+                        bddEngine.satCount(label) / satCountDiv.get(field));
+                if (multiplicity == 0) {
+                    continue;
+                }
+                int target = nodeTable.getEdgeTarget(a, i);
+                int weighted = multiplicity == 1
+                        ? target
+                        : mulRec(target, terminal(new Rational(multiplicity)));
+                result = addRec(result, weighted);
+                temporarilyProtect.add(result);
+            }
+        } else {
+            int frameStart = stackTop;
+            int count = nodeTable.getEdgeCount(a);
+            for (int i = 0; i < count; i++) {
+                int target = sumAbstractRec(nodeTable.getEdgeTarget(a, i), field);
+                edgeCollect(frameStart, target, refLabel(nodeTable.getEdgeLabel(a, i)));
+            }
+            result = edgeFlush(frameStart, currentField);
+        }
+        temporarilyProtect.add(result);
+        sumAbstractCache.setEntry(cacheIndex, a, field, result);
+        return result;
+    }
+
+    private static long fieldCardinality(int field) {
+        int bits = pendingFieldBitNums.get(field);
+        if (bits >= 63) {
+            throw new ArithmeticException("field too wide for exact cardinality: " + bits);
+        }
+        return 1L << bits;
+    }
+
+    private static void combineSameField(int a, int b, int frameStart, boolean isOr, TerminalOp op) {
         int aCount = nodeTable.getEdgeCount(a);
         int bCount = nodeTable.getEdgeCount(b);
-        IntIntMap residualA = new IntIntMap(aCount + 1);
-        IntIntMap residualB = new IntIntMap(bCount + 1);
-        for (int i = 0; i < aCount; i++) residualA.put(nodeTable.getEdgeTarget(a, i), refLabel(nodeTable.getEdgeLabel(a, i)));
-        for (int i = 0; i < bCount; i++) residualB.put(nodeTable.getEdgeTarget(b, i), refLabel(nodeTable.getEdgeLabel(b, i)));
+        int[] residualA = new int[aCount];
+        int[] residualB = new int[bCount];
+        for (int i = 0; i < aCount; i++) {
+            residualA[i] = refLabel(nodeTable.getEdgeLabel(a, i));
+        }
+        for (int i = 0; i < bCount; i++) {
+            residualB[i] = refLabel(nodeTable.getEdgeLabel(b, i));
+        }
 
         int field = nodeTable.getField(a);
         for (int i = 0; i < aCount; i++) {
@@ -691,23 +880,33 @@ public class NDD {
                 int intersect = bddEngine.ref(bddEngine.and(aLabel, bLabel));
                 if (intersect != 0) {
                     int notIntersect = bddEngine.ref(bddEngine.not(intersect));
-                    residualA.put(aTarget, bddEngine.andTo(residualA.get(aTarget), notIntersect));
-                    residualB.put(bTarget, bddEngine.andTo(residualB.get(bTarget), notIntersect));
+                    residualA[i] = bddEngine.andTo(residualA[i], notIntersect);
+                    residualB[j] = bddEngine.andTo(residualB[j], notIntersect);
                     bddEngine.deref(notIntersect);
                     int sub = isOr ? orRec(aTarget, bTarget) : arithmeticChild(aTarget, bTarget, op);
-                    edgeCollect(frame, sub, intersect);
+                    edgeCollect(frameStart, sub, intersect);
                 }
             }
         }
 
-        residualA.forEach((target, label) -> {
-            if (label != 0) edgeCollect(frame, isOr ? target : arithmeticChild(target, FALSE_ID, op), refLabel(label));
+        for (int i = 0; i < aCount; i++) {
+            int target = nodeTable.getEdgeTarget(a, i);
+            int label = residualA[i];
+            if (label != 0) {
+                edgeCollect(frameStart,
+                        isOr ? target : arithmeticChild(target, FALSE_ID, op), refLabel(label));
+            }
             derefLabel(label);
-        });
-        residualB.forEach((target, label) -> {
-            if (label != 0) edgeCollect(frame, isOr ? target : arithmeticChild(FALSE_ID, target, op), refLabel(label));
+        }
+        for (int i = 0; i < bCount; i++) {
+            int target = nodeTable.getEdgeTarget(b, i);
+            int label = residualB[i];
+            if (label != 0) {
+                edgeCollect(frameStart,
+                        isOr ? target : arithmeticChild(FALSE_ID, target, op), refLabel(label));
+            }
             derefLabel(label);
-        });
+        }
     }
 
     public static NDD exist(NDD a, int field) {
@@ -725,13 +924,13 @@ public class NDD {
             int count = nodeTable.getEdgeCount(a);
             for (int i = 0; i < count; i++) result = orRec(result, nodeTable.getEdgeTarget(a, i));
         } else {
-            EdgeFrame frame = new EdgeFrame();
+            int frameStart = stackTop;
             int count = nodeTable.getEdgeCount(a);
             for (int i = 0; i < count; i++) {
-                edgeCollect(frame, existRec(nodeTable.getEdgeTarget(a, i), field),
+                edgeCollect(frameStart, existRec(nodeTable.getEdgeTarget(a, i), field),
                         refLabel(nodeTable.getEdgeLabel(a, i)));
             }
-            result = edgeFlush(frame, nodeTable.getField(a));
+            result = edgeFlush(frameStart, nodeTable.getField(a));
         }
         temporarilyProtect.add(result);
         return result;
@@ -784,11 +983,11 @@ public class NDD {
             boolean progressed = false;
             for (Map.Entry<Integer, HashMap<Integer, Integer>> entry : new ArrayList<>(decomposed.entrySet())) {
                 if (converted.keySet().containsAll(entry.getValue().keySet())) {
-                    EdgeFrame frame = new EdgeFrame();
+                    int frameStart = stackTop;
                     for (Map.Entry<Integer, Integer> edge : entry.getValue().entrySet()) {
-                        edgeCollect(frame, converted.get(edge.getKey()), refLabel(edge.getValue()));
+                        edgeCollect(frameStart, converted.get(edge.getKey()), refLabel(edge.getValue()));
                     }
-                    int n = edgeFlush(frame, DecomposeBDD.bddGetField(entry.getKey()));
+                    int n = edgeFlush(frameStart, DecomposeBDD.bddGetField(entry.getKey()));
                     converted.put(entry.getKey(), n);
                     decomposed.remove(entry.getKey());
                     progressed = true;
@@ -1065,6 +1264,7 @@ public class NDD {
     public static void gc() {
         nodeTable.gc();
         clearCaches();
+        nodeTable.compactEdgesAtSafePoint();
     }
 
     public static void gcLabelEngine() {
@@ -1077,6 +1277,18 @@ public class NDD {
 
     public static long getNodeCount() {
         return nodeTable.getCurrentSize();
+    }
+
+    public static long getInternalNodeCount() {
+        return nodeTable.getInternalNodeCount();
+    }
+
+    public static long getLivePhysicalEdgeCount() {
+        return nodeTable.getLiveEdgeCount();
+    }
+
+    public static long getPhysicalEdgeSlots() {
+        return nodeTable.getPhysicalEdgeSlots();
     }
 
     public static long getLabelTotalCreated() {
@@ -1094,6 +1306,93 @@ public class NDD {
 
     public static int gettersize() {
         return nodeTable.getTerminalCount();
+    }
+
+    public static double evaluate(NDD root, int[] fieldValues) {
+        if (fieldValues.length <= fieldNum) {
+            throw new IllegalArgumentException("one value is required for every field");
+        }
+        int current = id(root);
+        boolean[] assignment = new boolean[sharedBddVars.length];
+        while (!isTerminalId(current)) {
+            int currentField = nodeTable.getField(current);
+            int[] variables = bddVarsPerField.get(currentField);
+            int fieldValue = fieldValues[currentField];
+            Arrays.fill(assignment, false);
+            for (int i = 0; i < variables.length; i++) {
+                int shift = variables.length - 1 - i;
+                assignment[bddEngine.getVar(variables[i])] =
+                        ((fieldValue >>> shift) & 1) != 0;
+            }
+            int next = FALSE_ID;
+            int count = nodeTable.getEdgeCount(current);
+            for (int i = 0; i < count; i++) {
+                if (bddEngine.member(nodeTable.getEdgeLabel(current, i), assignment)) {
+                    next = nodeTable.getEdgeTarget(current, i);
+                    break;
+                }
+            }
+            current = next;
+        }
+        return value(current).doubleValue();
+    }
+
+    public static final class GraphStats {
+        public final long internalNodes;
+        public final long physicalEdges;
+        public final long labelBddNodes;
+        public final long terminals;
+
+        GraphStats(long internalNodes, long physicalEdges, long labelBddNodes, long terminals) {
+            this.internalNodes = internalNodes;
+            this.physicalEdges = physicalEdges;
+            this.labelBddNodes = labelBddNodes;
+            this.terminals = terminals;
+        }
+    }
+
+    public static GraphStats graphStats(NDD root) {
+        HashSet<Integer> visitedNodes = new HashSet<>();
+        HashSet<Integer> visitedTerminals = new HashSet<>();
+        HashSet<Integer> visitedLabels = new HashSet<>();
+        ArrayDeque<Integer> pending = new ArrayDeque<>();
+        pending.push(id(root));
+        long internalNodes = 0;
+        long physicalEdges = 0;
+        while (!pending.isEmpty()) {
+            int current = pending.pop();
+            if (!visitedNodes.add(current)) {
+                continue;
+            }
+            if (isTerminalId(current)) {
+                visitedTerminals.add(current);
+                continue;
+            }
+            internalNodes++;
+            int count = nodeTable.getEdgeCount(current);
+            physicalEdges += count;
+            int currentField = nodeTable.getField(current);
+            double coveredValues = 0;
+            for (int i = 0; i < count; i++) {
+                int label = nodeTable.getEdgeLabel(current, i);
+                collectLabelNodes(label, visitedLabels);
+                coveredValues += bddEngine.satCount(label) / satCountDiv.get(currentField);
+                pending.push(nodeTable.getEdgeTarget(current, i));
+            }
+            if (coveredValues + 0.5 < fieldCardinality(currentField)) {
+                visitedTerminals.add(FALSE_ID);
+            }
+        }
+        return new GraphStats(
+                internalNodes, physicalEdges, visitedLabels.size(), visitedTerminals.size());
+    }
+
+    private static void collectLabelNodes(int label, HashSet<Integer> visitedLabels) {
+        if (label < 2 || !visitedLabels.add(label)) {
+            return;
+        }
+        collectLabelNodes(bddEngine.getLow(label), visitedLabels);
+        collectLabelNodes(bddEngine.getHigh(label), visitedLabels);
     }
 
     @Override
@@ -1249,73 +1548,6 @@ public class NDD {
             size = 0;
             for (int value : old) if (value != EMPTY) add(value);
         }
-    }
-
-    private static class IntIntMap {
-        private static final int EMPTY = Integer.MIN_VALUE;
-        private int[] keys;
-        private int[] values;
-        private int size;
-        private int mask;
-        private int threshold;
-
-        IntIntMap(int capacity) {
-            int cap = 1;
-            while (cap < Math.max(2, capacity * 2)) cap <<= 1;
-            keys = new int[cap];
-            values = new int[cap];
-            Arrays.fill(keys, EMPTY);
-            mask = cap - 1;
-            threshold = (int) (cap * 0.7);
-        }
-
-        int get(int key) {
-            int pos = mix(key) & mask;
-            while (keys[pos] != EMPTY) {
-                if (keys[pos] == key) return values[pos];
-                pos = (pos + 1) & mask;
-            }
-            return 0;
-        }
-
-        void put(int key, int value) {
-            if (size >= threshold) rehash();
-            int pos = mix(key) & mask;
-            while (keys[pos] != EMPTY) {
-                if (keys[pos] == key) {
-                    values[pos] = value;
-                    return;
-                }
-                pos = (pos + 1) & mask;
-            }
-            keys[pos] = key;
-            values[pos] = value;
-            size++;
-        }
-
-        void forEach(IntIntConsumer consumer) {
-            for (int i = 0; i < keys.length; i++) {
-                if (keys[i] != EMPTY) consumer.accept(keys[i], values[i]);
-            }
-        }
-
-        private void rehash() {
-            int[] oldKeys = keys;
-            int[] oldValues = values;
-            keys = new int[oldKeys.length << 1];
-            values = new int[keys.length];
-            Arrays.fill(keys, EMPTY);
-            mask = keys.length - 1;
-            threshold = (int) (keys.length * 0.7);
-            size = 0;
-            for (int i = 0; i < oldKeys.length; i++) {
-                if (oldKeys[i] != EMPTY) put(oldKeys[i], oldValues[i]);
-            }
-        }
-    }
-
-    private interface IntIntConsumer {
-        void accept(int key, int value);
     }
 
     private static int mix(int x) {

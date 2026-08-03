@@ -129,4 +129,12 @@ public class Rational {
     public double doubleValue() {
         return (double) numerator / denominator;
     }
+
+    public long numerator() {
+        return numerator;
+    }
+
+    public long denominator() {
+        return denominator;
+    }
 }

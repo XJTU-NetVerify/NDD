@@ -42,8 +42,13 @@ public class NodeTable {
     private boolean[] blockAlive;
     private int[] blockNext;
 
-    private Rational[] terminalValue;
-    private final HashMap<Rational, Integer> terminalTable;
+    private int[] nodeTerminalIndex;
+    private Rational[] terminalValues;
+    private int[] terminalNodeIds;
+    private int terminalCount;
+    private int[] terminalBuckets;
+    private int terminalMask;
+    private int terminalThreshold;
 
     public NodeTable(long nddTableSize, int bddTableSize, int bddCacheSize) {
         this.totalCreated = 0L;
@@ -52,7 +57,6 @@ public class NodeTable {
         this.nodeTable = new ArrayList<>();
         this.bddEngine = new BDD(bddTableSize, bddCacheSize);
         this.nextBlockId = 1;
-        this.terminalTable = new HashMap<>();
 
         int initialNodeCap = (int) Math.max(16, Math.min(4096, nddTableSize + 2));
         int initialEdgeCap = Math.max(16, initialNodeCap * 4);
@@ -73,7 +77,13 @@ public class NodeTable {
         this.blockStart = new int[blockCapacity];
         this.blockAlive = new boolean[blockCapacity];
         this.blockNext = new int[blockCapacity];
-        this.terminalValue = new Rational[nodeCapacity];
+        this.nodeTerminalIndex = new int[nodeCapacity];
+        Arrays.fill(nodeTerminalIndex, -1);
+        this.terminalValues = new Rational[16];
+        this.terminalNodeIds = new int[16];
+        this.terminalBuckets = new int[32];
+        this.terminalMask = terminalBuckets.length - 1;
+        this.terminalThreshold = (int) (terminalBuckets.length * 0.7);
         Arrays.fill(nodeField, -1);
 
         int zero = mkTerminal(new Rational(0));
@@ -90,7 +100,7 @@ public class NodeTable {
     }
 
     public void declareField() {
-        nodeTable.add(new UniqueTable(4096));
+        nodeTable.add(new UniqueTable(64));
     }
 
     public long getCurrentSize() {
@@ -110,34 +120,89 @@ public class NodeTable {
     }
 
     public Rational getTerminalValue(int nodeId) {
-        return terminalValue[nodeId];
+        int terminalIndex = nodeTerminalIndex[nodeId];
+        if (terminalIndex < 0) {
+            throw new IllegalArgumentException("node " + nodeId + " is not a terminal");
+        }
+        return terminalValues[terminalIndex];
     }
 
     public int getTerminalCount() {
-        return terminalTable.size();
+        return terminalCount;
     }
 
     public HashMap<Rational, Integer> getTerminalTable() {
-        return terminalTable;
+        HashMap<Rational, Integer> result = new HashMap<>(terminalCount * 2);
+        for (int i = 0; i < terminalCount; i++) {
+            result.put(terminalValues[i], terminalNodeIds[i]);
+        }
+        return result;
     }
 
     public int mkTerminal(Rational value) {
-        Integer existing = terminalTable.get(value);
-        if (existing != null) {
-            return existing;
+        int bucket = terminalBucket(value.numerator(), value.denominator());
+        int encodedNodeId;
+        while ((encodedNodeId = terminalBuckets[bucket]) != 0) {
+            int nodeId = encodedNodeId - 1;
+            Rational existing = terminalValues[nodeTerminalIndex[nodeId]];
+            if (existing.numerator() == value.numerator()
+                    && existing.denominator() == value.denominator()) {
+                return nodeId;
+            }
+            bucket = (bucket + 1) & terminalMask;
         }
+
         int id = allocateNode();
+        ensureTerminalCapacity();
         nodeField[id] = TERMINAL_FIELD;
         nodeEdgeBlock[id] = 0;
         nodeEdgeCount[id] = 0;
         nodeHash[id] = value.hashCode();
         refCount[id] = Integer.MAX_VALUE;
         nodeAlive[id] = true;
-        terminalValue[id] = value;
-        terminalTable.put(value, id);
+        int terminalIndex = terminalCount++;
+        nodeTerminalIndex[id] = terminalIndex;
+        terminalValues[terminalIndex] = value;
+        terminalNodeIds[terminalIndex] = id;
+        terminalBuckets[bucket] = id + 1;
+        if (terminalCount >= terminalThreshold) {
+            resizeTerminalBuckets();
+        }
         totalCreated++;
         currentSize++;
         return id;
+    }
+
+    private int terminalBucket(long numerator, long denominator) {
+        long hash = numerator * 0x9e3779b97f4a7c15L
+                ^ Long.rotateLeft(denominator * 0xc2b2ae3d27d4eb4fL, 29);
+        hash ^= hash >>> 33;
+        hash *= 0xff51afd7ed558ccdL;
+        hash ^= hash >>> 33;
+        return ((int) hash) & terminalMask;
+    }
+
+    private void ensureTerminalCapacity() {
+        if (terminalCount < terminalValues.length) {
+            return;
+        }
+        int newCapacity = terminalValues.length << 1;
+        terminalValues = Arrays.copyOf(terminalValues, newCapacity);
+        terminalNodeIds = Arrays.copyOf(terminalNodeIds, newCapacity);
+    }
+
+    private void resizeTerminalBuckets() {
+        terminalBuckets = new int[terminalBuckets.length << 1];
+        terminalMask = terminalBuckets.length - 1;
+        terminalThreshold = (int) (terminalBuckets.length * 0.7);
+        for (int i = 0; i < terminalCount; i++) {
+            Rational value = terminalValues[i];
+            int bucket = terminalBucket(value.numerator(), value.denominator());
+            while (terminalBuckets[bucket] != 0) {
+                bucket = (bucket + 1) & terminalMask;
+            }
+            terminalBuckets[bucket] = terminalNodeIds[i] + 1;
+        }
     }
 
     public int getEdgeStart(int nodeId) {
@@ -208,6 +273,7 @@ public class NodeTable {
         nodeNext[id] = 0;
         refCount[id] = 0;
         nodeAlive[id] = true;
+        nodeTerminalIndex[id] = -1;
         blockStart[blockId] = start;
         blockAlive[blockId] = true;
         liveEdgeCount += length;
@@ -267,8 +333,9 @@ public class NodeTable {
         nodeHash = Arrays.copyOf(nodeHash, newCap);
         refCount = Arrays.copyOf(refCount, newCap);
         nodeAlive = Arrays.copyOf(nodeAlive, newCap);
-        terminalValue = Arrays.copyOf(terminalValue, newCap);
+        nodeTerminalIndex = Arrays.copyOf(nodeTerminalIndex, newCap);
         Arrays.fill(nodeField, nodeCapacity, newCap, -1);
+        Arrays.fill(nodeTerminalIndex, nodeCapacity, newCap, -1);
         nodeCapacity = newCap;
     }
 
@@ -338,6 +405,7 @@ public class NodeTable {
             }
 
             nodeTable.get(nodeField[deadNode]).remove(deadNode, this);
+            NDD.onNodeRetired(deadNode);
             nodeAlive[deadNode] = false;
             nodeHash[deadNode] = 0;
             refCount[deadNode] = 0;
@@ -354,7 +422,71 @@ public class NodeTable {
     }
 
     public void compactEdgesIfNeeded() {
+        if (++compactCheckCounter < COMPACT_CHECK_INTERVAL) {
+            recycleRetiredSlotsAtSafePoint();
+            return;
+        }
+        compactCheckCounter = 0;
+        if (edgeTop > 16384 && liveEdgeCount * 2 < edgeTop) {
+            compactEdges();
+        }
         recycleRetiredSlotsAtSafePoint();
+    }
+
+    private int compactCheckCounter;
+    private static final int COMPACT_CHECK_INTERVAL = 1000;
+
+    private void compactEdges() {
+        int newEdgeTop = 0;
+        int[] newEdgeTarget = new int[Math.max(16, (int) Math.min(Integer.MAX_VALUE, liveEdgeCount))];
+        int[] newEdgeLabel = new int[newEdgeTarget.length];
+        for (int nodeId = 2; nodeId < nextNodeId; nodeId++) {
+            if (!nodeAlive[nodeId] || isTerminal(nodeId)) {
+                continue;
+            }
+            int count = nodeEdgeCount[nodeId];
+            if (newEdgeTop + count > newEdgeTarget.length) {
+                int newCapacity = newEdgeTarget.length;
+                while (newCapacity < newEdgeTop + count) {
+                    newCapacity <<= 1;
+                }
+                newEdgeTarget = Arrays.copyOf(newEdgeTarget, newCapacity);
+                newEdgeLabel = Arrays.copyOf(newEdgeLabel, newCapacity);
+            }
+            int blockId = nodeEdgeBlock[nodeId];
+            int oldStart = blockStart[blockId];
+            System.arraycopy(edgeTarget, oldStart, newEdgeTarget, newEdgeTop, count);
+            System.arraycopy(edgeLabel, oldStart, newEdgeLabel, newEdgeTop, count);
+            blockStart[blockId] = newEdgeTop;
+            newEdgeTop += count;
+        }
+        edgeTarget = newEdgeTarget;
+        edgeLabel = newEdgeLabel;
+        edgeTop = newEdgeTop;
+        edgeCapacity = newEdgeTarget.length;
+    }
+
+    public void compactEdgesAtSafePoint() {
+        if (liveEdgeCount < edgeTop) {
+            compactEdges();
+        }
+        recycleRetiredSlotsAtSafePoint();
+    }
+
+    public long getInternalNodeCount() {
+        return currentSize - terminalCount;
+    }
+
+    public long getLiveEdgeCount() {
+        return liveEdgeCount;
+    }
+
+    public int getPhysicalEdgeSlots() {
+        return edgeTop;
+    }
+
+    public int getNextNodeId() {
+        return nextNodeId;
     }
 
     private void recycleRetiredSlotsAtSafePoint() {
