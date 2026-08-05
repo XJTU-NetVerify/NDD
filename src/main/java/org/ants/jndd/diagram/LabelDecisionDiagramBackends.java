@@ -14,8 +14,8 @@ final class LabelDecisionDiagramBackends {
         if (mode == NDD.LabelMode.COMPLEMENTED_BDD) {
             return new ComplementedBddBackend(new ComplementedBDD(nodeTableSize, cacheSize));
         }
-        if (mode == NDD.LabelMode.FINITE_DOMAIN_ZDD) {
-            return new FiniteDomainZddBackend(new ZDD(nodeTableSize, cacheSize));
+        if (mode == NDD.LabelMode.ZDD) {
+            return new SetFamilyZddBackend(new ZDD(nodeTableSize, cacheSize));
         }
         return forBooleanBdd(new BDD(nodeTableSize, cacheSize));
     }
@@ -57,11 +57,11 @@ final class LabelDecisionDiagramBackends {
 
         @Override
         public NDD.LabelMode mode() {
-            return NDD.LabelMode.BOOLEAN_BDD;
+            return NDD.LabelMode.BDD;
         }
 
         @Override
-        public boolean isFiniteDomain() {
+        public boolean hasExplicitUniverse() {
             return false;
         }
 
@@ -78,6 +78,21 @@ final class LabelDecisionDiagramBackends {
         @Override
         public int variableId(int label) {
             return engine.getVar(label);
+        }
+
+        @Override
+        public int buildUniverse(int[] variableLabels, int offset, int length) {
+            return 1;
+        }
+
+        @Override
+        public int positiveLiteral(int universe, int variableLabel) {
+            return variableLabel;
+        }
+
+        @Override
+        public int negativeLiteral(int universe, int variableLabel) {
+            return engine.not(variableLabel);
         }
 
         @Override
@@ -159,7 +174,7 @@ final class LabelDecisionDiagramBackends {
         }
 
         @Override
-        public boolean isFiniteDomain() {
+        public boolean hasExplicitUniverse() {
             return false;
         }
 
@@ -176,6 +191,21 @@ final class LabelDecisionDiagramBackends {
         @Override
         public int variableId(int label) {
             return engine.getVar(label);
+        }
+
+        @Override
+        public int buildUniverse(int[] variableLabels, int offset, int length) {
+            return 1;
+        }
+
+        @Override
+        public int positiveLiteral(int universe, int variableLabel) {
+            return variableLabel;
+        }
+
+        @Override
+        public int negativeLiteral(int universe, int variableLabel) {
+            return engine.not(variableLabel);
         }
 
         @Override
@@ -240,24 +270,24 @@ final class LabelDecisionDiagramBackends {
 
         @Override
         public void gc() {
-            // This clone's ComplementedBDD keeps all nodes for the process lifetime.
+            engine.gc();
         }
     }
 
-    private static final class FiniteDomainZddBackend implements LabelDecisionDiagramBackend {
+    private static final class SetFamilyZddBackend implements LabelDecisionDiagramBackend {
         private final ZDD engine;
 
-        private FiniteDomainZddBackend(ZDD engine) {
+        private SetFamilyZddBackend(ZDD engine) {
             this.engine = engine;
         }
 
         @Override
         public NDD.LabelMode mode() {
-            return NDD.LabelMode.FINITE_DOMAIN_ZDD;
+            return NDD.LabelMode.ZDD;
         }
 
         @Override
-        public boolean isFiniteDomain() {
+        public boolean hasExplicitUniverse() {
             return true;
         }
 
@@ -274,6 +304,29 @@ final class LabelDecisionDiagramBackends {
         @Override
         public int variableId(int label) {
             return engine.getVar(label);
+        }
+
+        @Override
+        public int buildUniverse(int[] variableLabels, int offset, int length) {
+            boolean[] selected = new boolean[variableLabels.length];
+            for (int i = offset; i < offset + length; i++) {
+                selected[variableId(variableLabels[i])] = true;
+            }
+            return engine.subsets(selected);
+        }
+
+        @Override
+        public int positiveLiteral(int universe, int variableLabel) {
+            int variable = variableId(variableLabel);
+            int withoutVariable = engine.ref(engine.subset1(universe, variable));
+            int result = engine.change(withoutVariable, variable);
+            engine.deref(withoutVariable);
+            return result;
+        }
+
+        @Override
+        public int negativeLiteral(int universe, int variableLabel) {
+            return engine.subset0(universe, variableId(variableLabel));
         }
 
         @Override
@@ -331,7 +384,7 @@ final class LabelDecisionDiagramBackends {
 
         @Override
         public double satCount(int label, int fieldBits, int maxBits) {
-            return engine.count(label);
+            return engine.countDouble(label);
         }
 
         @Override

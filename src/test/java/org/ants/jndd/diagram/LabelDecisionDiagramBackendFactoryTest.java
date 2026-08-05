@@ -9,9 +9,9 @@ class LabelDecisionDiagramBackendFactoryTest {
     @Test
     void factoryCreatesBackendsWithCommonOperations() {
         NDD.LabelMode[] modes = {
-                NDD.LabelMode.BOOLEAN_BDD,
+                NDD.LabelMode.BDD,
                 NDD.LabelMode.COMPLEMENTED_BDD,
-                NDD.LabelMode.FINITE_DOMAIN_ZDD
+                NDD.LabelMode.ZDD
         };
 
         for (NDD.LabelMode mode : modes) {
@@ -20,14 +20,21 @@ class LabelDecisionDiagramBackendFactoryTest {
 
             int first = backend.ref(backend.createVariableLabel());
             int second = backend.ref(backend.createVariableLabel());
-            int union = backend.ref(backend.or(first, second));
-            int intersection = backend.ref(backend.and(first, union));
+            int[] variables = {first, second};
+            int universe = backend.ref(backend.buildUniverse(variables, 0, variables.length));
+            int firstLiteral = backend.ref(backend.positiveLiteral(universe, first));
+            int secondLiteral = backend.ref(backend.positiveLiteral(universe, second));
+            int union = backend.ref(backend.or(firstLiteral, secondLiteral));
+            int intersection = backend.ref(backend.and(firstLiteral, union));
 
             assertEquals(mode, backend.mode());
-            assertTrue(backend.satCount(intersection, 1, 2) >= 1.0);
+            assertTrue(backend.satCount(intersection, 2, 2) >= 1.0);
 
             backend.deref(intersection);
             backend.deref(union);
+            backend.deref(secondLiteral);
+            backend.deref(firstLiteral);
+            backend.deref(universe);
             backend.deref(second);
             backend.deref(first);
             backend.gc();

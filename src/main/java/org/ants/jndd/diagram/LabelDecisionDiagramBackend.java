@@ -3,13 +3,19 @@ package org.ants.jndd.diagram;
 interface LabelDecisionDiagramBackend {
     NDD.LabelMode mode();
 
-    boolean isFiniteDomain();
+    boolean hasExplicitUniverse();
 
     Object rawEngine();
 
     int createVariableLabel();
 
     int variableId(int label);
+
+    int buildUniverse(int[] variableLabels, int offset, int length);
+
+    int positiveLiteral(int universe, int variableLabel);
+
+    int negativeLiteral(int universe, int variableLabel);
 
     int ref(int label);
 

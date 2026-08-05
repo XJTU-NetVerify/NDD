@@ -137,20 +137,21 @@ class NDDManipulationApiTest {
     }
 
     @Test
-    void finiteDomainRestrictionEnumerationAndSubstitutionUseValueIndices() {
-        NDD.initNDD(10_000, 10_000, 1_000, NDD.LabelMode.FINITE_DOMAIN_ZDD);
+    void zddRestrictionEnumerationAndSubstitutionUseBooleanBitVectors() {
+        NDD.initNDD(10_000, 10_000, 1_000, NDD.LabelMode.ZDD);
         NDD.declareField(2);
         NDD.declareField(2);
         NDD.generateFields();
 
         int sourceValueOne = NDD.getVar(0, 1);
-        assertEquals(4.0, NDD.satCount(NDD.restrict(sourceValueOne, 0, 1L)));
+        assertEquals(8.0, NDD.satCount(sourceValueOne));
+        assertEquals(16.0, NDD.satCount(NDD.restrict(sourceValueOne, 0, 1L)));
         assertEquals(0.0, NDD.satCount(NDD.restrict(sourceValueOne, 0, 0L)));
-        assertArrayEquals(new int[]{1}, NDD.anySat(sourceValueOne)[0]);
-        assertEquals(2, NDD.allSat(sourceValueOne, assignment -> true));
+        assertArrayEquals(new int[]{0, 1}, NDD.anySat(sourceValueOne)[0]);
+        assertEquals(8, NDD.allSat(sourceValueOne, assignment -> true));
 
         int replaced = NDD.substitute(sourceValueOne, 0, 1);
-        assertEquals(2.0, NDD.satCount(replaced));
+        assertEquals(8.0, NDD.satCount(replaced));
     }
 
     @Test
@@ -169,13 +170,8 @@ class NDDManipulationApiTest {
 
             assertEquals(NDD.and(function, careSet), NDD.and(simplified, careSet),
                     "mode=" + mode);
-            if (mode == NDD.LabelMode.FINITE_DOMAIN_ZDD) {
-                assertEquals(4.0, NDD.satCount(NDD.restrict(NDD.getVar(0, 0), 0, 0L)));
-                assertEquals(0.0, NDD.satCount(NDD.restrict(NDD.getVar(0, 0), 0, 1L)));
-            } else {
-                assertEquals(16.0, NDD.satCount(NDD.restrict(NDD.getVar(0, 0), 0, new int[]{1, 0})));
-                assertEquals(0.0, NDD.satCount(NDD.restrict(NDD.getVar(0, 0), 0, new int[]{0, 0})));
-            }
+            assertEquals(16.0, NDD.satCount(NDD.restrict(NDD.getVar(0, 0), 0, new int[]{1, 0})));
+            assertEquals(0.0, NDD.satCount(NDD.restrict(NDD.getVar(0, 0), 0, new int[]{0, 0})));
         }
     }
 

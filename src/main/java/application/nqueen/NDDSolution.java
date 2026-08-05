@@ -167,7 +167,7 @@ public class NDDSolution {
     }
 
     private static Result solve(int n) {
-        return solve(n, NDD.LabelMode.BOOLEAN_BDD);
+        return solve(n, NDD.LabelMode.BDD);
     }
 
     /**
@@ -180,22 +180,22 @@ public class NDDSolution {
 
     public static void main(String[] args) {
         if (args.length == 0) {
-            System.err.println("Usage: NDDSolution [--bcdd | --finite-domain-zdd] <N> [<N> ...]");
+            System.err.println("Usage: NDDSolution [--bcdd | --zdd] <N> [<N> ...]");
             System.exit(1);
         }
 
-        NDD.LabelMode mode = NDD.LabelMode.BOOLEAN_BDD;
+        NDD.LabelMode mode = NDD.LabelMode.BDD;
         int startArg = 0;
         if ("--bcdd".equals(args[0])) {
             mode = NDD.LabelMode.COMPLEMENTED_BDD;
             startArg = 1;
-        } else if ("--finite-domain-zdd".equals(args[0])) {
-            mode = NDD.LabelMode.FINITE_DOMAIN_ZDD;
+        } else if ("--zdd".equals(args[0])) {
+            mode = NDD.LabelMode.ZDD;
             startArg = 1;
         }
 
         if (startArg >= args.length) {
-            System.err.println("Usage: NDDSolution [--bcdd | --finite-domain-zdd] <N> [<N> ...]");
+            System.err.println("Usage: NDDSolution [--bcdd | --zdd] <N> [<N> ...]");
             System.exit(1);
         }
 

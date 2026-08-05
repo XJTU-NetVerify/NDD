@@ -35,19 +35,15 @@ For more details, please refer to [N-Queens Benchmark](https://github.com/XJTU-N
 ### NDD Label Backends
 
 NDD supports both homogeneous and mixed label backends: each field may select BDD, BCDD, or
-finite-domain ZDD labels, while fields of the same type share one backend engine and right-aligned
+set-family ZDD labels. Every width-`w` field has the same Boolean domain of `2^w` bit vectors,
+independent of its backend. Fields of the same type share one backend engine and right-aligned
 variable layout. See the [Usage](https://github.com/XJTU-NetVerify/NDD/wiki/Usage) and
 [Design Notes](https://github.com/XJTU-NetVerify/NDD/wiki/Design-Notes) pages for details.
 
-The following table compares external data structures for N-Queens `N=12`.
-
-| target | time (s) | memory (MB) | 
-| --- | ---: | ---: |
-| ndd-bdd | 3.0199 | 567.2 | 
-| ndd-zdd | 2.8683 | 559.4 | 
-| ndd-bcdd | 3.0480 | 742.1 | 
-
-Full backend comparison results are in [`results/nqueens_backend_results.md`](results/nqueens_backend_results.md) and the wiki.
+The former finite-domain ZDD experiment used a different, one-of-`w` domain and has been retired.
+Its archived N-Queens measurements are identified as legacy data in
+[`results/nqueens_backend_results.md`](results/nqueens_backend_results.md); they are not results for
+the current `ZDD` backend.
 
 ## APIs
 

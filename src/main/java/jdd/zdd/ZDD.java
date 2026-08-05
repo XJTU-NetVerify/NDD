@@ -6,6 +6,7 @@ package jdd.zdd;
 import java.util.Collection;
 import java.util.StringTokenizer;
 import jdd.bdd.CacheBase;
+import jdd.bdd.DoubleCache;
 import jdd.bdd.NodeTable;
 import jdd.bdd.OptimizedCache;
 import jdd.bdd.debug.BDDDebugFrame;
@@ -29,6 +30,7 @@ extends NodeTable {
     private int node_count_int;
     private OptimizedCache unary_cache;
     private OptimizedCache binary_cache;
+    private DoubleCache count_cache;
     protected NodeName nodeNames = new ZDDNames();
 
     public ZDD(int nodesize) {
@@ -39,6 +41,7 @@ extends NodeTable {
         super(nodesize);
         this.unary_cache = new OptimizedCache("unary", cachesize / Configuration.zddUnaryCacheDiv, 3, 1);
         this.binary_cache = new OptimizedCache("binary", cachesize / Configuration.zddBinaryCacheDiv, 3, 2);
+        this.count_cache = new DoubleCache("count", Math.max(32, cachesize / 8));
         if (Options.profile_cache) {
             new BDDDebugFrame(this);
         }
@@ -50,6 +53,7 @@ extends NodeTable {
         super.cleanup();
         this.binary_cache = null;
         this.unary_cache = null;
+        this.count_cache = null;
     }
 
     @Override
@@ -57,6 +61,7 @@ extends NodeTable {
         Collection<CacheBase> v = super.addDebugger(d);
         v.add(this.unary_cache);
         v.add(this.binary_cache);
+        v.add(this.count_cache);
         return v;
     }
 
@@ -64,6 +69,7 @@ extends NodeTable {
     protected void post_removal_callbak() {
         this.binary_cache.free_or_grow(this);
         this.unary_cache.free_or_grow(this);
+        this.count_cache.free_or_grow(this);
     }
 
     protected final int mk(int i, int l, int h) {
@@ -270,11 +276,15 @@ extends NodeTable {
         if (q == p) {
             return p;
         }
-        if (p == 1) {
-            return this.follow_low(q);
-        }
-        if (q == 1) {
-            return this.follow_low(p);
+        if (p == 1 || q == 1) {
+            int other = p == 1 ? q : p;
+            if (this.binary_cache.lookup(1, other, 4)) {
+                return this.binary_cache.answer;
+            }
+            int hash = this.binary_cache.hash_value;
+            int result = this.follow_low(other);
+            this.binary_cache.insert(hash, 1, other, 4, result);
+            return result;
         }
         if (this.binary_cache.lookup(p, q, 4)) {
             return this.binary_cache.answer;
@@ -384,6 +394,20 @@ extends NodeTable {
         return this.count(this.getLow(zdd)) + this.count(this.getHigh(zdd));
     }
 
+    /** Count represented sets with a GC-safe engine cache and double precision. */
+    public final double countDouble(int zdd) {
+        if (zdd < 2) {
+            return zdd;
+        }
+        if (this.count_cache.lookup(zdd)) {
+            return this.count_cache.answer;
+        }
+        int hash = this.count_cache.hash_value;
+        double result = this.countDouble(this.getLow(zdd)) + this.countDouble(this.getHigh(zdd));
+        this.count_cache.insert(hash, zdd, result);
+        return result;
+    }
+
     public int nodeCount(int zdd) {
         this.node_count_int = 0;
         this.nodeCount_mark(zdd);
@@ -421,6 +445,7 @@ extends NodeTable {
         super.showStats();
         this.unary_cache.showStats();
         this.binary_cache.showStats();
+        this.count_cache.showStats();
     }
 
     @Override
@@ -431,6 +456,9 @@ extends NodeTable {
         }
         if (this.binary_cache != null) {
             ret += this.binary_cache.getMemoryUsage();
+        }
+        if (this.count_cache != null) {
+            ret += this.count_cache.getMemoryUsage();
         }
         return ret;
     }

@@ -1,5 +1,11 @@
 # N-Queens Backend Results
 
+> **Legacy data:** the `ndd-zdd` rows below were produced by the removed finite-domain ZDD
+> implementation, whose width-`w` field represented one choice among `w` values. The current
+> set-family `ZDD` backend represents the same `2^w` Boolean bit vectors as `BDD` and
+> `COMPLEMENTED_BDD`. Therefore the archived `ndd-zdd` rows are not measurements of the current
+> backend and must not be used in new comparisons.
+
 These results compare plain decision diagram baselines and NDD using different edge-label backends.
 
 Targets:
@@ -8,7 +14,7 @@ Targets:
 - `zdd`: plain ZDD baseline
 - `bcdd`: plain complemented-edge BDD baseline
 - `ndd-bdd`: NDD with standard BDD edge labels
-- `ndd-zdd`: NDD with finite-domain ZDD edge labels
+- `ndd-zdd`: retired finite-domain ZDD edge labels (legacy rows only)
 - `ndd-bcdd`: NDD with complemented-edge BDD edge labels
 
 ## N = 8

@@ -88,7 +88,6 @@
                 <version>3.11.0</version>
                 <configuration>
                     <excludes>
-                        <exclude>**/FiniteDomainZddNDDSolution.java</exclude>
                         <exclude>**/application/wan/bdd/**</exclude>
                         <exclude>**/application/wan/ndd/**</exclude>
                         <exclude>**/AtomizedNDD.java</exclude>
