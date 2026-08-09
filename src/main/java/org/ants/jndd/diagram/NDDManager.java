@@ -96,12 +96,26 @@ public class NDDManager{
         return NDD.declareField(bits);
     }
 
+    /** Declare a field whose edge labels use the selected backend. */
+    public int declareField(int bits, NDD.LabelMode mode) {
+        return NDD.declareField(bits, mode);
+    }
+
+    /** Configure one backend before declaring the first field that uses it. */
+    public void configureBackendCapacity(NDD.LabelMode mode, int tableSize, int cacheSize) {
+        NDD.configureBackendCapacity(mode, tableSize, cacheSize);
+    }
+
     public void generateFields() {
         NDD.generateFields();
     }
 
     public NDD ithVar(int field, int var) {
         return NDD.getVar(field, var);
+    }
+
+    public NDD nithVar(int field, int var) {
+        return NDD.getNotVar(field, var);
     }
 
     // public NDD ithVar(int i) {

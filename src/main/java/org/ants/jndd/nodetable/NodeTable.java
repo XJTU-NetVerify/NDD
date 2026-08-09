@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 
-import jdd.bdd.BDD;
 import org.ants.jndd.diagram.NDD;
 import org.ants.jndd.utils.Rational;
 
@@ -14,8 +13,11 @@ public class NodeTable {
     private long totalCreated;
     private long currentSize;
     private long nddTableSize;
+    private long gcCount;
+    private long gcFreedCount;
+    private long gcTimeNanos;
+    private long thresholdGrowCount;
     private final ArrayList<UniqueTable> nodeTable;
-    private final BDD bddEngine;
 
     private int nodeCapacity;
     private int edgeCapacity;
@@ -39,7 +41,6 @@ public class NodeTable {
     public int[] edgeLabel;
     private boolean[] nodeAlive;
     private int[] blockStart;
-    private boolean[] blockAlive;
     private int[] blockNext;
 
     private int[] nodeTerminalIndex;
@@ -50,12 +51,11 @@ public class NodeTable {
     private int terminalMask;
     private int terminalThreshold;
 
-    public NodeTable(long nddTableSize, int bddTableSize, int bddCacheSize) {
+    public NodeTable(long nddTableSize) {
         this.totalCreated = 0L;
         this.currentSize = 0L;
         this.nddTableSize = nddTableSize;
         this.nodeTable = new ArrayList<>();
-        this.bddEngine = new BDD(bddTableSize, bddCacheSize);
         this.nextBlockId = 1;
 
         int initialNodeCap = (int) Math.max(16, Math.min(4096, nddTableSize + 2));
@@ -75,7 +75,6 @@ public class NodeTable {
         this.edgeLabel = new int[edgeCapacity];
         this.nodeAlive = new boolean[nodeCapacity];
         this.blockStart = new int[blockCapacity];
-        this.blockAlive = new boolean[blockCapacity];
         this.blockNext = new int[blockCapacity];
         this.nodeTerminalIndex = new int[nodeCapacity];
         Arrays.fill(nodeTerminalIndex, -1);
@@ -95,10 +94,6 @@ public class NodeTable {
         fixNDDNodeRefCount(1);
     }
 
-    public BDD getBddEngine() {
-        return bddEngine;
-    }
-
     public void declareField() {
         nodeTable.add(new UniqueTable(64));
     }
@@ -109,6 +104,22 @@ public class NodeTable {
 
     public long getTotalCreated() {
         return totalCreated;
+    }
+
+    public long getGcCount() {
+        return gcCount;
+    }
+
+    public long getGcFreedCount() {
+        return gcFreedCount;
+    }
+
+    public long getGcTimeMillis() {
+        return gcTimeNanos / 1_000_000L;
+    }
+
+    public long getThresholdGrowCount() {
+        return thresholdGrowCount;
     }
 
     public int getField(int nodeId) {
@@ -237,8 +248,8 @@ public class NodeTable {
         if (length == 0) {
             return NDD.getFalseId();
         }
-        if (length == 1 && NDD.isUniverseEdgeLabel(labels[offset])) {
-            NDD.derefLabel(labels[offset]);
+        if (length == 1 && NDD.isUniverseEdgeLabel(field, labels[offset])) {
+            NDD.derefLabel(field, labels[offset]);
             return targets[offset];
         }
 
@@ -247,7 +258,7 @@ public class NodeTable {
         int nodeId = table.lookup(hash, targets, labels, offset, length, this);
         if (nodeId != 0) {
             for (int i = 0; i < length; i++) {
-                NDD.derefLabel(labels[offset + i]);
+                NDD.derefLabel(field, labels[offset + i]);
             }
             return nodeId;
         }
@@ -275,7 +286,6 @@ public class NodeTable {
         nodeAlive[id] = true;
         nodeTerminalIndex[id] = -1;
         blockStart[blockId] = start;
-        blockAlive[blockId] = true;
         liveEdgeCount += length;
 
         for (int i = 0; i < length; i++) {
@@ -314,7 +324,6 @@ public class NodeTable {
             ensureBlockCapacity(blockId);
         }
         blockNext[blockId] = 0;
-        blockAlive[blockId] = true;
         return blockId;
     }
 
@@ -348,7 +357,6 @@ public class NodeTable {
             newCap <<= 1;
         }
         blockStart = Arrays.copyOf(blockStart, newCap);
-        blockAlive = Arrays.copyOf(blockAlive, newCap);
         blockNext = Arrays.copyOf(blockNext, newCap);
         blockCapacity = newCap;
     }
@@ -370,11 +378,14 @@ public class NodeTable {
         gc();
         if (nddTableSize - currentSize <= nddTableSize * 0.1) {
             nddTableSize *= 2;
+            thresholdGrowCount++;
         }
         NDD.clearCaches();
     }
 
     public void gc() {
+        long gcStartedAt = System.nanoTime();
+        long before = currentSize;
         NDD.forEachTemporarilyProtect(this::ref);
 
         IntQueue queue = new IntQueue((int) Math.max(16, currentSize));
@@ -401,7 +412,7 @@ public class NodeTable {
             }
 
             for (int i = 0; i < count; i++) {
-                NDD.derefLabel(edgeLabel[start + i]);
+                NDD.derefLabel(nodeField[deadNode], edgeLabel[start + i]);
             }
 
             nodeTable.get(nodeField[deadNode]).remove(deadNode, this);
@@ -410,7 +421,6 @@ public class NodeTable {
             nodeHash[deadNode] = 0;
             refCount[deadNode] = 0;
             currentSize--;
-            blockAlive[blockId] = false;
             liveEdgeCount -= count;
             nodeNext[deadNode] = retiredNodeHead;
             retiredNodeHead = deadNode;
@@ -419,6 +429,9 @@ public class NodeTable {
         }
 
         NDD.forEachTemporarilyProtect(this::deref);
+        gcCount++;
+        gcFreedCount += before - currentSize;
+        gcTimeNanos += System.nanoTime() - gcStartedAt;
     }
 
     public void compactEdgesIfNeeded() {

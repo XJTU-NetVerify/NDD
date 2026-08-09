@@ -52,7 +52,6 @@ public final class MTNDDMatrixBenchmark {
             throw new AssertionError("checksum mismatch: actual=" + actual + ", expected=" + expected);
         }
 
-        NDD.GraphStats stats = NDD.graphStats(result);
         long heapUsed = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
         System.out.println("engine=mtndd-optimized");
         System.out.println("case=" + dataset.name);
@@ -60,10 +59,11 @@ public final class MTNDDMatrixBenchmark {
         System.out.println("load_ms=" + millis(loadDone - processStart));
         System.out.println("compute_ms=" + millis(computeDone - computeStart));
         System.out.println("total_ms=" + millis(computeDone - processStart));
-        System.out.println("mtndd_internal_nodes=" + stats.internalNodes);
-        System.out.println("mtndd_physical_edges=" + stats.physicalEdges);
-        System.out.println("mtndd_label_bdd_nodes=" + stats.labelBddNodes);
-        System.out.println("mtndd_terminals=" + stats.terminals);
+        System.out.println("mtndd_internal_nodes=" + NDD.getInternalNodeCount());
+        System.out.println("mtndd_physical_edges=" + NDD.getLivePhysicalEdgeCount());
+        System.out.println("mtndd_label_bdd_nodes="
+                + NDD.getLabelNodeCount(NDD.LabelMode.BDD));
+        System.out.println("mtndd_terminals=" + NDD.gettersize());
         System.out.println("manager_internal_nodes=" + NDD.getInternalNodeCount());
         System.out.println("manager_live_edges=" + NDD.getLivePhysicalEdgeCount());
         System.out.println("manager_physical_edge_slots=" + NDD.getPhysicalEdgeSlots());

@@ -2,7 +2,6 @@ package org.ants.jndd.diagram;
 
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -12,12 +11,19 @@ import java.util.function.IntConsumer;
 
 import javafx.util.Pair;
 import jdd.bdd.BDD;
+import jdd.zdd.ZDD;
+import org.ants.jndd.bdd.ComplementedBDD;
 import org.ants.jndd.nodetable.NodeTable;
 import org.ants.jndd.utils.DecomposeBDD;
 import org.ants.jndd.utils.Rational;
 
 public class NDD {
-    public enum LabelMode { BOOLEAN_BDD, COMPLEMENTED_BDD, FINITE_DOMAIN_ZDD }
+    public enum LabelMode {
+        BDD,
+        COMPLEMENTED_BDD,
+        ZDD
+    }
+
     private static int CACHE_SIZE = 10000;
     private static final int INITIAL_STACK_SIZE = 100000;
     private static final int FALSE_ID = 0;
@@ -25,6 +31,20 @@ public class NDD {
 
     private static NodeTable nodeTable;
     protected static BDD bddEngine;
+    private static ComplementedBDD bcddEngine;
+    private static ZDD zddEngine;
+    private static LabelMode labelMode = LabelMode.BDD;
+    private static LabelDecisionDiagramBackend labelBackend;
+    private static BackendContext[] backendContexts;
+    private static ArrayList<LabelMode> pendingFieldModes;
+    private static ArrayList<LabelDecisionDiagramBackend> fieldBackends;
+    private static LabelDecisionDiagramBackend[] fieldBackendArray;
+    private static LabelMode[] fieldModeArray;
+    private static boolean mixedLabelModes;
+    private static int labelTableSize;
+    private static int labelCacheSize;
+    private static int[] backendTableSizes;
+    private static int[] backendCacheSizes;
     protected static int fieldNum;
     private static boolean fieldsGenerated;
     private static ArrayList<Integer> pendingFieldBitNums;
@@ -34,10 +54,8 @@ public class NDD {
     private static ArrayList<int[]> bddNotVarsPerField;
     private static ArrayList<int[]> nddVarsPerField;
     private static ArrayList<int[]> nddNotVarsPerField;
-    private static int[] sharedBddVars;
-    private static int[] sharedBddNotVars;
+    private static ArrayList<Integer> fieldUniverseLabels;
     private static IntHashSet temporarilyProtect;
-    private static HashSet<NDD> temporarilyProtectObjects;
     private static IntOperationCache notCache;
     private static IntOperationCache andCache;
     private static IntOperationCache orCache;
@@ -45,6 +63,7 @@ public class NDD {
     private static IntOperationCache subCache;
     private static IntOperationCache mulCache;
     private static IntOperationCache divCache;
+    private static IntOperationCache diffCache;
     private static IntOperationCache sumAbstractCache;
     private static int[] stackTargets;
     private static int[] stackLabels;
@@ -53,13 +72,20 @@ public class NDD {
     private static Runnable externalCacheCleaner = () -> {};
     private static double eps = 0.000001;
 
+    private static final class BackendContext {
+        final LabelMode mode;
+        final LabelDecisionDiagramBackend backend;
+        int maxWidth;
+        int[] sharedVars;
+
+        BackendContext(LabelMode mode, LabelDecisionDiagramBackend backend) {
+            this.mode = mode;
+            this.backend = backend;
+        }
+    }
+
     protected final int id;
     protected int field;
-
-    protected NDD() {
-        this.id = -1;
-        this.field = NodeTable.TERMINAL_FIELD;
-    }
 
     protected NDD(int nodeId) {
         this.id = nodeId;
@@ -67,19 +93,46 @@ public class NDD {
     }
 
     public static void initNDD(int nddTableSize, int bddTableSize, int bddCacheSize) {
-        nodeTable = new NodeTable(nddTableSize, bddTableSize, bddCacheSize);
-        bddEngine = nodeTable.getBddEngine();
+        initialize(nddTableSize, CACHE_SIZE, bddTableSize, bddCacheSize, LabelMode.BDD);
+    }
+
+    public static void initNDD(int nddTableSize, int bddTableSize, int bddCacheSize, LabelMode mode) {
+        initialize(nddTableSize, CACHE_SIZE, bddTableSize, bddCacheSize, mode);
+    }
+
+    private static void initialize(int nddTableSize, int nddCacheSize, int bddTableSize,
+            int bddCacheSize, LabelMode mode) {
+        if (mode == null) throw new IllegalArgumentException("mode must not be null");
+        CACHE_SIZE = nddCacheSize;
+        labelMode = mode;
+        labelTableSize = bddTableSize;
+        labelCacheSize = bddCacheSize;
+        backendTableSizes = new int[LabelMode.values().length];
+        backendCacheSizes = new int[LabelMode.values().length];
+        Arrays.fill(backendTableSizes, bddTableSize);
+        Arrays.fill(backendCacheSizes, bddCacheSize);
+        nodeTable = new NodeTable(nddTableSize);
+        backendContexts = new BackendContext[LabelMode.values().length];
+        labelBackend = null;
+        bddEngine = null;
+        bcddEngine = null;
+        zddEngine = null;
+        mixedLabelModes = false;
         fieldNum = -1;
         fieldsGenerated = false;
         pendingFieldBitNums = new ArrayList<>();
+        pendingFieldModes = new ArrayList<>();
+        fieldBackends = new ArrayList<>();
+        fieldBackendArray = null;
+        fieldModeArray = null;
         maxVariablePerField = new ArrayList<>();
         satCountDiv = new ArrayList<>();
         bddVarsPerField = new ArrayList<>();
         bddNotVarsPerField = new ArrayList<>();
         nddVarsPerField = new ArrayList<>();
         nddNotVarsPerField = new ArrayList<>();
+        fieldUniverseLabels = new ArrayList<>();
         temporarilyProtect = new IntHashSet(1024);
-        temporarilyProtectObjects = new HashSet<>();
         notCache = new IntOperationCache(CACHE_SIZE);
         andCache = new IntOperationCache(CACHE_SIZE);
         orCache = new IntOperationCache(CACHE_SIZE);
@@ -87,6 +140,7 @@ public class NDD {
         subCache = new IntOperationCache(CACHE_SIZE);
         mulCache = new IntOperationCache(CACHE_SIZE);
         divCache = new IntOperationCache(CACHE_SIZE);
+        diffCache = new IntOperationCache(CACHE_SIZE);
         sumAbstractCache = new IntOperationCache(CACHE_SIZE);
         stackTargets = new int[INITIAL_STACK_SIZE];
         stackLabels = new int[INITIAL_STACK_SIZE];
@@ -96,29 +150,69 @@ public class NDD {
         wrap(TRUE_ID);
     }
 
-    public static void initNDD(int nddTableSize, int bddTableSize, int bddCacheSize, LabelMode labelMode) {
-        initNDD(nddTableSize, bddTableSize, bddCacheSize);
+    public static void initNDD(int nddTableSize, int nddCacheSize, int bddTableSize, int bddCacheSize) {
+        initialize(nddTableSize, nddCacheSize, bddTableSize, bddCacheSize, LabelMode.BDD);
     }
 
-    public static void initNDD(int nddTableSize, int nddCacheSize, int bddTableSize, int bddCacheSize) {
-        CACHE_SIZE = nddCacheSize;
-        initNDD(nddTableSize, bddTableSize, bddCacheSize);
+    public static void initNDD(int nddTableSize, int nddCacheSize, int bddTableSize,
+            int bddCacheSize, LabelMode mode) {
+        initialize(nddTableSize, nddCacheSize, bddTableSize, bddCacheSize, mode);
     }
 
     public static int declareField(int bitNum) {
+        return declareField(bitNum, labelMode);
+    }
+
+    public static int declareField(int bitNum, LabelMode mode) {
         if (fieldsGenerated) {
             throw new IllegalStateException("Cannot declare field after generateFields()");
         }
+        if (bitNum <= 0) throw new IllegalArgumentException("field width must be positive");
+        if (mode == null) throw new IllegalArgumentException("mode must not be null");
+        BackendContext context = backendContext(mode);
         fieldNum++;
         pendingFieldBitNums.add(bitNum);
+        pendingFieldModes.add(mode);
+        fieldBackends.add(context.backend);
+        if (fieldNum == 0) {
+            labelBackend = context.backend;
+        } else if (mode != pendingFieldModes.get(0)) {
+            mixedLabelModes = true;
+        }
         if (maxVariablePerField.isEmpty()) {
             maxVariablePerField.add(bitNum - 1);
         } else {
             maxVariablePerField.add(maxVariablePerField.get(maxVariablePerField.size() - 1) + bitNum);
         }
 
-        nodeTable.declareField();
         return fieldNum;
+    }
+
+    private static BackendContext backendContext(LabelMode mode) {
+        int index = mode.ordinal();
+        BackendContext context = backendContexts[index];
+        if (context != null) return context;
+        LabelDecisionDiagramBackend backend = LabelDecisionDiagramBackends.create(mode,
+                backendTableSizes[index], backendCacheSizes[index]);
+        context = new BackendContext(mode, backend);
+        backendContexts[index] = context;
+        Object raw = backend.rawEngine();
+        if (mode == LabelMode.BDD) bddEngine = (BDD) raw;
+        else if (mode == LabelMode.COMPLEMENTED_BDD) bcddEngine = (ComplementedBDD) raw;
+        else zddEngine = (ZDD) raw;
+        return context;
+    }
+
+    public static void configureBackendCapacity(LabelMode mode, int tableSize, int cacheSize) {
+        if (mode == null) throw new IllegalArgumentException("mode must not be null");
+        if (tableSize <= 0 || cacheSize <= 0) {
+            throw new IllegalArgumentException("backend table and cache sizes must be positive");
+        }
+        if (backendContexts[mode.ordinal()] != null) {
+            throw new IllegalStateException("backend already created for " + mode);
+        }
+        backendTableSizes[mode.ordinal()] = tableSize;
+        backendCacheSizes[mode.ordinal()] = cacheSize;
     }
 
     public static void generateFields() {
@@ -129,25 +223,27 @@ public class NDD {
         if (pendingFieldBitNums.isEmpty()) {
             return;
         }
-
-        int maxBitNum = 0;
-        for (int bitNum : pendingFieldBitNums) {
-            maxBitNum = Math.max(maxBitNum, bitNum);
-        }
-        sharedBddVars = new int[maxBitNum];
-        sharedBddNotVars = new int[maxBitNum];
-        for (int i = maxBitNum - 1; i >= 0; i--) {
-            sharedBddVars[i] = bddEngine.ref(bddEngine.createVar());
-            sharedBddNotVars[i] = bddEngine.ref(bddEngine.not(sharedBddVars[i]));
-        }
-
-        satCountDiv = new ArrayList<>();
-        for (int bitNum : pendingFieldBitNums) {
-            satCountDiv.add(Math.pow(2.0, maxBitNum - bitNum));
-        }
-
+        fieldBackendArray = fieldBackends.toArray(new LabelDecisionDiagramBackend[0]);
+        fieldModeArray = pendingFieldModes.toArray(new LabelMode[0]);
         for (int field = 0; field < pendingFieldBitNums.size(); field++) {
-            generateFieldVars(field, pendingFieldBitNums.get(field), maxBitNum);
+            BackendContext context = backendContexts[pendingFieldModes.get(field).ordinal()];
+            context.maxWidth = Math.max(context.maxWidth, pendingFieldBitNums.get(field));
+        }
+        for (BackendContext context : backendContexts) {
+            if (context == null || context.maxWidth == 0) continue;
+            context.sharedVars = new int[context.maxWidth];
+            if (context.mode == LabelMode.ZDD) {
+                for (int i = 0; i < context.maxWidth; i++) {
+                    context.sharedVars[i] = context.backend.ref(context.backend.createVariableLabel());
+                }
+            } else {
+                for (int i = context.maxWidth - 1; i >= 0; i--) {
+                    context.sharedVars[i] = context.backend.ref(context.backend.createVariableLabel());
+                }
+            }
+        }
+        for (int field = 0; field < pendingFieldBitNums.size(); field++) {
+            generateFieldVars(field, pendingFieldBitNums.get(field));
         }
     }
 
@@ -157,17 +253,27 @@ public class NDD {
         }
     }
 
-    private static void generateFieldVars(int field, int bitNum, int maxBitNum) {
+    private static void generateFieldVars(int field, int bitNum) {
+        BackendContext context = backendContexts[pendingFieldModes.get(field).ordinal()];
+        LabelDecisionDiagramBackend backend = context.backend;
         int[] bddVars = new int[bitNum];
         int[] bddNotVars = new int[bitNum];
         int[] nddVars = new int[bitNum];
         int[] nddNotVars = new int[bitNum];
-        int offset = maxBitNum - bitNum;
+        int offset = context.maxWidth - bitNum;
+        nodeTable.declareField();
+        int universe = backend.hasExplicitUniverse()
+                ? backend.ref(backend.buildUniverse(context.sharedVars, offset, bitNum))
+                : TRUE_ID;
+        fieldUniverseLabels.add(universe);
         for (int i = 0; i < bitNum; i++) {
-            bddVars[i] = sharedBddVars[offset + i];
-            bddNotVars[i] = sharedBddNotVars[offset + i];
-            nddVars[i] = nodeTable.mk(field, new int[] { TRUE_ID }, new int[] { refLabel(bddVars[i]) });
-            nddNotVars[i] = nodeTable.mk(field, new int[] { TRUE_ID }, new int[] { refLabel(bddNotVars[i]) });
+            int variable = context.sharedVars[offset + i];
+            bddVars[i] = backend.positiveLiteral(universe, variable);
+            bddNotVars[i] = backend.negativeLiteral(universe, variable);
+            nddVars[i] = nodeTable.mk(field, new int[] { TRUE_ID },
+                    new int[] { refLabel(field, bddVars[i]) });
+            nddNotVars[i] = nodeTable.mk(field, new int[] { TRUE_ID },
+                    new int[] { refLabel(field, bddNotVars[i]) });
             nodeTable.fixNDDNodeRefCount(nddVars[i]);
             nodeTable.fixNDDNodeRefCount(nddNotVars[i]);
         }
@@ -179,6 +285,55 @@ public class NDD {
 
     public static int getFieldNum() {
         return fieldNum;
+    }
+
+    public static int getFieldWidth(int field) {
+        validateField(field);
+        return pendingFieldBitNums.get(field);
+    }
+
+    /** Evaluate a diagram for one complete bit-vector assignment per field. */
+    public static Rational evaluate(NDD ndd, int[][] assignment) {
+        if (assignment == null || assignment.length != fieldNum + 1) {
+            throw new IllegalArgumentException("assignment must contain every field");
+        }
+        int current = id(ndd);
+        while (!isTerminalId(current)) {
+            int field = nodeTable.getField(current);
+            int[] bits = assignment[field];
+            if (bits == null || bits.length != pendingFieldBitNums.get(field)) {
+                throw new IllegalArgumentException("assignment width mismatch for field " + field);
+            }
+            int assignmentLabel = buildFieldAssignmentLabel(field, bits);
+            int next = FALSE_ID;
+            int count = nodeTable.getEdgeCount(current);
+            for (int i = 0; i < count; i++) {
+                if (backendForField(field).matches(nodeTable.getEdgeLabel(current, i), assignmentLabel)) {
+                    next = nodeTable.getEdgeTarget(current, i);
+                    break;
+                }
+            }
+            derefLabel(field, assignmentLabel);
+            current = next;
+        }
+        return value(current);
+    }
+
+    private static int buildFieldAssignmentLabel(int field, int[] bits) {
+        int assignment = refLabel(field, getFieldUniverseLabel(field));
+        for (int bit = 0; bit < bits.length; bit++) {
+            if (bits[bit] != 0 && bits[bit] != 1) {
+                derefLabel(field, assignment);
+                throw new IllegalArgumentException("assignment bits must be 0 or 1");
+            }
+            int literal = bits[bit] == 0
+                    ? bddNotVarsPerField.get(field)[bit]
+                    : bddVarsPerField.get(field)[bit];
+            int next = refLabel(field, labelAnd(field, assignment, literal));
+            derefLabel(field, assignment);
+            assignment = next;
+        }
+        return assignment;
     }
 
     public static NDD getVar(int field, int index) {
@@ -193,11 +348,13 @@ public class NDD {
 
     public static int[] getBDDVars(int field) {
         ensureFieldsGenerated();
+        ensureFieldMode(field, LabelMode.BDD, "BDD variable handles");
         return bddVarsPerField.get(field);
     }
 
     public static int[] getNotBDDVars(int field) {
         ensureFieldsGenerated();
+        ensureFieldMode(field, LabelMode.BDD, "BDD negated variable handles");
         return bddNotVarsPerField.get(field);
     }
 
@@ -205,20 +362,122 @@ public class NDD {
         return bddEngine;
     }
 
+    public static ComplementedBDD getBCDDEngine() { return bcddEngine; }
+
+    public static ZDD getZDDEngine() { return zddEngine; }
+
+    public static LabelMode getFieldLabelMode(int field) {
+        validateField(field);
+        return pendingFieldModes.get(field);
+    }
+
+    public static boolean hasMixedLabelModes() { return mixedLabelModes; }
+
     public static int getFalseId() {
         return FALSE_ID;
     }
 
-    public static boolean isUniverseEdgeLabel(int label) {
-        return label == 1;
+    public static boolean isUniverseEdgeLabel(int field, int label) {
+        return label == getFieldUniverseLabel(field);
     }
 
     public static int refLabel(int label) {
-        return bddEngine.ref(label);
+        ensureHomogeneousLabels("refLabel(label)");
+        return labelBackend.ref(label);
     }
 
     public static void derefLabel(int label) {
-        bddEngine.deref(label);
+        ensureHomogeneousLabels("derefLabel(label)");
+        labelBackend.deref(label);
+    }
+
+    public static int refLabel(int field, int label) {
+        return backendForField(field).ref(label);
+    }
+
+    public static void derefLabel(int field, int label) {
+        backendForField(field).deref(label);
+    }
+
+    private static int getFieldUniverseLabel(int field) {
+        return fieldUniverseLabels.get(field);
+    }
+
+    private static LabelMode fieldMode(int field) {
+        return mixedLabelModes ? fieldModeArray[field] : labelBackend.mode();
+    }
+
+    private static LabelDecisionDiagramBackend backendForField(int field) {
+        return mixedLabelModes ? fieldBackendArray[field] : labelBackend;
+    }
+
+    private static void ensureHomogeneousLabels(String feature) {
+        if (mixedLabelModes) {
+            throw new IllegalStateException(feature + " requires a field argument in mixed-backend mode");
+        }
+        if (labelBackend == null) throw new IllegalStateException("No fields have been declared");
+    }
+
+    private static void ensureFieldMode(int field, LabelMode expected, String feature) {
+        validateField(field);
+        if (pendingFieldModes.get(field) != expected) {
+            throw new UnsupportedOperationException(feature + " requires field " + field + " to use " + expected);
+        }
+    }
+
+    private static void ensureHomogeneousBdd(String feature) {
+        ensureHomogeneousLabels(feature);
+        if (labelBackend.mode() != LabelMode.BDD) {
+            throw new UnsupportedOperationException(feature + " is only supported in homogeneous BDD mode");
+        }
+    }
+
+    private static void validateField(int field) {
+        if (field < 0 || field > fieldNum) {
+            throw new IllegalArgumentException("field out of range: " + field);
+        }
+    }
+
+    private static int labelAnd(int field, int left, int right) {
+        return backendForField(field).and(left, right);
+    }
+
+    private static int labelOrTo(int current, int add, int field) {
+        return backendForField(field).orTo(current, add);
+    }
+
+    private static int labelDiff(int field, int left, int right) {
+        return backendForField(field).diff(getFieldUniverseLabel(field), left, right);
+    }
+
+    private static int labelDiffTo(int current, int remove, int field) {
+        int result = refLabel(field, labelDiff(field, current, remove));
+        derefLabel(field, current);
+        return result;
+    }
+
+    public static double getLabelSatCount(int field, int label) {
+        validateField(field);
+        BackendContext context = backendContexts[fieldMode(field).ordinal()];
+        return backendForField(field).satCount(label, pendingFieldBitNums.get(field), context.maxWidth);
+    }
+
+    public static long getLabelNodeCount(LabelMode mode) {
+        BackendContext context = backendContexts[mode.ordinal()];
+        return context == null ? 0 : context.backend.nodeCount();
+    }
+
+    public static long getLabelTotalCreated(LabelMode mode) {
+        BackendContext context = backendContexts[mode.ordinal()];
+        return context == null ? 0 : context.backend.totalCreated();
+    }
+
+    public static void gcLabelEngines() {
+        clearCaches();
+        for (BackendContext context : backendContexts) {
+            if (context != null) context.backend.gc();
+        }
+        clearCaches();
     }
 
     public static void clearCaches() {
@@ -229,6 +488,7 @@ public class NDD {
         subCache.clear();
         mulCache.clear();
         divCache.clear();
+        diffCache.clear();
         sumAbstractCache.clear();
         externalCacheCleaner.run();
     }
@@ -239,9 +499,6 @@ public class NDD {
 
     public static void forEachTemporarilyProtect(IntConsumer consumer) {
         temporarilyProtect.forEach(consumer);
-        for (NDD ndd : temporarilyProtectObjects) {
-            consumer.accept(ndd.id);
-        }
     }
 
     private static void runSafePointMaintenance() {
@@ -296,10 +553,6 @@ public class NDD {
         return nodeId == TRUE_ID;
     }
 
-    public static HashSet<NDD> getTemporarilyProtect() {
-        return temporarilyProtectObjects;
-    }
-
     private static Rational value(int nodeId) {
         return nodeTable.getTerminalValue(nodeId);
     }
@@ -308,9 +561,9 @@ public class NDD {
         return nodeTable.mkTerminal(value);
     }
 
-    private static void edgeCollect(int frameStart, int target, int label) {
+    private static void edgeCollect(int frameStart, int field, int target, int label) {
         if (target == FALSE_ID) {
-            derefLabel(label);
+            derefLabel(field, label);
             return;
         }
         if (stackTop >= stackTargets.length) {
@@ -332,8 +585,9 @@ public class NDD {
             stackTop = frameStart;
             return FALSE_ID;
         }
-        if (size == 1 && isUniverseEdgeLabel(stackLabels[frameStart])) {
+        if (size == 1 && isUniverseEdgeLabel(field, stackLabels[frameStart])) {
             int target = stackTargets[frameStart];
+            derefLabel(field, stackLabels[frameStart]);
             stackTop = frameStart;
             return target;
         }
@@ -378,7 +632,7 @@ public class NDD {
             int target = stackTargets[i];
             int label = stackLabels[i];
             if (target == currentTarget) {
-                currentLabel = bddEngine.orTo(currentLabel, label);
+                currentLabel = labelOrTo(currentLabel, label, field);
             } else {
                 stackTargets[write] = currentTarget;
                 stackLabels[write++] = currentLabel;
@@ -469,31 +723,13 @@ public class NDD {
         stackLabels = Arrays.copyOf(stackLabels, newCapacity);
     }
 
-    protected static void addEdge(HashMap<NDD, Integer> edges, NDD descendant, int labelBDD) {
-        if (descendant.isFalse()) {
-            derefLabel(labelBDD);
-            return;
-        }
-        Integer oldLabel = edges.get(descendant);
-        int newLabel = bddEngine.orTo(oldLabel == null ? 0 : oldLabel, labelBDD);
-        edges.put(descendant, newLabel);
-    }
-
-    public static NDD mk(int field, HashMap<NDD, Integer> edges) {
-        int frameStart = stackTop;
-        for (Map.Entry<NDD, Integer> edge : edges.entrySet()) {
-            edgeCollect(frameStart, id(edge.getKey()), edge.getValue());
-        }
-        return wrap(edgeFlush(frameStart, field));
-    }
-
     public static NDD mk(int field, NDD[] targets, int[] labels) {
         if (targets.length != labels.length) {
             throw new IllegalArgumentException("targets and labels must have the same length");
         }
         int frameStart = stackTop;
         for (int i = 0; i < targets.length; i++) {
-            edgeCollect(frameStart, id(targets[i]), refLabel(labels[i]));
+            edgeCollect(frameStart, field, id(targets[i]), refLabel(field, labels[i]));
         }
         return wrap(edgeFlush(frameStart, field));
     }
@@ -549,11 +785,64 @@ public class NDD {
 
     public static NDD diff(NDD a, NDD b) {
         temporarilyProtect.clear();
-        int n = notRec(id(b));
-        temporarilyProtect.add(n);
-        int res = andRec(id(a), n);
+        int res = diffRec(id(a), id(b));
         runSafePointMaintenance();
         return wrap(res);
+    }
+
+    private static int diffRec(int a, int b) {
+        if (isZeroId(a) || a == b) return FALSE_ID;
+        if (isZeroId(b)) return a;
+        if (isTerminalId(b)) return FALSE_ID;
+        if (diffCache.getEntryOrdered(a, b)) return diffCache.result;
+        int cacheIndex = diffCache.hashValue;
+
+        int frameStart = stackTop;
+        int aField = nodeTable.getField(a);
+        int bField = nodeTable.getField(b);
+        if (aField == bField) {
+            int aCount = nodeTable.getEdgeCount(a);
+            int bCount = nodeTable.getEdgeCount(b);
+            for (int i = 0; i < aCount; i++) {
+                int aTarget = nodeTable.getEdgeTarget(a, i);
+                int remaining = refLabel(aField, nodeTable.getEdgeLabel(a, i));
+                for (int j = 0; j < bCount && remaining != 0; j++) {
+                    int bLabel = nodeTable.getEdgeLabel(b, j);
+                    int intersection = refLabel(aField, labelAnd(aField, remaining, bLabel));
+                    if (intersection != 0) {
+                        edgeCollect(frameStart, aField,
+                                diffRec(aTarget, nodeTable.getEdgeTarget(b, j)), intersection);
+                    } else {
+                        derefLabel(aField, intersection);
+                    }
+                    remaining = labelDiffTo(remaining, bLabel, aField);
+                }
+                if (remaining != 0) edgeCollect(frameStart, aField, aTarget, remaining);
+                else derefLabel(aField, remaining);
+            }
+        } else if (aField < bField) {
+            int count = nodeTable.getEdgeCount(a);
+            for (int i = 0; i < count; i++) {
+                edgeCollect(frameStart, aField,
+                        diffRec(nodeTable.getEdgeTarget(a, i), b),
+                        refLabel(aField, nodeTable.getEdgeLabel(a, i)));
+            }
+        } else {
+            int residual = refLabel(bField, getFieldUniverseLabel(bField));
+            int count = nodeTable.getEdgeCount(b);
+            for (int i = 0; i < count; i++) {
+                int label = nodeTable.getEdgeLabel(b, i);
+                edgeCollect(frameStart, bField,
+                        diffRec(a, nodeTable.getEdgeTarget(b, i)), refLabel(bField, label));
+                residual = labelDiffTo(residual, label, bField);
+            }
+            if (residual != 0) edgeCollect(frameStart, bField, a, residual);
+            else derefLabel(bField, residual);
+        }
+        int result = edgeFlush(frameStart, Math.min(aField, bField));
+        temporarilyProtect.add(result);
+        diffCache.setEntry(cacheIndex, a, b, result);
+        return result;
     }
 
     public static NDD imp(NDD a, NDD b) {
@@ -581,9 +870,13 @@ public class NDD {
                 int aTarget = nodeTable.getEdgeTarget(a, i);
                 int aLabel = nodeTable.getEdgeLabel(a, i);
                 for (int j = 0; j < bCount; j++) {
-                    int intersect = bddEngine.ref(bddEngine.and(aLabel, nodeTable.getEdgeLabel(b, j)));
+                    int intersect = refLabel(aField,
+                            labelAnd(aField, aLabel, nodeTable.getEdgeLabel(b, j)));
                     if (intersect != 0) {
-                        edgeCollect(frameStart, andRec(aTarget, nodeTable.getEdgeTarget(b, j)), intersect);
+                        edgeCollect(frameStart, aField,
+                                andRec(aTarget, nodeTable.getEdgeTarget(b, j)), intersect);
+                    } else {
+                        derefLabel(aField, intersect);
                     }
                 }
             }
@@ -595,7 +888,8 @@ public class NDD {
             int aCount = nodeTable.getEdgeCount(a);
             for (int i = 0; i < aCount; i++) {
                 int sub = andRec(nodeTable.getEdgeTarget(a, i), b);
-                edgeCollect(frameStart, sub, refLabel(nodeTable.getEdgeLabel(a, i)));
+                edgeCollect(frameStart, aField, sub,
+                        refLabel(aField, nodeTable.getEdgeLabel(a, i)));
             }
         }
         int res = edgeFlush(frameStart, aField);
@@ -620,17 +914,16 @@ public class NDD {
                 int t = a; a = b; b = t;
                 int tf = aField; aField = bField; bField = tf;
             }
-            int residualB = refLabel(1);
+            int residualB = refLabel(aField, getFieldUniverseLabel(aField));
             int aCount = nodeTable.getEdgeCount(a);
             for (int i = 0; i < aCount; i++) {
                 int aLabel = nodeTable.getEdgeLabel(a, i);
-                int notInt = bddEngine.ref(bddEngine.not(aLabel));
-                residualB = bddEngine.andTo(residualB, notInt);
-                bddEngine.deref(notInt);
+                residualB = labelDiffTo(residualB, aLabel, aField);
                 int sub = orRec(nodeTable.getEdgeTarget(a, i), b);
-                edgeCollect(frameStart, sub, refLabel(aLabel));
+                edgeCollect(frameStart, aField, sub, refLabel(aField, aLabel));
             }
-            if (residualB != 0) edgeCollect(frameStart, b, residualB);
+            if (residualB != 0) edgeCollect(frameStart, aField, b, residualB);
+            else derefLabel(aField, residualB);
         }
         int res = edgeFlush(frameStart, aField);
         temporarilyProtect.add(res);
@@ -648,17 +941,18 @@ public class NDD {
         int cacheIndex = notCache.hashValue;
 
         int frameStart = stackTop;
-        int residual = refLabel(1);
+        int field = nodeTable.getField(a);
+        int residual = refLabel(field, getFieldUniverseLabel(field));
         int count = nodeTable.getEdgeCount(a);
         for (int i = 0; i < count; i++) {
             int label = nodeTable.getEdgeLabel(a, i);
-            int notIntersect = bddEngine.ref(bddEngine.not(label));
-            residual = bddEngine.andTo(residual, notIntersect);
-            bddEngine.deref(notIntersect);
-            edgeCollect(frameStart, notRec(nodeTable.getEdgeTarget(a, i)), refLabel(label));
+            residual = labelDiffTo(residual, label, field);
+            edgeCollect(frameStart, field, notRec(nodeTable.getEdgeTarget(a, i)),
+                    refLabel(field, label));
         }
-        if (residual != 0) edgeCollect(frameStart, TRUE_ID, residual);
-        int res = edgeFlush(frameStart, nodeTable.getField(a));
+        if (residual != 0) edgeCollect(frameStart, field, TRUE_ID, residual);
+        else derefLabel(field, residual);
+        int res = edgeFlush(frameStart, field);
         temporarilyProtect.add(res);
         notCache.setEntry(cacheIndex, a, res);
         return res;
@@ -748,42 +1042,38 @@ public class NDD {
 
         boolean aFirst = (!isTerminalId(a) && (isTerminalId(b) || aField < bField));
         if (aFirst) {
-            int residualB = refLabel(1);
+            int residualB = refLabel(aField, getFieldUniverseLabel(aField));
             int count = nodeTable.getEdgeCount(a);
             for (int i = 0; i < count; i++) {
                 int label = nodeTable.getEdgeLabel(a, i);
-                int notInt = bddEngine.ref(bddEngine.not(label));
-                residualB = bddEngine.andTo(residualB, notInt);
-                bddEngine.deref(notInt);
+                residualB = labelDiffTo(residualB, label, aField);
                 int sub = arithmeticChild(nodeTable.getEdgeTarget(a, i), b, op);
-                edgeCollect(frameStart, sub, refLabel(label));
+                edgeCollect(frameStart, aField, sub, refLabel(aField, label));
             }
             if (op != TerminalOp.MUL && residualB != 0) {
                 int sub = arithmeticChild(FALSE_ID, b, op);
-                edgeCollect(frameStart, sub, residualB);
+                edgeCollect(frameStart, aField, sub, residualB);
             } else {
-                derefLabel(residualB);
+                derefLabel(aField, residualB);
             }
             int res = edgeFlush(frameStart, aField);
             temporarilyProtect.add(res);
             return res;
         }
 
-        int residualA = refLabel(1);
+        int residualA = refLabel(bField, getFieldUniverseLabel(bField));
         int count = nodeTable.getEdgeCount(b);
         for (int i = 0; i < count; i++) {
             int label = nodeTable.getEdgeLabel(b, i);
-            int notInt = bddEngine.ref(bddEngine.not(label));
-            residualA = bddEngine.andTo(residualA, notInt);
-            bddEngine.deref(notInt);
+            residualA = labelDiffTo(residualA, label, bField);
             int sub = arithmeticChild(a, nodeTable.getEdgeTarget(b, i), op);
-            edgeCollect(frameStart, sub, refLabel(label));
+            edgeCollect(frameStart, bField, sub, refLabel(bField, label));
         }
         if (op != TerminalOp.MUL && residualA != 0) {
             int sub = arithmeticChild(a, FALSE_ID, op);
-            edgeCollect(frameStart, sub, residualA);
+            edgeCollect(frameStart, bField, sub, residualA);
         } else {
-            derefLabel(residualA);
+            derefLabel(bField, residualA);
         }
         int res = edgeFlush(frameStart, bField);
         temporarilyProtect.add(res);
@@ -800,10 +1090,12 @@ public class NDD {
         }
     }
 
+    /**
+     * Sum all values over one field while preserving the remaining field structure.
+     * Edge-label multiplicity is obtained through the backend assigned to that field.
+     */
     public static NDD sumAbstract(NDD a, int field) {
-        if (field < 0 || field > fieldNum) {
-            throw new IllegalArgumentException("invalid field: " + field);
-        }
+        validateField(field);
         temporarilyProtect.clear();
         int result = sumAbstractRec(id(a), field);
         runSafePointMaintenance();
@@ -823,9 +1115,8 @@ public class NDD {
             result = FALSE_ID;
             int count = nodeTable.getEdgeCount(a);
             for (int i = 0; i < count; i++) {
-                int label = nodeTable.getEdgeLabel(a, i);
-                long multiplicity = Math.round(
-                        bddEngine.satCount(label) / satCountDiv.get(field));
+                long multiplicity = Math.round(getLabelSatCount(
+                        field, nodeTable.getEdgeLabel(a, i)));
                 if (multiplicity == 0) {
                     continue;
                 }
@@ -841,7 +1132,8 @@ public class NDD {
             int count = nodeTable.getEdgeCount(a);
             for (int i = 0; i < count; i++) {
                 int target = sumAbstractRec(nodeTable.getEdgeTarget(a, i), field);
-                edgeCollect(frameStart, target, refLabel(nodeTable.getEdgeLabel(a, i)));
+                edgeCollect(frameStart, currentField, target,
+                        refLabel(currentField, nodeTable.getEdgeLabel(a, i)));
             }
             result = edgeFlush(frameStart, currentField);
         }
@@ -864,10 +1156,10 @@ public class NDD {
         int[] residualA = new int[aCount];
         int[] residualB = new int[bCount];
         for (int i = 0; i < aCount; i++) {
-            residualA[i] = refLabel(nodeTable.getEdgeLabel(a, i));
+            residualA[i] = refLabel(nodeTable.getField(a), nodeTable.getEdgeLabel(a, i));
         }
         for (int i = 0; i < bCount; i++) {
-            residualB[i] = refLabel(nodeTable.getEdgeLabel(b, i));
+            residualB[i] = refLabel(nodeTable.getField(b), nodeTable.getEdgeLabel(b, i));
         }
 
         int field = nodeTable.getField(a);
@@ -877,14 +1169,14 @@ public class NDD {
             for (int j = 0; j < bCount; j++) {
                 int bTarget = nodeTable.getEdgeTarget(b, j);
                 int bLabel = nodeTable.getEdgeLabel(b, j);
-                int intersect = bddEngine.ref(bddEngine.and(aLabel, bLabel));
+                int intersect = refLabel(field, labelAnd(field, aLabel, bLabel));
                 if (intersect != 0) {
-                    int notIntersect = bddEngine.ref(bddEngine.not(intersect));
-                    residualA[i] = bddEngine.andTo(residualA[i], notIntersect);
-                    residualB[j] = bddEngine.andTo(residualB[j], notIntersect);
-                    bddEngine.deref(notIntersect);
+                    residualA[i] = labelDiffTo(residualA[i], intersect, field);
+                    residualB[j] = labelDiffTo(residualB[j], intersect, field);
                     int sub = isOr ? orRec(aTarget, bTarget) : arithmeticChild(aTarget, bTarget, op);
-                    edgeCollect(frameStart, sub, intersect);
+                    edgeCollect(frameStart, field, sub, intersect);
+                } else {
+                    derefLabel(field, intersect);
                 }
             }
         }
@@ -893,19 +1185,21 @@ public class NDD {
             int target = nodeTable.getEdgeTarget(a, i);
             int label = residualA[i];
             if (label != 0) {
-                edgeCollect(frameStart,
-                        isOr ? target : arithmeticChild(target, FALSE_ID, op), refLabel(label));
+                edgeCollect(frameStart, field,
+                        isOr ? target : arithmeticChild(target, FALSE_ID, op),
+                        refLabel(field, label));
             }
-            derefLabel(label);
+            derefLabel(field, label);
         }
         for (int i = 0; i < bCount; i++) {
             int target = nodeTable.getEdgeTarget(b, i);
             int label = residualB[i];
             if (label != 0) {
-                edgeCollect(frameStart,
-                        isOr ? target : arithmeticChild(FALSE_ID, target, op), refLabel(label));
+                edgeCollect(frameStart, field,
+                        isOr ? target : arithmeticChild(FALSE_ID, target, op),
+                        refLabel(field, label));
             }
-            derefLabel(label);
+            derefLabel(field, label);
         }
     }
 
@@ -926,11 +1220,12 @@ public class NDD {
         } else {
             int frameStart = stackTop;
             int count = nodeTable.getEdgeCount(a);
+            int aField = nodeTable.getField(a);
             for (int i = 0; i < count; i++) {
-                edgeCollect(frameStart, existRec(nodeTable.getEdgeTarget(a, i), field),
-                        refLabel(nodeTable.getEdgeLabel(a, i)));
+                edgeCollect(frameStart, aField, existRec(nodeTable.getEdgeTarget(a, i), field),
+                        refLabel(aField, nodeTable.getEdgeLabel(a, i)));
             }
-            result = edgeFlush(frameStart, nodeTable.getField(a));
+            result = edgeFlush(frameStart, aField);
         }
         temporarilyProtect.add(result);
         return result;
@@ -938,19 +1233,40 @@ public class NDD {
 
     public static NDD encodePrefix(int[] prefixBinary, int field) {
         if (prefixBinary.length == 0) return getTrue();
-        int prefixBDD = encodePrefixBDD(prefixBinary, getBDDVars(field), getNotBDDVars(field));
-        return wrap(nodeTable.mk(field, new int[] { TRUE_ID }, new int[] { prefixBDD }));
+        int prefixLabel = encodePrefixLabel(prefixBinary, field);
+        return wrap(nodeTable.mk(field, new int[] { TRUE_ID }, new int[] { prefixLabel }));
     }
 
     public static NDD encodePrefixs(ArrayList<int[]> prefixsBinary, int field) {
-        int prefixsBDD = 0;
+        int prefixsBDD = refLabel(field, 0);
         for (int[] prefix : prefixsBinary) {
-            prefixsBDD = bddEngine.orTo(prefixsBDD, encodePrefixBDD(prefix, getBDDVars(field), getNotBDDVars(field)));
+            prefixsBDD = labelOrTo(prefixsBDD, encodePrefixLabel(prefix, field), field);
         }
         return wrap(nodeTable.mk(field, new int[] { TRUE_ID }, new int[] { prefixsBDD }));
     }
 
+    private static int encodePrefixLabel(int[] prefixBinary, int field) {
+        if (prefixBinary.length > pendingFieldBitNums.get(field)) {
+            throw new IllegalArgumentException("prefix is wider than field " + field);
+        }
+        int label = refLabel(field, getFieldUniverseLabel(field));
+        for (int i = 0; i < prefixBinary.length; i++) {
+            if (prefixBinary[i] != 0 && prefixBinary[i] != 1) {
+                derefLabel(field, label);
+                throw new IllegalArgumentException("prefix bits must be 0 or 1");
+            }
+            int literal = prefixBinary[i] == 0
+                    ? bddNotVarsPerField.get(field)[i]
+                    : bddVarsPerField.get(field)[i];
+            int next = refLabel(field, labelAnd(field, label, literal));
+            derefLabel(field, label);
+            label = next;
+        }
+        return label;
+    }
+
     public static int encodePrefixBDD(int[] prefixBinary, int[] vars, int[] notVars) {
+        if (bddEngine == null) throw new UnsupportedOperationException("BDD backend is not active");
         int prefixBDD = 1;
         for (int i = 0; i < prefixBinary.length; i++) {
             prefixBDD = bddEngine.andTo(prefixBDD, prefixBinary[i] == 0 ? notVars[i] : vars[i]);
@@ -970,12 +1286,14 @@ public class NDD {
     }
 
     public static NDD toNDD(int a, int field) {
+        ensureFieldMode(field, LabelMode.BDD, "toNDD(raw BDD)");
         if (a == 0) return getFalse();
         if (a == 1) return getTrue();
         return wrap(nodeTable.mk(field, new int[] { TRUE_ID }, new int[] { bddEngine.ref(a) }));
     }
 
     public static NDD toNDD(int a) {
+        ensureHomogeneousBdd("toNDD(raw BDD)");
         HashMap<Integer, HashMap<Integer, Integer>> decomposed = DecomposeBDD.decompose(a, bddEngine, maxVariablePerField);
         HashMap<Integer, Integer> converted = new HashMap<>();
         converted.put(1, TRUE_ID);
@@ -985,7 +1303,9 @@ public class NDD {
                 if (converted.keySet().containsAll(entry.getValue().keySet())) {
                     int frameStart = stackTop;
                     for (Map.Entry<Integer, Integer> edge : entry.getValue().entrySet()) {
-                        edgeCollect(frameStart, converted.get(edge.getKey()), refLabel(edge.getValue()));
+                        int field = DecomposeBDD.bddGetField(entry.getKey());
+                        edgeCollect(frameStart, field, converted.get(edge.getKey()),
+                                refLabel(field, edge.getValue()));
                     }
                     int n = edgeFlush(frameStart, DecomposeBDD.bddGetField(entry.getKey()));
                     converted.put(entry.getKey(), n);
@@ -1000,6 +1320,7 @@ public class NDD {
     }
 
     public static int toBDD(NDD root) {
+        ensureHomogeneousBdd("toBDD");
         int result = toBDDRec(id(root));
         bddEngine.deref(result);
         return result;
@@ -1038,7 +1359,7 @@ public class NDD {
         if (field == currField) {
             int count = nodeTable.getEdgeCount(curr);
             for (int i = 0; i < count; i++) {
-                double bddSat = bddEngine.satCount(nodeTable.getEdgeLabel(curr, i)) / satCountDiv.get(currField);
+                double bddSat = getLabelSatCount(currField, nodeTable.getEdgeLabel(curr, i));
                 result += bddSat * satCountRec(nodeTable.getEdgeTarget(curr, i), field + 1, target);
             }
         } else {
@@ -1181,14 +1502,6 @@ public class NDD {
         return nodeTable.getEdgeLabel(id, offset);
     }
 
-    public HashMap<NDD, Integer> getEdges() {
-        HashMap<NDD, Integer> edges = new HashMap<>();
-        for (int i = 0; i < edgeCount(); i++) {
-            edges.put(edgeTarget(i), edgeLabel(i));
-        }
-        return edges;
-    }
-
     public void ref() {
         nodeTable.ref(id);
     }
@@ -1202,18 +1515,6 @@ public class NDD {
         if (ndd != null) {
             ndd.recursiveDeref();
         }
-    }
-
-    public static NDD andTo(NDD a, NDD b) {
-        NDD result = ref(and(a, b));
-        deref(a);
-        return result;
-    }
-
-    public static NDD orTo(NDD a, NDD b) {
-        NDD result = ref(or(a, b));
-        deref(a);
-        return result;
     }
 
     public NDD withRef() {
@@ -1253,6 +1554,25 @@ public class NDD {
         return and(this, ndd);
     }
 
+    /** Compatibility overload for callers that encode each field as an integer. */
+    public static double evaluate(NDD ndd, int[] fieldValues) {
+        if (fieldValues == null || fieldValues.length != fieldNum + 1) {
+            throw new IllegalArgumentException("one value is required for every field");
+        }
+        int[][] assignment = new int[fieldValues.length][];
+        for (int field = 0; field < fieldValues.length; field++) {
+            int width = getFieldWidth(field);
+            assignment[field] = new int[width];
+            for (int bit = 0; bit < width; bit++) {
+                int shift = width - 1 - bit;
+                assignment[field][bit] = shift >= Integer.SIZE
+                        ? 0
+                        : (fieldValues[field] >>> shift) & 1;
+            }
+        }
+        return evaluate(ndd, assignment).doubleValue();
+    }
+
     public static double readEpsilon() {
         return eps;
     }
@@ -1267,12 +1587,24 @@ public class NDD {
         nodeTable.compactEdgesAtSafePoint();
     }
 
-    public static void gcLabelEngine() {
-        bddEngine.gc();
-    }
-
     public static long getTotalCreated() {
         return nodeTable.getTotalCreated();
+    }
+
+    public static long getGcCount() {
+        return nodeTable.getGcCount();
+    }
+
+    public static long getGcFreedCount() {
+        return nodeTable.getGcFreedCount();
+    }
+
+    public static long getGcTimeMillis() {
+        return nodeTable.getGcTimeMillis();
+    }
+
+    public static long getThresholdGrowCount() {
+        return nodeTable.getThresholdGrowCount();
     }
 
     public static long getNodeCount() {
@@ -1291,108 +1623,51 @@ public class NDD {
         return nodeTable.getPhysicalEdgeSlots();
     }
 
-    public static long getLabelTotalCreated() {
-        return jdd.bdd.NodeTable.mkCount;
+    private static LabelDecisionDiagramBackend backendOrNull(LabelMode mode) {
+        if (backendContexts == null || mode == null) return null;
+        BackendContext context = backendContexts[mode.ordinal()];
+        return context == null ? null : context.backend;
     }
 
-    public static long getLabelNodeCount() {
-        return bddEngine.debug_table_size();
+    public static long getLabelGcCount(LabelMode mode) {
+        LabelDecisionDiagramBackend backend = backendOrNull(mode);
+        return backend == null ? 0L : backend.gcCount();
+    }
+
+    public static long getLabelGcFreedCount(LabelMode mode) {
+        LabelDecisionDiagramBackend backend = backendOrNull(mode);
+        return backend == null ? 0L : backend.gcFreedCount();
+    }
+
+    public static long getLabelGcTimeMillis(LabelMode mode) {
+        LabelDecisionDiagramBackend backend = backendOrNull(mode);
+        return backend == null ? 0L : backend.gcTimeMillis();
+    }
+
+    public static long getLabelGcNotifyTimeMillis(LabelMode mode) {
+        LabelDecisionDiagramBackend backend = backendOrNull(mode);
+        return backend == null ? 0L : backend.gcNotifyTimeMillis();
+    }
+
+    public static long getLabelGrowCount(LabelMode mode) {
+        LabelDecisionDiagramBackend backend = backendOrNull(mode);
+        return backend == null ? 0L : backend.growCount();
+    }
+
+    public static long getLabelGrowTimeMillis(LabelMode mode) {
+        LabelDecisionDiagramBackend backend = backendOrNull(mode);
+        return backend == null ? 0L : backend.growTimeMillis();
     }
 
     public static void printopcount() {
         nodeTable.showMKCnt();
-        bddEngine.showStats();
+        for (BackendContext context : backendContexts) {
+            if (context != null) context.backend.showStats();
+        }
     }
 
     public static int gettersize() {
         return nodeTable.getTerminalCount();
-    }
-
-    public static double evaluate(NDD root, int[] fieldValues) {
-        if (fieldValues.length <= fieldNum) {
-            throw new IllegalArgumentException("one value is required for every field");
-        }
-        int current = id(root);
-        boolean[] assignment = new boolean[sharedBddVars.length];
-        while (!isTerminalId(current)) {
-            int currentField = nodeTable.getField(current);
-            int[] variables = bddVarsPerField.get(currentField);
-            int fieldValue = fieldValues[currentField];
-            Arrays.fill(assignment, false);
-            for (int i = 0; i < variables.length; i++) {
-                int shift = variables.length - 1 - i;
-                assignment[bddEngine.getVar(variables[i])] =
-                        ((fieldValue >>> shift) & 1) != 0;
-            }
-            int next = FALSE_ID;
-            int count = nodeTable.getEdgeCount(current);
-            for (int i = 0; i < count; i++) {
-                if (bddEngine.member(nodeTable.getEdgeLabel(current, i), assignment)) {
-                    next = nodeTable.getEdgeTarget(current, i);
-                    break;
-                }
-            }
-            current = next;
-        }
-        return value(current).doubleValue();
-    }
-
-    public static final class GraphStats {
-        public final long internalNodes;
-        public final long physicalEdges;
-        public final long labelBddNodes;
-        public final long terminals;
-
-        GraphStats(long internalNodes, long physicalEdges, long labelBddNodes, long terminals) {
-            this.internalNodes = internalNodes;
-            this.physicalEdges = physicalEdges;
-            this.labelBddNodes = labelBddNodes;
-            this.terminals = terminals;
-        }
-    }
-
-    public static GraphStats graphStats(NDD root) {
-        HashSet<Integer> visitedNodes = new HashSet<>();
-        HashSet<Integer> visitedTerminals = new HashSet<>();
-        HashSet<Integer> visitedLabels = new HashSet<>();
-        ArrayDeque<Integer> pending = new ArrayDeque<>();
-        pending.push(id(root));
-        long internalNodes = 0;
-        long physicalEdges = 0;
-        while (!pending.isEmpty()) {
-            int current = pending.pop();
-            if (!visitedNodes.add(current)) {
-                continue;
-            }
-            if (isTerminalId(current)) {
-                visitedTerminals.add(current);
-                continue;
-            }
-            internalNodes++;
-            int count = nodeTable.getEdgeCount(current);
-            physicalEdges += count;
-            int currentField = nodeTable.getField(current);
-            double coveredValues = 0;
-            for (int i = 0; i < count; i++) {
-                int label = nodeTable.getEdgeLabel(current, i);
-                collectLabelNodes(label, visitedLabels);
-                coveredValues += bddEngine.satCount(label) / satCountDiv.get(currentField);
-                pending.push(nodeTable.getEdgeTarget(current, i));
-            }
-            if (coveredValues + 0.5 < fieldCardinality(currentField)) {
-                visitedTerminals.add(FALSE_ID);
-            }
-        }
-        return new GraphStats(
-                internalNodes, physicalEdges, visitedLabels.size(), visitedTerminals.size());
-    }
-
-    private static void collectLabelNodes(int label, HashSet<Integer> visitedLabels) {
-        if (label < 2 || !visitedLabels.add(label)) {
-            return;
-        }
-        collectLabelNodes(bddEngine.getLow(label), visitedLabels);
-        collectLabelNodes(bddEngine.getHigh(label), visitedLabels);
     }
 
     @Override
@@ -1411,7 +1686,7 @@ public class NDD {
     }
 
     private static class IntOperationCache {
-        private final int size;
+        private final int mask;
         private final int[] op1;
         private final int[] op2;
         private final int[] res;
@@ -1421,11 +1696,15 @@ public class NDD {
         int hashValue;
 
         IntOperationCache(int cacheSize) {
-            this.size = cacheSize;
-            this.op1 = new int[cacheSize];
-            this.op2 = new int[cacheSize];
-            this.res = new int[cacheSize];
-            this.gen = new int[cacheSize];
+            int capacity = 1;
+            while (capacity < cacheSize) {
+                capacity <<= 1;
+            }
+            this.mask = capacity - 1;
+            this.op1 = new int[capacity];
+            this.op2 = new int[capacity];
+            this.res = new int[capacity];
+            this.gen = new int[capacity];
             this.generation = 1;
         }
 
@@ -1486,8 +1765,7 @@ public class NDD {
         }
 
         private int hashUnary(int a) {
-            int h = mix(a);
-            return (h & 0x7fffffff) % size;
+            return mix(a) & mask;
         }
 
         private int hashBinary(int a, int b) {
@@ -1498,7 +1776,7 @@ public class NDD {
 
         private int hashOrdered(int a, int b) {
             int h = a * 0x9e3779b9 + b * 0x517cc1b7;
-            return (mix(h) & 0x7fffffff) % size;
+            return mix(h) & mask;
         }
     }
 

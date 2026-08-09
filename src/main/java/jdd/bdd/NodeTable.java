@@ -17,6 +17,7 @@ import jdd.util.math.HashFunctions;
 
 public class NodeTable {
     public static int mkCount = 0;
+    private long totalCreated;
     public static final int NODE_MARK = Integer.MIN_VALUE;
     public static final int NODE_UNMARK = Integer.MAX_VALUE;
     public static final short MAX_REFCOUNT = Short.MAX_VALUE;
@@ -76,6 +77,7 @@ public class NodeTable {
         this.stat_grow_time = 0L;
         this.stat_gc_time = 0L;
         this.stat_gc_freed = 0L;
+        this.totalCreated = 0L;
         this.ht_chain = 0L;
         this.stack_marking_enabled = false;
     }
@@ -256,6 +258,7 @@ public class NodeTable {
             hash = this.compute_hash(v, l, h);
         }
         ++mkCount;
+        ++this.totalCreated;
         curr = this.first_free_node;
         this.first_free_node = this.getNext(this.first_free_node);
         --this.free_nodes_count;
@@ -523,6 +526,40 @@ public class NodeTable {
 
     public int debug_free_nodes_count() {
         return this.free_nodes_count;
+    }
+
+    /** Number of non-terminal nodes allocated by this manager since construction. */
+    public long getTotalCreated() {
+        return this.totalCreated;
+    }
+
+    /** Number of currently live nodes, including the two terminals. */
+    public long getNodeCount() {
+        return this.table_size - this.free_nodes_count;
+    }
+
+    public long getGcCount() {
+        return this.stat_gc_count;
+    }
+
+    public long getGcFreedCount() {
+        return this.stat_gc_freed;
+    }
+
+    public long getGcTimeMillis() {
+        return this.stat_gc_time;
+    }
+
+    public long getGcNotifyTimeMillis() {
+        return this.stat_notify_time;
+    }
+
+    public long getGrowCount() {
+        return this.stat_nt_grow;
+    }
+
+    public long getGrowTimeMillis() {
+        return this.stat_grow_time;
     }
 
     public int debug_compute_free_nodes_count() {

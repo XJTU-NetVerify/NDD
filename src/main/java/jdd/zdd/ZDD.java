@@ -4,6 +4,7 @@
 package jdd.zdd;
 
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.StringTokenizer;
 import jdd.bdd.CacheBase;
 import jdd.bdd.NodeTable;
@@ -29,6 +30,7 @@ extends NodeTable {
     private int node_count_int;
     private OptimizedCache unary_cache;
     private OptimizedCache binary_cache;
+    private final HashMap<Integer, Double> countDoubleCache = new HashMap<>();
     protected NodeName nodeNames = new ZDDNames();
 
     public ZDD(int nodesize) {
@@ -64,6 +66,7 @@ extends NodeTable {
     protected void post_removal_callbak() {
         this.binary_cache.free_or_grow(this);
         this.unary_cache.free_or_grow(this);
+        this.countDoubleCache.clear();
     }
 
     protected final int mk(int i, int l, int h) {
@@ -382,6 +385,21 @@ extends NodeTable {
             return zdd;
         }
         return this.count(this.getLow(zdd)) + this.count(this.getHigh(zdd));
+    }
+
+    /** Count members of a set family without integer overflow. */
+    public final double countDouble(int zdd) {
+        if (zdd < 2) {
+            return zdd;
+        }
+        Double cached = this.countDoubleCache.get(zdd);
+        if (cached != null) {
+            return cached;
+        }
+        double result = this.countDouble(this.getLow(zdd))
+                + this.countDouble(this.getHigh(zdd));
+        this.countDoubleCache.put(zdd, result);
+        return result;
     }
 
     public int nodeCount(int zdd) {

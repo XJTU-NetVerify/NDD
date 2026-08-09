@@ -1,65 +1,150 @@
-## About
+# MTNDD
 
-**Network Decision Diagram (NDD)** is a new decision diagram data structure based on the classical Binary Decision Diagram (BDD).
-In BDD, each node looks at a single **bit**, and branches based on whether the bit is true or false;
-while in NDD, each node looks at a **field** consisting of a fixed number of bits, and branches based on the value of the corresponding field.
-Since there can be more than 2 branches, NDD encodes the branching condition with external data structures.
-Currently, NDD uses BDD to represent the branching condition: if the field has $n$ bits, then the condition is a BDD with $n$ variables.
-In this sense, NDD can be seen as wrapping the original BDD with an outter layer of decision diagram, and therefore the name of NDD can also be interpreted as "Nested Decision Diagram".
+MTNDD (Multi-Terminal Network Decision Diagram) is a field-oriented decision diagram whose
+terminal nodes may hold numeric values instead of only Boolean `false` and `true`. It is useful
+for symbolic functions such as route weights, traffic or link load, probabilities, costs, and
+integer matrices, while retaining NDD's field-level structure.
 
-## Branches
+This branch contains the standalone MTNDD core migrated from the implementation used by
+[`llvf`](https://github.com/XJTU-NetVerify/llvf). The current core supports standard BDD,
+complemented-edge BDD (BCDD), and set-family ZDD edge labels. A single MTNDD may assign different
+label backends to different fields.
 
-* Main: Featuring an efficient design of node table.
-* Reuse: Featuring the reuse of BDD node tables among all fields.
-* Original: The original prototype for NSDI '25 paper.
+## Build
 
-## Benchmark
+Requirements:
 
-Run time (`second`) on different sizes of **NQueens** problem.
+- JDK 8 or newer
+- Maven 3.x
 
-|  N | BDD (JDD) | NDD-Original  | NDD    |
-| -- | --------- | ------------- | ------ |
-| 10 |    0.5479 |        0.7315 | 0.2136 |
-| 11 |    2.7947 |        2.7497 | 0.7619 |
-| 12 |   22.8852 |       14.6047 | 4.1006 |
-
-Detailed benchmark results are available on [nqueensBenchmarkDDs](https://github.com/XJTU-NetVerify/nqueensBenchmarkDDs)
-
-## The Origin of NDD
-
-NDD was originally proposed for network verification, where each NDD node represents a packet header field (destination IP address)
-We observed NDD was more efficient than BDD in terms of memory and computation.
-The reason is due to the **locality** of field-based matching semantics, NDD can significantly reduce the number of BDD nodes for each field.
-The figure below shows an example, where the three BDDs in (a) can be represented by three equivalent NDDs in (c), 
-where each edge of which is labelled by per-field BDDs in (b).
-
-![fig4 drawio](NDD.svg)
-
-## Resources
-
-- [wiki](https://github.com/XJTU-NetVerify/NDD/wiki)
-- [NSDI Paper](https://www.usenix.org/system/files/nsdi25-li-zechun.pdf)
-- [NSDI talk slides](https://xjtu-netverify.github.io/papers/NDD/NDD-A-Decision-Diagram-for-Network-Verification.pdf)
-- [NSDI talk video](https://www.youtube.com/watch?v=9Ni6Z7qKGV4)
-
-## Bibtex
-
-```bibtex
-@inproceedings{NDD,
-  title={NDD: A Decision Diagram for Network Verification},
-  author={Li, Zechun and Zhang, Peng and Zhang, Yichi and Yang, Hongkun},
-  booktitle={22nd USENIX Symposium on Networked Systems Design and Implementation (NSDI 25)},
-  pages={237--258},
-  year={2025}
-}
+```bash
+mvn -DskipTests package
 ```
 
-### Contact
+The build produces `target/ndd-1.0.1.jar` and a jar with dependencies. Run the core regression
+test with:
 
-- Zechun Li (1467874668@qq.com)
-- Peng Zhang (p-zhang@xjtu.edu.cn)
-- Yichi Zhang (augists@outlook.com)
-- Hongkun Yang (hkyang@google.com)
+```bash
+mvn -DskipTests=false -Dtest=org.ants.jndd.diagram.NDDMixedBackendTest test
+```
+
+## Minimal Example
+
+The historical Java package name `org.ants.jndd` is retained for source compatibility.
+
+```java
+import org.ants.jndd.diagram.NDD;
+
+NDD.initNDD(
+    1_000_000, // MTNDD node-table threshold
+    100_000,   // MTNDD operation-cache size
+    1_000_000, // default label node-table size
+    100_000    // default label operation-cache size
+);
+
+int header = NDD.declareField(32, NDD.LabelMode.BDD);
+int links  = NDD.declareField(16, NDD.LabelMode.ZDD);
+int state  = NDD.declareField(4, NDD.LabelMode.COMPLEMENTED_BDD);
+NDD.generateFields();
+
+NDD headerBit = NDD.getVar(header, 0);
+NDD linkBit = NDD.getVar(links, 0);
+NDD selected = headerBit.and(linkBit);
+
+NDD weighted = selected.times(NDD.createTerminal(10)).withRef();
+double assignmentCount = NDD.satCount(selected);
+
+weighted.recursiveDeref();
+```
+
+The required initialization order is:
+
+1. call `initNDD(...)`
+2. optionally configure per-backend capacities
+3. declare every field and its label mode
+4. call `generateFields()` once
+5. construct and manipulate diagrams
+
+`declareField(width)` uses BDD labels by default. Fields using the same mode share one label
+engine and a right-aligned variable layout; BDD, BCDD, and ZDD fields use separate engines.
+
+## Backend Configuration
+
+Each backend can be sized before its first field is declared:
+
+```java
+NDD.configureBackendCapacity(NDD.LabelMode.BDD, 2_000_000, 200_000);
+NDD.configureBackendCapacity(NDD.LabelMode.ZDD, 4_000_000, 400_000);
+NDD.configureBackendCapacity(NDD.LabelMode.COMPLEMENTED_BDD, 1_000_000, 100_000);
+```
+
+The modes have the same Boolean bit-vector field semantics:
+
+| Mode | Edge-label representation | Main characteristic |
+| --- | --- | --- |
+| `BDD` | reduced ordered BDD | general-purpose default |
+| `COMPLEMENTED_BDD` | BDD with complemented handles | constant-time label negation |
+| `ZDD` | family of sets of true-bit variables | explicit per-field universe |
+
+Backend selection changes representation, not the logical domain of a field. A width-`w` field
+always denotes `2^w` bit-vector assignments.
+
+## Core API
+
+MTNDD nodes are exposed as lightweight `NDD` wrappers over canonical integer node IDs.
+
+| Purpose | Main methods |
+| --- | --- |
+| Initialization | `initNDD`, `configureBackendCapacity`, `declareField`, `generateFields` |
+| Variables | `getVar`, `getNotVar`, `encodePrefix`, `encodePrefixs` |
+| Boolean/set operations | `and`, `or`, `not`/`cmpl`, `diff`, `imp`, `exist` |
+| Multi-terminal arithmetic | `add`/`plus`, `sub`/`minus`, `mul`/`times`, `div`/`divide`, `sumAbstract` |
+| Terminals | `getFalse`, `getTrue`, `createTerminal(int/double/Rational)` |
+| Inspection | `evaluate`, `satCount`, `toArray`, `print`, `printDot` |
+| Lifetime | `ref`, `withRef`, `deref`, `recursiveDeref`, `gc`, `gcLabelEngines` |
+
+Results are not permanently rooted by default. Protect values that must survive later allocation
+or explicit collection with `withRef()`/`ref()`, then release them with
+`recursiveDeref()`/`deref()`.
+
+## Repository Structure
+
+```text
+src/main/java/
+├── org/ants/jndd/
+│   ├── diagram/       MTNDD operations, backend dispatch, manager and terminals
+│   ├── nodetable/     array-backed canonical node/edge storage and MTNDD GC
+│   ├── bdd/           primitive complemented-edge BDD implementation
+│   ├── cache/         legacy generic operation-cache utility
+│   └── utils/         rational terminals and BDD decomposition helpers
+├── jdd/               bundled BDD/ZDD label engines
+├── application/matrix symbolic matrix-multiplication example
+├── application/wan/   retained network-verification research artifacts
+└── org/ants/javandd/  legacy JavaBDD-compatible NDD facade
+
+src/test/java/org/ants/jndd/
+└── diagram/           mixed-backend and multi-terminal regression tests
+```
+
+The primary implementation is `org.ants.jndd.diagram.NDD`. `NDDManager` is a small object-style
+facade. The WAN paths and atomized prototypes are retained for research reference and are excluded
+from the default Maven compilation where noted in `pom.xml`.
+
+## Implementation Notes
+
+- MTNDD nodes and physical edges are stored in primitive arrays and canonicalized by a unique
+  table.
+- Recursive operations collect edges in a shared stack, then sort, merge equal targets, and create
+  one canonical node at a safe point.
+- Each field records the backend that owns its edge-label handles; label operations are dispatched
+  through that backend and handles are never mixed between engines.
+- Rational terminal values are canonicalized, so equal numeric leaves share a terminal node.
+- MTNDD and label engines expose live/created node counts plus collection and growth metrics for
+  performance diagnosis.
+
+See the [MTNDD wiki page](https://github.com/XJTU-NetVerify/NDD/wiki/MTNDD) for the algorithm and
+interface model. The original NDD paper and NDD-specific design material remain available in the
+repository wiki and are not repeated here.
 
 ## License
 
