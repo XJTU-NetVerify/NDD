@@ -3,27 +3,24 @@ package org.ants.jndd.diagram;
 import org.ants.jndd.utils.Rational;
 
 public class Terminal extends NDD {
-    private final Rational terminalVal;
-
-    Terminal(int nodeId, Rational value) {
+    Terminal(int nodeId) {
         super(nodeId);
-        this.terminalVal = value;
     }
 
     public static Terminal tadd(Terminal a, Terminal b) {
-        return (Terminal) createTerminal(a.terminalVal.add(b.terminalVal));
+        return (Terminal) a.plus(b);
     }
 
     public static Terminal tminus(Terminal a, Terminal b) {
-        return (Terminal) createTerminal(a.terminalVal.subtract(b.terminalVal));
+        return (Terminal) a.minus(b);
     }
 
     public static Terminal ttimes(Terminal a, Terminal b) {
-        return (Terminal) createTerminal(a.terminalVal.multiply(b.terminalVal));
+        return (Terminal) a.times(b);
     }
 
     public static Terminal tdivide(Terminal a, Terminal b) {
-        return (Terminal) createTerminal(a.terminalVal.divide(b.terminalVal));
+        return (Terminal) a.divide(b);
     }
 
     public Terminal tadd(Terminal b) {
@@ -44,10 +41,10 @@ public class Terminal extends NDD {
 
     @Override
     public double getTerminalVal() {
-        return terminalVal.doubleValue();
+        return super.getTerminalVal();
     }
 
     public Rational get() {
-        return terminalVal;
+        return getTerminalRational();
     }
 }

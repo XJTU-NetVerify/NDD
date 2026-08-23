@@ -85,6 +85,7 @@ The modes have the same Boolean bit-vector field semantics:
 | `BDD` | reduced ordered BDD | general-purpose default |
 | `COMPLEMENTED_BDD` | BDD with complemented handles | constant-time label negation |
 | `ZDD` | family of sets of true-bit variables | explicit per-field universe |
+| `BITSET` | canonical two-word truth table | O(1) set operations for fields up to 7 bits |
 
 Backend selection changes representation, not the logical domain of a field. A width-`w` field
 always denotes `2^w` bit-vector assignments.
@@ -98,7 +99,7 @@ MTNDD nodes are exposed as lightweight `NDD` wrappers over canonical integer nod
 | Initialization | `initNDD`, `configureBackendCapacity`, `declareField`, `generateFields` |
 | Variables | `getVar`, `getNotVar`, `encodePrefix`, `encodePrefixs` |
 | Boolean/set operations | `and`, `or`, `not`/`cmpl`, `diff`, `imp`, `exist` |
-| Multi-terminal arithmetic | `add`/`plus`, `sub`/`minus`, `mul`/`times`, `div`/`divide`, `sumAbstract` |
+| Multi-terminal arithmetic | `add`/`plus`, `sub`/`minus`, `mul`/`times`, `div`/`divide`, `sumAbstract`, `multiplySumAbstract` |
 | Terminals | `getFalse`, `getTrue`, `createTerminal(int/double/Rational)` |
 | Inspection | `evaluate`, `satCount`, `toArray`, `print`, `printDot` |
 | Lifetime | `ref`, `withRef`, `deref`, `recursiveDeref`, `gc`, `gcLabelEngines` |
@@ -136,9 +137,18 @@ from the default Maven compilation where noted in `pom.xml`.
   table.
 - Recursive operations collect edges in a shared stack, then sort, merge equal targets, and create
   one canonical node at a safe point.
+- Dense importers can use `NDD.BulkBuilder` to avoid allocating a wrapper per input terminal.
+- Unreferenced numeric terminals participate in safe-point garbage collection; edge and terminal
+  indices are compacted without changing live handles.
 - Each field records the backend that owns its edge-label handles; label operations are dispatched
   through that backend and handles are never mixed between engines.
 - Rational terminal values are canonicalized, so equal numeric leaves share a terminal node.
+- Opt-in primitive-double and interval terminal modes avoid per-terminal `Rational` objects.
+  Double terminals support configurable mantissa/grid clustering, tracked approximation bounds,
+  and explicit near-zero pruning. Interval terminals canonicalize outward-rounded lower/upper
+  pairs and provide compact or tight arithmetic-enclosure policies. An experimental nominal-bucket
+  plus multiplicative-radius-class encoding is also available for representation studies.
+  Rational remains the default.
 - MTNDD and label engines expose live/created node counts plus collection and growth metrics for
   performance diagnosis.
 

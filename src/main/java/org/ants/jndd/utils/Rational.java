@@ -13,6 +13,22 @@ public class Rational {
     private final long denominator; // 分母 (始终为正)
     static int defaultScale = 6; // 默认小数位数，用于 double 转换
 
+    /**
+     * Configure the decimal scale used when doubles or overflowing exact
+     * fractions are converted to the fixed-point rational representation.
+     * Existing Rational values are not changed.
+     */
+    public static void setDefaultScale(int scale) {
+        if (scale < 0 || scale > 18) {
+            throw new IllegalArgumentException("scale must be between 0 and 18");
+        }
+        defaultScale = scale;
+    }
+
+    public static int getDefaultScale() {
+        return defaultScale;
+    }
+
     // ================== 构造函数 ==================
 
     /**

@@ -4,6 +4,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -21,7 +22,41 @@ public class NDD {
     public enum LabelMode {
         BDD,
         COMPLEMENTED_BDD,
-        ZDD
+        ZDD,
+        BITSET
+    }
+
+    public enum TerminalMode {
+        RATIONAL,
+        DOUBLE,
+        INTERVAL
+    }
+
+    public enum IntervalRoundingMode {
+        /** Expand every arithmetic endpoint by one floating-point neighbor. */
+        COMPACT,
+        /** Expand only toward a nonzero IEEE-754 operation residual. */
+        TIGHT
+    }
+
+    public enum IntervalEncoding {
+        /** Canonicalize independently quantized lower and upper endpoints. */
+        ENDPOINTS,
+        /** Canonicalize a nominal mantissa bucket and an outward radius class. */
+        NOMINAL_RADIUS
+    }
+
+    public static final class PruneResult {
+        public final NDD diagram;
+        public final double maximumPrunedValue;
+        public final int prunedTerminalCount;
+
+        private PruneResult(NDD diagram, double maximumPrunedValue,
+                int prunedTerminalCount) {
+            this.diagram = diagram;
+            this.maximumPrunedValue = maximumPrunedValue;
+            this.prunedTerminalCount = prunedTerminalCount;
+        }
     }
 
     private static int CACHE_SIZE = 10000;
@@ -65,12 +100,25 @@ public class NDD {
     private static IntOperationCache divCache;
     private static IntOperationCache diffCache;
     private static IntOperationCache sumAbstractCache;
+    private static IntOperationCache multiplySumAbstractCache;
+    private static NaryContractionStats lastNaryContractionStats;
     private static int[] stackTargets;
     private static int[] stackLabels;
     private static int stackTop;
+    private static int[] residualLabels;
+    private static int residualTop;
+    private static int[] assignmentTargets;
+    private static int assignmentTop;
     private static NDD[] wrappers;
     private static Runnable externalCacheCleaner = () -> {};
     private static double eps = 0.000001;
+    private static TerminalMode terminalMode = TerminalMode.RATIONAL;
+    private static IntervalRoundingMode intervalRoundingMode = IntervalRoundingMode.COMPACT;
+    private static IntervalEncoding intervalEncoding = IntervalEncoding.ENDPOINTS;
+    private static int intervalRadiusMantissaBits = 3;
+    private static int doubleTerminalMantissaBits = 52;
+    private static double doubleTerminalZeroCutoff = 0.0;
+    private static double doubleTerminalQuantizationStep = 0.0;
 
     private static final class BackendContext {
         final LabelMode mode;
@@ -102,7 +150,79 @@ public class NDD {
 
     private static void initialize(int nddTableSize, int nddCacheSize, int bddTableSize,
             int bddCacheSize, LabelMode mode) {
+        initialize(nddTableSize, nddCacheSize, bddTableSize, bddCacheSize,
+                mode, TerminalMode.RATIONAL);
+    }
+
+    private static void initialize(int nddTableSize, int nddCacheSize, int bddTableSize,
+            int bddCacheSize, LabelMode mode, TerminalMode numericMode) {
+        initialize(nddTableSize, nddCacheSize, bddTableSize, bddCacheSize,
+                mode, numericMode, 52);
+    }
+
+    private static void initialize(int nddTableSize, int nddCacheSize, int bddTableSize,
+            int bddCacheSize, LabelMode mode, TerminalMode numericMode, int mantissaBits) {
+        initialize(nddTableSize, nddCacheSize, bddTableSize, bddCacheSize,
+                mode, numericMode, mantissaBits, 0.0);
+    }
+
+    private static void initialize(int nddTableSize, int nddCacheSize, int bddTableSize,
+            int bddCacheSize, LabelMode mode, TerminalMode numericMode, int mantissaBits,
+            double zeroCutoff) {
+        initialize(nddTableSize, nddCacheSize, bddTableSize, bddCacheSize,
+                mode, numericMode, mantissaBits, zeroCutoff, 0.0);
+    }
+
+    private static void initialize(int nddTableSize, int nddCacheSize, int bddTableSize,
+            int bddCacheSize, LabelMode mode, TerminalMode numericMode, int mantissaBits,
+            double zeroCutoff, double quantizationStep) {
+        initialize(nddTableSize, nddCacheSize, bddTableSize, bddCacheSize, mode,
+                numericMode, mantissaBits, zeroCutoff, quantizationStep,
+                IntervalEncoding.ENDPOINTS);
+    }
+
+    private static void initialize(int nddTableSize, int nddCacheSize, int bddTableSize,
+            int bddCacheSize, LabelMode mode, TerminalMode numericMode, int mantissaBits,
+            double zeroCutoff, double quantizationStep, IntervalEncoding encoding) {
+        initialize(nddTableSize, nddCacheSize, bddTableSize, bddCacheSize, mode,
+                numericMode, mantissaBits, zeroCutoff, quantizationStep, encoding, 3);
+    }
+
+    private static void initialize(int nddTableSize, int nddCacheSize, int bddTableSize,
+            int bddCacheSize, LabelMode mode, TerminalMode numericMode, int mantissaBits,
+            double zeroCutoff, double quantizationStep, IntervalEncoding encoding,
+            int radiusMantissaBits) {
         if (mode == null) throw new IllegalArgumentException("mode must not be null");
+        if (numericMode == null) throw new IllegalArgumentException("terminal mode must not be null");
+        if (encoding == null) throw new IllegalArgumentException("interval encoding is null");
+        if (mantissaBits < 0 || mantissaBits > 52) {
+            throw new IllegalArgumentException("double mantissa bits must be between 0 and 52");
+        }
+        if (radiusMantissaBits < 0 || radiusMantissaBits > 52) {
+            throw new IllegalArgumentException(
+                    "interval radius mantissa bits must be between 0 and 52");
+        }
+        if (!Double.isFinite(zeroCutoff) || zeroCutoff < 0.0 || zeroCutoff >= 1.0) {
+            throw new IllegalArgumentException("double zero cutoff must be in [0, 1)");
+        }
+        if (!Double.isFinite(quantizationStep)
+                || quantizationStep < 0.0 || quantizationStep > 1.0) {
+            throw new IllegalArgumentException("double quantization step must be in [0, 1]");
+        }
+        if (numericMode == TerminalMode.INTERVAL && zeroCutoff != 0.0) {
+            throw new IllegalArgumentException("interval terminals do not support zero cutoff");
+        }
+        if (numericMode != TerminalMode.INTERVAL && encoding != IntervalEncoding.ENDPOINTS) {
+            throw new IllegalArgumentException(
+                    "nominal-radius encoding requires interval terminals");
+        }
+        terminalMode = numericMode;
+        intervalRoundingMode = IntervalRoundingMode.COMPACT;
+        intervalEncoding = encoding;
+        intervalRadiusMantissaBits = radiusMantissaBits;
+        doubleTerminalMantissaBits = mantissaBits;
+        doubleTerminalZeroCutoff = zeroCutoff;
+        doubleTerminalQuantizationStep = quantizationStep;
         CACHE_SIZE = nddCacheSize;
         labelMode = mode;
         labelTableSize = bddTableSize;
@@ -111,7 +231,12 @@ public class NDD {
         backendCacheSizes = new int[LabelMode.values().length];
         Arrays.fill(backendTableSizes, bddTableSize);
         Arrays.fill(backendCacheSizes, bddCacheSize);
-        nodeTable = new NodeTable(nddTableSize);
+        nodeTable = new NodeTable(nddTableSize, terminalMode != TerminalMode.RATIONAL,
+                terminalMode == TerminalMode.INTERVAL, doubleTerminalMantissaBits,
+                doubleTerminalZeroCutoff,
+                doubleTerminalQuantizationStep,
+                intervalEncoding == IntervalEncoding.NOMINAL_RADIUS,
+                intervalRadiusMantissaBits);
         backendContexts = new BackendContext[LabelMode.values().length];
         labelBackend = null;
         bddEngine = null;
@@ -142,9 +267,15 @@ public class NDD {
         divCache = new IntOperationCache(CACHE_SIZE);
         diffCache = new IntOperationCache(CACHE_SIZE);
         sumAbstractCache = new IntOperationCache(CACHE_SIZE);
+        multiplySumAbstractCache = new IntOperationCache(CACHE_SIZE);
+        lastNaryContractionStats = NaryContractionStats.EMPTY;
         stackTargets = new int[INITIAL_STACK_SIZE];
         stackLabels = new int[INITIAL_STACK_SIZE];
         stackTop = 0;
+        residualLabels = new int[1024];
+        residualTop = 0;
+        assignmentTargets = new int[256];
+        assignmentTop = 0;
         wrappers = new NDD[16];
         wrap(FALSE_ID);
         wrap(TRUE_ID);
@@ -157,6 +288,93 @@ public class NDD {
     public static void initNDD(int nddTableSize, int nddCacheSize, int bddTableSize,
             int bddCacheSize, LabelMode mode) {
         initialize(nddTableSize, nddCacheSize, bddTableSize, bddCacheSize, mode);
+    }
+
+    public static void initNDD(int nddTableSize, int nddCacheSize, int bddTableSize,
+            int bddCacheSize, TerminalMode numericMode) {
+        initialize(nddTableSize, nddCacheSize, bddTableSize, bddCacheSize,
+                LabelMode.BDD, numericMode);
+    }
+
+    public static void initNDD(int nddTableSize, int nddCacheSize, int bddTableSize,
+            int bddCacheSize, TerminalMode numericMode, int mantissaBits) {
+        initialize(nddTableSize, nddCacheSize, bddTableSize, bddCacheSize,
+                LabelMode.BDD, numericMode, mantissaBits);
+    }
+
+    public static void initNDD(int nddTableSize, int nddCacheSize, int bddTableSize,
+            int bddCacheSize, TerminalMode numericMode, int mantissaBits, double zeroCutoff) {
+        initialize(nddTableSize, nddCacheSize, bddTableSize, bddCacheSize,
+                LabelMode.BDD, numericMode, mantissaBits, zeroCutoff);
+    }
+
+    public static void initNDD(int nddTableSize, int nddCacheSize, int bddTableSize,
+            int bddCacheSize, TerminalMode numericMode, int mantissaBits,
+            double zeroCutoff, double quantizationStep) {
+        initialize(nddTableSize, nddCacheSize, bddTableSize, bddCacheSize,
+                LabelMode.BDD, numericMode, mantissaBits, zeroCutoff, quantizationStep);
+    }
+
+    public static void initNDD(int nddTableSize, int nddCacheSize, int bddTableSize,
+            int bddCacheSize, TerminalMode numericMode, int mantissaBits,
+            double zeroCutoff, double quantizationStep, IntervalEncoding encoding) {
+        initialize(nddTableSize, nddCacheSize, bddTableSize, bddCacheSize,
+                LabelMode.BDD, numericMode, mantissaBits, zeroCutoff, quantizationStep,
+                encoding);
+    }
+
+    public static void initNDD(int nddTableSize, int nddCacheSize, int bddTableSize,
+            int bddCacheSize, TerminalMode numericMode, int mantissaBits,
+            double zeroCutoff, double quantizationStep, IntervalEncoding encoding,
+            int radiusMantissaBits) {
+        initialize(nddTableSize, nddCacheSize, bddTableSize, bddCacheSize,
+                LabelMode.BDD, numericMode, mantissaBits, zeroCutoff, quantizationStep,
+                encoding, radiusMantissaBits);
+    }
+
+    public static void initNDD(int nddTableSize, int nddCacheSize, int bddTableSize,
+            int bddCacheSize, LabelMode mode, TerminalMode numericMode) {
+        initialize(nddTableSize, nddCacheSize, bddTableSize, bddCacheSize, mode, numericMode);
+    }
+
+    public static void initNDD(int nddTableSize, int nddCacheSize, int bddTableSize,
+            int bddCacheSize, LabelMode mode, TerminalMode numericMode,
+            int mantissaBits, double zeroCutoff) {
+        initialize(nddTableSize, nddCacheSize, bddTableSize, bddCacheSize,
+                mode, numericMode, mantissaBits, zeroCutoff);
+    }
+
+    public static TerminalMode getTerminalMode() {
+        return terminalMode;
+    }
+
+    public static void setIntervalRoundingMode(IntervalRoundingMode mode) {
+        if (mode == null) throw new IllegalArgumentException("interval rounding mode is null");
+        intervalRoundingMode = mode;
+    }
+
+    public static IntervalRoundingMode getIntervalRoundingMode() {
+        return intervalRoundingMode;
+    }
+
+    public static IntervalEncoding getIntervalEncoding() {
+        return intervalEncoding;
+    }
+
+    public static int getIntervalRadiusMantissaBits() {
+        return intervalRadiusMantissaBits;
+    }
+
+    public static int getDoubleTerminalMantissaBits() {
+        return doubleTerminalMantissaBits;
+    }
+
+    public static double getDoubleTerminalZeroCutoff() {
+        return doubleTerminalZeroCutoff;
+    }
+
+    public static double getDoubleTerminalQuantizationStep() {
+        return doubleTerminalQuantizationStep;
     }
 
     public static int declareField(int bitNum) {
@@ -199,7 +417,7 @@ public class NDD {
         Object raw = backend.rawEngine();
         if (mode == LabelMode.BDD) bddEngine = (BDD) raw;
         else if (mode == LabelMode.COMPLEMENTED_BDD) bcddEngine = (ComplementedBDD) raw;
-        else zddEngine = (ZDD) raw;
+        else if (mode == LabelMode.ZDD) zddEngine = (ZDD) raw;
         return context;
     }
 
@@ -294,6 +512,17 @@ public class NDD {
 
     /** Evaluate a diagram for one complete bit-vector assignment per field. */
     public static Rational evaluate(NDD ndd, int[][] assignment) {
+        if (terminalMode == TerminalMode.DOUBLE) {
+            throw new IllegalStateException("Use evaluateDouble in double-terminal mode");
+        }
+        return valueRational(evaluateId(ndd, assignment));
+    }
+
+    public static double evaluateDouble(NDD ndd, int[][] assignment) {
+        return valueDouble(evaluateId(ndd, assignment));
+    }
+
+    private static int evaluateId(NDD ndd, int[][] assignment) {
         if (assignment == null || assignment.length != fieldNum + 1) {
             throw new IllegalArgumentException("assignment must contain every field");
         }
@@ -316,7 +545,7 @@ public class NDD {
             derefLabel(field, assignmentLabel);
             current = next;
         }
-        return value(current);
+        return current;
     }
 
     private static int buildFieldAssignmentLabel(int field, int[] bits) {
@@ -334,6 +563,73 @@ public class NDD {
             assignment = next;
         }
         return assignment;
+    }
+
+    /**
+     * Restrict several fields to concrete integer values in one traversal.
+     * Restricted fields are removed from the returned diagram.  Fields may be
+     * listed in any order, but each field may occur only once.
+     */
+    public static NDD restrictFieldValues(NDD ndd, int[] fields, int[] values) {
+        if (fields == null || values == null || fields.length != values.length) {
+            throw new IllegalArgumentException("fields and values must have the same length");
+        }
+        boolean[] restricted = new boolean[fieldNum + 1];
+        int[] labels = new int[fieldNum + 1];
+        for (int i = 0; i < fields.length; i++) {
+            int field = fields[i];
+            validateField(field);
+            if (restricted[field]) throw new IllegalArgumentException("duplicate field " + field);
+            restricted[field] = true;
+            labels[field] = encodeValueLabel(values[i], field);
+        }
+        temporarilyProtect.clear();
+        int result;
+        try {
+            result = restrictFieldValuesRec(id(ndd), restricted, labels,
+                    new HashMap<Integer, Integer>());
+            temporarilyProtect.add(result);
+            runSafePointMaintenance(result);
+        } finally {
+            for (int field = 0; field < restricted.length; field++) {
+                if (restricted[field]) derefLabel(field, labels[field]);
+            }
+        }
+        return wrap(result);
+    }
+
+    private static int restrictFieldValuesRec(int current, boolean[] restricted,
+            int[] labels, HashMap<Integer, Integer> memo) {
+        if (isTerminalId(current)) return current;
+        Integer cached = memo.get(current);
+        if (cached != null) return cached;
+        int field = nodeTable.getField(current);
+        int result;
+        if (restricted[field]) {
+            result = FALSE_ID;
+            int edgeCount = nodeTable.getEdgeCount(current);
+            for (int edge = 0; edge < edgeCount; edge++) {
+                if (backendForField(field).matches(
+                        nodeTable.getEdgeLabel(current, edge), labels[field])) {
+                    result = restrictFieldValuesRec(
+                            nodeTable.getEdgeTarget(current, edge), restricted, labels, memo);
+                    break;
+                }
+            }
+        } else {
+            int frameStart = stackTop;
+            int edgeCount = nodeTable.getEdgeCount(current);
+            for (int edge = 0; edge < edgeCount; edge++) {
+                int target = restrictFieldValuesRec(
+                        nodeTable.getEdgeTarget(current, edge), restricted, labels, memo);
+                edgeCollect(frameStart, field, target,
+                        refLabel(field, nodeTable.getEdgeLabel(current, edge)));
+            }
+            result = edgeFlush(frameStart, field);
+            temporarilyProtect.add(result);
+        }
+        memo.put(current, result);
+        return result;
     }
 
     public static NDD getVar(int field, int index) {
@@ -490,6 +786,7 @@ public class NDD {
         divCache.clear();
         diffCache.clear();
         sumAbstractCache.clear();
+        multiplySumAbstractCache.clear();
         externalCacheCleaner.run();
     }
 
@@ -501,7 +798,12 @@ public class NDD {
         temporarilyProtect.forEach(consumer);
     }
 
-    private static void runSafePointMaintenance() {
+    private static void runSafePointMaintenance(int result) {
+        // Recursive calls protect every intermediate result against an in-flight GC.
+        // At a top-level safe point only the value crossing the public API boundary
+        // needs that temporary root; retaining the full set defeats terminal GC.
+        temporarilyProtect.clear();
+        temporarilyProtect.add(result);
         if (nodeTable != null) {
             nodeTable.compactEdgesIfNeeded();
         }
@@ -514,7 +816,7 @@ public class NDD {
             return existing;
         }
         NDD created = nodeTable.isTerminal(nodeId)
-                ? new Terminal(nodeId, nodeTable.getTerminalValue(nodeId))
+                ? new Terminal(nodeId)
                 : new NDD(nodeId);
         wrappers[nodeId] = created;
         return created;
@@ -553,12 +855,40 @@ public class NDD {
         return nodeId == TRUE_ID;
     }
 
-    private static Rational value(int nodeId) {
+    private static Rational valueRational(int nodeId) {
         return nodeTable.getTerminalValue(nodeId);
+    }
+
+    private static double valueDouble(int nodeId) {
+        return nodeTable.getTerminalDouble(nodeId);
+    }
+
+    private static double valueLower(int nodeId) {
+        return nodeTable.getTerminalLower(nodeId);
+    }
+
+    private static double valueUpper(int nodeId) {
+        return nodeTable.getTerminalUpper(nodeId);
+    }
+
+    private static String valueDisplay(int nodeId) {
+        return nodeTable.getTerminalDisplay(nodeId);
     }
 
     private static int terminal(Rational value) {
         return nodeTable.mkTerminal(value);
+    }
+
+    private static int terminal(double value) {
+        return nodeTable.mkTerminal(value);
+    }
+
+    private static int terminalInterval(double lower, double upper) {
+        return nodeTable.mkInterval(lower, upper, false);
+    }
+
+    private static int exactInterval(double value) {
+        return nodeTable.mkInterval(value, value, true);
     }
 
     private static void edgeCollect(int frameStart, int field, int target, int label) {
@@ -737,56 +1067,56 @@ public class NDD {
     public static NDD and(NDD a, NDD b) {
         temporarilyProtect.clear();
         int res = andRec(id(a), id(b));
-        runSafePointMaintenance();
+        runSafePointMaintenance(res);
         return wrap(res);
     }
 
     public static NDD or(NDD a, NDD b) {
         temporarilyProtect.clear();
         int res = orRec(id(a), id(b));
-        runSafePointMaintenance();
+        runSafePointMaintenance(res);
         return wrap(res);
     }
 
     public static NDD not(NDD a) {
         temporarilyProtect.clear();
         int res = notRec(id(a));
-        runSafePointMaintenance();
+        runSafePointMaintenance(res);
         return wrap(res);
     }
 
     public static NDD add(NDD a, NDD b) {
         temporarilyProtect.clear();
         int res = addRec(id(a), id(b));
-        runSafePointMaintenance();
+        runSafePointMaintenance(res);
         return wrap(res);
     }
 
     public static NDD sub(NDD a, NDD b) {
         temporarilyProtect.clear();
         int res = subRec(id(a), id(b));
-        runSafePointMaintenance();
+        runSafePointMaintenance(res);
         return wrap(res);
     }
 
     public static NDD mul(NDD a, NDD b) {
         temporarilyProtect.clear();
         int res = mulRec(id(a), id(b));
-        runSafePointMaintenance();
+        runSafePointMaintenance(res);
         return wrap(res);
     }
 
     public static NDD div(NDD a, NDD b) {
         temporarilyProtect.clear();
         int res = divRec(id(a), id(b));
-        runSafePointMaintenance();
+        runSafePointMaintenance(res);
         return wrap(res);
     }
 
     public static NDD diff(NDD a, NDD b) {
         temporarilyProtect.clear();
         int res = diffRec(id(a), id(b));
-        runSafePointMaintenance();
+        runSafePointMaintenance(res);
         return wrap(res);
     }
 
@@ -850,7 +1180,7 @@ public class NDD {
         int n = notRec(id(a));
         temporarilyProtect.add(n);
         int res = orRec(n, id(b));
-        runSafePointMaintenance();
+        runSafePointMaintenance(res);
         return wrap(res);
     }
 
@@ -935,7 +1265,7 @@ public class NDD {
         if (isOneId(a)) return FALSE_ID;
         if (isZeroId(a)) return TRUE_ID;
         if (isTerminalId(a)) {
-            return value(a).doubleValue() == 0.0 ? TRUE_ID : FALSE_ID;
+            return valueDouble(a) == 0.0 ? TRUE_ID : FALSE_ID;
         }
         if (notCache.getEntry(a)) return notCache.result;
         int cacheIndex = notCache.hashValue;
@@ -961,8 +1291,43 @@ public class NDD {
     private enum TerminalOp { ADD, SUB, MUL, DIV, OR }
 
     private static int terminalOp(int a, int b, TerminalOp op) {
-        Rational av = value(a);
-        Rational bv = value(b);
+        if (terminalMode == TerminalMode.INTERVAL) {
+            double al = valueLower(a);
+            double au = valueUpper(a);
+            double bl = valueLower(b);
+            double bu = valueUpper(b);
+            switch (op) {
+                case ADD:
+                    return terminalInterval(intervalDownAdd(al, bl), intervalUpAdd(au, bu));
+                case SUB:
+                    return terminalInterval(intervalDownAdd(al, -bu), intervalUpAdd(au, -bl));
+                case MUL:
+                    return multiplyIntervals(al, au, bl, bu);
+                case DIV:
+                    if (bl <= 0.0 && bu >= 0.0) {
+                        throw new ArithmeticException("interval division by a range containing zero");
+                    }
+                    return divideIntervals(al, au, bl, bu);
+                case OR:
+                    return al != 0.0 || au != 0.0 ? a : b;
+                default:
+                    throw new AssertionError(op);
+            }
+        }
+        if (terminalMode == TerminalMode.DOUBLE) {
+            double av = valueDouble(a);
+            double bv = valueDouble(b);
+            switch (op) {
+                case ADD: return terminal(av + bv);
+                case SUB: return terminal(av - bv);
+                case MUL: return terminal(av * bv);
+                case DIV: return bv == 0.0 ? FALSE_ID : terminal(av / bv);
+                case OR: return av != 0.0 ? a : b;
+                default: throw new AssertionError(op);
+            }
+        }
+        Rational av = valueRational(a);
+        Rational bv = valueRational(b);
         switch (op) {
             case ADD: return terminal(av.add(bv));
             case SUB: return terminal(av.subtract(bv));
@@ -978,6 +1343,145 @@ public class NDD {
             default:
                 throw new AssertionError(op);
         }
+    }
+
+    private static int multiplyIntervals(double al, double au, double bl, double bu) {
+        if (intervalRoundingMode == IntervalRoundingMode.COMPACT) {
+            double p1 = al * bl;
+            double p2 = al * bu;
+            double p3 = au * bl;
+            double p4 = au * bu;
+            return terminalInterval(
+                    expandDown(Math.min(Math.min(p1, p2), Math.min(p3, p4))),
+                    expandUp(Math.max(Math.max(p1, p2), Math.max(p3, p4))));
+        }
+        double lower = Math.min(
+                Math.min(multiplyDown(al, bl), multiplyDown(al, bu)),
+                Math.min(multiplyDown(au, bl), multiplyDown(au, bu)));
+        double upper = Math.max(
+                Math.max(multiplyUp(al, bl), multiplyUp(al, bu)),
+                Math.max(multiplyUp(au, bl), multiplyUp(au, bu)));
+        return terminalInterval(lower, upper);
+    }
+
+    private static int divideIntervals(double al, double au, double bl, double bu) {
+        if (intervalRoundingMode == IntervalRoundingMode.COMPACT) {
+            double p1 = al / bl;
+            double p2 = al / bu;
+            double p3 = au / bl;
+            double p4 = au / bu;
+            return terminalInterval(
+                    expandDown(Math.min(Math.min(p1, p2), Math.min(p3, p4))),
+                    expandUp(Math.max(Math.max(p1, p2), Math.max(p3, p4))));
+        }
+        double lower = Math.min(
+                Math.min(divideDown(al, bl), divideDown(al, bu)),
+                Math.min(divideDown(au, bl), divideDown(au, bu)));
+        double upper = Math.max(
+                Math.max(divideUp(al, bl), divideUp(al, bu)),
+                Math.max(divideUp(au, bl), divideUp(au, bu)));
+        return terminalInterval(lower, upper);
+    }
+
+    private static double intervalDownAdd(double a, double b) {
+        return intervalRoundingMode == IntervalRoundingMode.COMPACT
+                ? expandDown(a + b) : addDown(a, b);
+    }
+
+    private static double intervalUpAdd(double a, double b) {
+        return intervalRoundingMode == IntervalRoundingMode.COMPACT
+                ? expandUp(a + b) : addUp(a, b);
+    }
+
+    private static double expandDown(double value) {
+        return value == 0.0 ? 0.0 : Math.nextDown(value);
+    }
+
+    private static double expandUp(double value) {
+        return value == 0.0 ? 0.0 : Math.nextUp(value);
+    }
+
+    /** Directed rounding for a+b using Knuth's error-free TwoSum residual. */
+    private static double addDown(double a, double b) {
+        double result = a + b;
+        double residual = additionResidual(a, b, result);
+        return residual < 0.0 ? Math.nextDown(result) : result;
+    }
+
+    private static double addUp(double a, double b) {
+        double result = a + b;
+        double residual = additionResidual(a, b, result);
+        return residual > 0.0 ? Math.nextUp(result) : result;
+    }
+
+    private static double additionResidual(double a, double b, double result) {
+        double resultMinusA = result - a;
+        return (a - (result - resultMinusA)) + (b - resultMinusA);
+    }
+
+    /** Math.fma exposes the exact product residual unless it underflows to zero. */
+    private static double multiplyDown(double a, double b) {
+        double result = a * b;
+        if (result == 0.0 && a != 0.0 && b != 0.0) {
+            return sameSign(a, b) ? 0.0 : -Double.MIN_VALUE;
+        }
+        double residual = Math.fma(a, b, -result);
+        if (residual < 0.0) return Math.nextDown(result);
+        if (residual == 0.0 && result != 0.0 && Math.abs(result) < Double.MIN_NORMAL) {
+            return Math.nextDown(result);
+        }
+        return result;
+    }
+
+    private static double multiplyUp(double a, double b) {
+        double result = a * b;
+        if (result == 0.0 && a != 0.0 && b != 0.0) {
+            return sameSign(a, b) ? Double.MIN_VALUE : 0.0;
+        }
+        double residual = Math.fma(a, b, -result);
+        if (residual > 0.0) return Math.nextUp(result);
+        if (residual == 0.0 && result != 0.0 && Math.abs(result) < Double.MIN_NORMAL) {
+            return Math.nextUp(result);
+        }
+        return result;
+    }
+
+    /** The sign of a-q*b determines which side of the exact quotient q lies on. */
+    private static double divideDown(double a, double b) {
+        double result = a / b;
+        if (result == 0.0 && a != 0.0) {
+            return sameSign(a, b) ? 0.0 : -Double.MIN_VALUE;
+        }
+        double residual = Math.fma(-result, b, a);
+        int direction = quotientResidualDirection(residual, b);
+        if (direction < 0) return Math.nextDown(result);
+        if (direction == 0 && result != 0.0 && Math.abs(result) < Double.MIN_NORMAL) {
+            return Math.nextDown(result);
+        }
+        return result;
+    }
+
+    private static double divideUp(double a, double b) {
+        double result = a / b;
+        if (result == 0.0 && a != 0.0) {
+            return sameSign(a, b) ? Double.MIN_VALUE : 0.0;
+        }
+        double residual = Math.fma(-result, b, a);
+        int direction = quotientResidualDirection(residual, b);
+        if (direction > 0) return Math.nextUp(result);
+        if (direction == 0 && result != 0.0 && Math.abs(result) < Double.MIN_NORMAL) {
+            return Math.nextUp(result);
+        }
+        return result;
+    }
+
+    private static int quotientResidualDirection(double residual, double divisor) {
+        if (residual == 0.0) return 0;
+        return sameSign(residual, divisor) ? 1 : -1;
+    }
+
+    private static boolean sameSign(double a, double b) {
+        return (Double.doubleToRawLongBits(a) ^ Double.doubleToRawLongBits(b)) >= 0L;
     }
 
     private static int addRec(int a, int b) {
@@ -1098,8 +1602,1233 @@ public class NDD {
         validateField(field);
         temporarilyProtect.clear();
         int result = sumAbstractRec(id(a), field);
-        runSafePointMaintenance();
+        runSafePointMaintenance(result);
         return wrap(result);
+    }
+
+    /**
+     * Sum several fields in one traversal while preserving all other fields.
+     * Fields must be strictly increasing, but may be interleaved with retained
+     * fields.  This avoids repeatedly traversing a materialized product.
+     */
+    public static NDD sumAbstractFields(NDD a, int[] fields) {
+        if (a == null) throw new IllegalArgumentException("NDD must not be null");
+        if (fields == null) throw new IllegalArgumentException("fields must not be null");
+        int previous = -1;
+        for (int field : fields) {
+            validateField(field);
+            if (field <= previous) {
+                throw new IllegalArgumentException("fields must be strictly increasing");
+            }
+            previous = field;
+        }
+        temporarilyProtect.clear();
+        ArrayList<HashMap<Integer, Integer>> caches = new ArrayList<>(fields.length + 1);
+        for (int i = 0; i <= fields.length; i++) caches.add(new HashMap<>());
+        int result = sumAbstractFieldsRec(id(a), fields, 0, caches);
+        runSafePointMaintenance(result);
+        return wrap(result);
+    }
+
+    private static int sumAbstractFieldsRec(int a, int[] fields, int fieldIndex,
+            ArrayList<HashMap<Integer, Integer>> caches) {
+        if (fieldIndex == fields.length) return a;
+        HashMap<Integer, Integer> cache = caches.get(fieldIndex);
+        Integer cached = cache.get(a);
+        if (cached != null) return cached;
+
+        int currentField = nodeTable.getField(a);
+        int field = fields[fieldIndex];
+        final int result;
+        if (currentField > field) {
+            int child = sumAbstractFieldsRec(a, fields, fieldIndex + 1, caches);
+            result = multiplyByMultiplicity(child, fieldCardinality(field));
+        } else if (currentField == field) {
+            int sum = FALSE_ID;
+            int count = nodeTable.getEdgeCount(a);
+            for (int i = 0; i < count; i++) {
+                long multiplicity = Math.round(getLabelSatCount(
+                        field, nodeTable.getEdgeLabel(a, i)));
+                if (multiplicity == 0L) continue;
+                int child = sumAbstractFieldsRec(
+                        nodeTable.getEdgeTarget(a, i), fields, fieldIndex + 1, caches);
+                int weighted = multiplyByMultiplicity(child, multiplicity);
+                sum = addRec(sum, weighted);
+                temporarilyProtect.add(sum);
+            }
+            result = sum;
+        } else {
+            int frameStart = stackTop;
+            int count = nodeTable.getEdgeCount(a);
+            for (int i = 0; i < count; i++) {
+                int child = sumAbstractFieldsRec(
+                        nodeTable.getEdgeTarget(a, i), fields, fieldIndex, caches);
+                edgeCollect(frameStart, currentField, child,
+                        refLabel(currentField, nodeTable.getEdgeLabel(a, i)));
+            }
+            result = edgeFlush(frameStart, currentField);
+        }
+        temporarilyProtect.add(result);
+        cache.put(a, result);
+        return result;
+    }
+
+    /**
+     * Rename every field occurring in {@code a}.  Both field lists must be
+     * strictly increasing, have matching widths/backends, and the source DD may
+     * not contain an unlisted field.  The increasing-order restriction keeps the
+     * operation a linear DAG rebuild rather than a general variable permutation.
+     */
+    public static NDD renameFields(NDD a, int[] fromFields, int[] toFields) {
+        if (a == null) throw new IllegalArgumentException("NDD must not be null");
+        if (fromFields == null || toFields == null
+                || fromFields.length != toFields.length) {
+            throw new IllegalArgumentException("field lists must have equal length");
+        }
+        int previousFrom = -1;
+        int previousTo = -1;
+        for (int i = 0; i < fromFields.length; i++) {
+            validateField(fromFields[i]);
+            validateField(toFields[i]);
+            if (fromFields[i] <= previousFrom || toFields[i] <= previousTo) {
+                throw new IllegalArgumentException("field lists must be strictly increasing");
+            }
+            if (pendingFieldBitNums.get(fromFields[i]).intValue()
+                    != pendingFieldBitNums.get(toFields[i]).intValue()
+                    || fieldMode(fromFields[i]) != fieldMode(toFields[i])) {
+                throw new IllegalArgumentException("renamed fields must have matching layouts");
+            }
+            previousFrom = fromFields[i];
+            previousTo = toFields[i];
+        }
+        temporarilyProtect.clear();
+        HashMap<Integer, Integer> cache = new HashMap<>();
+        int result = renameFieldsRec(id(a), fromFields, toFields, cache);
+        runSafePointMaintenance(result);
+        return wrap(result);
+    }
+
+    private static int renameFieldsRec(int a, int[] fromFields, int[] toFields,
+            HashMap<Integer, Integer> cache) {
+        if (isTerminalId(a)) return a;
+        Integer cached = cache.get(a);
+        if (cached != null) return cached;
+        int sourceField = nodeTable.getField(a);
+        int position = Arrays.binarySearch(fromFields, sourceField);
+        if (position < 0) {
+            throw new IllegalArgumentException("source DD contains unlisted field " + sourceField);
+        }
+        int targetField = toFields[position];
+        int frameStart = stackTop;
+        int count = nodeTable.getEdgeCount(a);
+        for (int i = 0; i < count; i++) {
+            int child = renameFieldsRec(
+                    nodeTable.getEdgeTarget(a, i), fromFields, toFields, cache);
+            collectTranslatedLabelEdges(frameStart, child, sourceField, targetField,
+                    nodeTable.getEdgeLabel(a, i));
+        }
+        int result = edgeFlush(frameStart, targetField);
+        temporarilyProtect.add(result);
+        cache.put(a, result);
+        return result;
+    }
+
+    private static void collectTranslatedLabelEdges(
+            int frameStart, int child, int sourceField, int targetField, int sourceLabel) {
+        LabelDecisionDiagramBackend source = backendForField(sourceField);
+        LabelDecisionDiagramBackend target = backendForField(targetField);
+        int capacity = source.assignmentCapacity();
+        if (capacity == 0) {
+            long assignments = fieldCardinality(sourceField);
+            if (assignments > Integer.MAX_VALUE) {
+                throw new IllegalArgumentException("field is too wide to rename");
+            }
+            for (int assignment = 0; assignment < assignments; assignment++) {
+                int sourceAssignment = encodeValueLabel(assignment, sourceField);
+                boolean matches = source.matches(sourceLabel, sourceAssignment);
+                derefLabel(sourceField, sourceAssignment);
+                if (matches) {
+                    edgeCollect(frameStart, targetField, child,
+                            encodeValueLabel(assignment, targetField));
+                }
+            }
+            return;
+        }
+        if (capacity != target.assignmentCapacity()) {
+            throw new IllegalArgumentException("renamed fields have incompatible capacities");
+        }
+        int assignmentFrame = assignmentTop;
+        ensureAssignmentCapacity(capacity);
+        Arrays.fill(assignmentTargets, assignmentTop, assignmentTop + capacity, FALSE_ID);
+        source.fillAssignmentTargets(sourceLabel, TRUE_ID, assignmentTargets, assignmentTop);
+        for (int assignment = 0; assignment < capacity; assignment++) {
+            if (assignmentTargets[assignmentTop + assignment] != TRUE_ID) continue;
+            edgeCollect(frameStart, targetField, child,
+                    refLabel(targetField, target.assignmentLabel(assignment)));
+        }
+        assignmentTop = assignmentFrame;
+    }
+
+    /**
+     * Compute {@code sum_field(a * b)} without materializing the complete product.
+     * The per-call cache is cleared because the abstracted field is implicit in its key.
+     */
+    public static NDD multiplySumAbstract(NDD a, NDD b, int field) {
+        return multiplySumAbstract(a, b, field, 0);
+    }
+
+    /**
+     * Fused multiply/sum with optional downstream field chunking. Chunking is
+     * intended for very large products: completed branches are explicitly
+     * rooted while caches and unreachable construction debris are reclaimed.
+     */
+    public static NDD multiplySumAbstract(
+            NDD a, NDD b, int field, int chunkDepth) {
+        validateField(field);
+        if (chunkDepth < 0) {
+            throw new IllegalArgumentException("chunk depth must be nonnegative");
+        }
+        temporarilyProtect.clear();
+        multiplySumAbstractCache.clear();
+        int result = multiplySumAbstractRec(id(a), id(b), field, chunkDepth);
+        runSafePointMaintenance(result);
+        return wrap(result);
+    }
+
+    /** Statistics for the most recent whole-bucket product/sum contraction. */
+    public static final class NaryContractionStats {
+        private static final NaryContractionStats EMPTY =
+                new NaryContractionStats(0, 0L, 0L, 0L);
+
+        public final int factorCount;
+        public final long fieldCardinality;
+        public final long distinctTargetTuples;
+        public final long productComputations;
+
+        private NaryContractionStats(int factorCount, long fieldCardinality,
+                long distinctTargetTuples, long productComputations) {
+            this.factorCount = factorCount;
+            this.fieldCardinality = fieldCardinality;
+            this.distinctTargetTuples = distinctTargetTuples;
+            this.productComputations = productComputations;
+        }
+    }
+
+    /** Return statistics from the last {@link #contractAndSumAbstract} call. */
+    public static NaryContractionStats getLastNaryContractionStats() {
+        return lastNaryContractionStats;
+    }
+
+    public static final class ScalarContractionStats {
+        private static final ScalarContractionStats EMPTY =
+                new ScalarContractionStats(0L, 0L, 0L, 0L, 0);
+
+        public final long recursiveCalls;
+        public final long cacheHits;
+        public final long cacheEntries;
+        public final long targetTuples;
+        public final int peakFactorCount;
+
+        private ScalarContractionStats(long recursiveCalls, long cacheHits,
+                long cacheEntries, long targetTuples, int peakFactorCount) {
+            this.recursiveCalls = recursiveCalls;
+            this.cacheHits = cacheHits;
+            this.cacheEntries = cacheEntries;
+            this.targetTuples = targetTuples;
+            this.peakFactorCount = peakFactorCount;
+        }
+    }
+
+    private static ScalarContractionStats lastScalarContractionStats =
+            ScalarContractionStats.EMPTY;
+
+    public static ScalarContractionStats getLastScalarContractionStats() {
+        return lastScalarContractionStats;
+    }
+
+    /**
+     * Exactly contract a product of double-terminal NDDs to a scalar while
+     * summing the specified fields.  Unlike a sequence of apply/abstract calls,
+     * this routine never materializes an intermediate DD over the retained
+     * fields.  It memoizes downstream target tuples produced by the label
+     * partitions at each abstracted field.
+     */
+    public static double contractAllSumProductDouble(
+            NDD[] factors, int[] abstractFields, int cacheLimit) {
+        if (terminalMode != TerminalMode.DOUBLE) {
+            throw new IllegalStateException(
+                    "lazy scalar contraction currently requires double terminals");
+        }
+        if (factors == null || factors.length == 0) {
+            throw new IllegalArgumentException("at least one factor is required");
+        }
+        if (abstractFields == null) {
+            throw new IllegalArgumentException("abstract fields must not be null");
+        }
+        int previous = -1;
+        for (int field : abstractFields) {
+            validateField(field);
+            if (field <= previous) {
+                throw new IllegalArgumentException(
+                        "abstract fields must be strictly increasing");
+            }
+            previous = field;
+        }
+        int[] roots = new int[factors.length];
+        for (int i = 0; i < factors.length; i++) {
+            if (factors[i] == null) throw new IllegalArgumentException("null factor");
+            roots[i] = id(factors[i]);
+        }
+        ScalarContractionContext context = new ScalarContractionContext(
+                abstractFields.length, cacheLimit);
+        int[] normalized = normalizeProductTuple(roots, roots.length);
+        double result = contractAllSumProductDoubleRec(
+                normalized, abstractFields, 0, context);
+        lastScalarContractionStats = new ScalarContractionStats(
+                context.recursiveCalls, context.cacheHits, context.cacheEntries,
+                context.targetTuples, context.peakFactorCount);
+        return result;
+    }
+
+    private static double contractAllSumProductDoubleRec(
+            int[] factors, int[] abstractFields, int fieldIndex,
+            ScalarContractionContext context) {
+        context.recursiveCalls++;
+        context.peakFactorCount = Math.max(context.peakFactorCount, factors.length);
+        if (Boolean.getBoolean("mtndd.probabilityTraceBuckets")
+                && (context.recursiveCalls & ((1L << 20) - 1L)) == 0L) {
+            System.err.printf("lazy_progress calls=%d cache_hits=%d cache_entries=%d "
+                    + "target_tuples=%d field_index=%d factors=%d%n",
+                    context.recursiveCalls, context.cacheHits, context.cacheEntries,
+                    context.targetTuples, fieldIndex, factors.length);
+        }
+        if (isZeroTuple(factors)) return 0.0;
+
+        // Terminal leaves are scalar coefficients, not structural state.  Keeping
+        // their node ids in the tuple makes otherwise identical downstream
+        // subproblems look different for every numeric path and destroys lazy
+        // memoization.  Pull them out before the cache lookup.
+        int nonterminalCount = 0;
+        double coefficient = 1.0;
+        for (int factor : factors) {
+            if (isTerminalId(factor)) coefficient *= valueDouble(factor);
+            else nonterminalCount++;
+        }
+        if (coefficient == 0.0) return 0.0;
+        if (nonterminalCount != factors.length) {
+            int[] structural = new int[nonterminalCount];
+            int cursor = 0;
+            for (int factor : factors) {
+                if (!isTerminalId(factor)) structural[cursor++] = factor;
+            }
+            return coefficient * contractAllSumProductDoubleRec(
+                    structural, abstractFields, fieldIndex, context);
+        }
+
+        HashMap<IntArrayKey, Double> cache = context.cacheByField.get(fieldIndex);
+        IntArrayKey lookup = new IntArrayKey(factors, false);
+        Double cached = cache.get(lookup);
+        if (cached != null) {
+            context.cacheHits++;
+            return cached;
+        }
+
+        final double result;
+        if (fieldIndex == abstractFields.length) {
+            if (factors.length != 0) {
+                throw new IllegalStateException(
+                        "lazy scalar contraction left field "
+                        + nodeTable.getField(factors[0]));
+            }
+            result = 1.0;
+        } else {
+            int field = abstractFields[fieldIndex];
+            int currentField = minimumField(factors);
+            if (currentField < field) {
+                throw new IllegalStateException(
+                        "unlisted field " + currentField
+                        + " precedes abstract field " + field);
+            }
+            if (currentField > field) {
+                result = fieldCardinality(field)
+                        * contractAllSumProductDoubleRec(
+                                factors, abstractFields, fieldIndex + 1, context);
+            } else {
+                TupleMultiplicity groups = groupTargetsAtAbstractedField(factors, field);
+                context.targetTuples += groups.counts.size();
+                double sum = 0.0;
+                for (Map.Entry<IntArrayKey, Long> entry : groups.counts.entrySet()) {
+                    sum += entry.getValue()
+                            * contractAllSumProductDoubleRec(
+                                    entry.getKey().values, abstractFields,
+                                    fieldIndex + 1, context);
+                }
+                result = sum;
+            }
+        }
+        if (context.cacheEntries < context.cacheLimit) {
+            cache.put(new IntArrayKey(factors, true), result);
+            context.cacheEntries++;
+        }
+        return result;
+    }
+
+    private static final class ScalarContractionContext {
+        final ArrayList<HashMap<IntArrayKey, Double>> cacheByField;
+        final long cacheLimit;
+        long recursiveCalls;
+        long cacheHits;
+        long cacheEntries;
+        long targetTuples;
+        int peakFactorCount;
+
+        ScalarContractionContext(int fieldCount, int cacheLimit) {
+            this.cacheLimit = Math.max(0, cacheLimit);
+            cacheByField = new ArrayList<>(fieldCount + 1);
+            for (int i = 0; i <= fieldCount; i++) {
+                cacheByField.add(new HashMap<>());
+            }
+        }
+    }
+
+    /**
+     * Contract several fields of a factorized product while retaining every
+     * other field as one NDD.  Abstracted and retained fields may be interleaved;
+     * this permits a fused matrix/vector product under the usual
+     * {@code current,next,current,next,...} variable order without materializing
+     * the full pointwise product.
+     */
+    public static NDD contractAndSumAbstractFields(
+            NDD[] factors, int[] abstractFields, int cacheLimit) {
+        if (factors == null || factors.length == 0) {
+            throw new IllegalArgumentException("at least one factor is required");
+        }
+        if (abstractFields == null || abstractFields.length == 0) {
+            throw new IllegalArgumentException("at least one abstract field is required");
+        }
+        int previous = -1;
+        for (int field : abstractFields) {
+            validateField(field);
+            if (field <= previous) {
+                throw new IllegalArgumentException(
+                        "abstract fields must be strictly increasing");
+            }
+            previous = field;
+        }
+        int[] roots = new int[factors.length];
+        for (int i = 0; i < factors.length; i++) {
+            if (factors[i] == null) throw new IllegalArgumentException("null factor");
+            roots[i] = id(factors[i]);
+        }
+        temporarilyProtect.clear();
+        FactorizedContractionContext context = new FactorizedContractionContext(
+                abstractFields.length, cacheLimit);
+        int[] normalized = normalizeProductTuple(roots, roots.length);
+        int result = contractAndSumAbstractFieldsRec(
+                normalized, abstractFields, 0, context);
+        nodeTable.ref(result);
+        context.releaseCachedRoots();
+        clearCaches();
+        temporarilyProtect.clear();
+        nodeTable.gc();
+        nodeTable.compactEdgesAtSafePoint();
+        nodeTable.deref(result);
+        lastScalarContractionStats = new ScalarContractionStats(
+                context.recursiveCalls, context.cacheHits, context.cacheEntries,
+                context.targetTuples, context.peakFactorCount);
+        runSafePointMaintenance(result);
+        return wrap(result);
+    }
+
+    private static int contractAndSumAbstractFieldsRec(
+            int[] factors, int[] abstractFields, int fieldIndex,
+            FactorizedContractionContext context) {
+        context.recursiveCalls++;
+        context.peakFactorCount = Math.max(context.peakFactorCount, factors.length);
+        if (isZeroTuple(factors)) return FALSE_ID;
+
+        int nonterminalCount = 0;
+        int coefficient = TRUE_ID;
+        for (int factor : factors) {
+            if (isTerminalId(factor)) coefficient = mulRec(coefficient, factor);
+            else nonterminalCount++;
+        }
+        if (coefficient == FALSE_ID) return FALSE_ID;
+        if (nonterminalCount != factors.length) {
+            int[] structural = new int[nonterminalCount];
+            int cursor = 0;
+            for (int factor : factors) {
+                if (!isTerminalId(factor)) structural[cursor++] = factor;
+            }
+            nodeTable.ref(coefficient);
+            int child = contractAndSumAbstractFieldsRec(
+                    structural, abstractFields, fieldIndex, context);
+            nodeTable.ref(child);
+            int scaled = mulRec(coefficient, child);
+            nodeTable.deref(child);
+            nodeTable.deref(coefficient);
+            return scaled;
+        }
+
+        HashMap<IntArrayKey, Integer> cache = context.cacheByField.get(fieldIndex);
+        IntArrayKey lookup = new IntArrayKey(factors, false);
+        Integer cached = cache.get(lookup);
+        if (cached != null) {
+            context.cacheHits++;
+            return cached;
+        }
+
+        final int result;
+        if (fieldIndex == abstractFields.length) {
+            result = multiplyManyRec(factors, context.productContext, 0);
+        } else {
+            int field = abstractFields[fieldIndex];
+            int currentField = minimumField(factors);
+            if (currentField < field) {
+                result = retainFactorizedField(
+                        factors, abstractFields, fieldIndex, currentField, context);
+            } else if (currentField > field) {
+                int child = contractAndSumAbstractFieldsRec(
+                        factors, abstractFields, fieldIndex + 1, context);
+                nodeTable.ref(child);
+                result = multiplyByMultiplicity(child, fieldCardinality(field));
+                nodeTable.deref(child);
+            } else {
+                TupleMultiplicity groups = groupTargetsAtAbstractedField(factors, field);
+                context.targetTuples += groups.counts.size();
+                int sum = FALSE_ID;
+                nodeTable.ref(sum);
+                for (Map.Entry<IntArrayKey, Long> entry : groups.counts.entrySet()) {
+                    int target = contractAndSumAbstractFieldsRec(
+                            entry.getKey().values, abstractFields,
+                            fieldIndex + 1, context);
+                    nodeTable.ref(target);
+                    int weighted = multiplyByMultiplicity(target, entry.getValue());
+                    nodeTable.ref(weighted);
+                    int next = addRec(sum, weighted);
+                    nodeTable.ref(next);
+                    nodeTable.deref(weighted);
+                    nodeTable.deref(target);
+                    nodeTable.deref(sum);
+                    sum = next;
+                }
+                result = sum;
+                nodeTable.deref(sum);
+            }
+        }
+        if (context.cacheEntries < context.cacheLimit) {
+            cache.put(new IntArrayKey(factors, true), result);
+            nodeTable.ref(result);
+            context.cachedRoots.add(result);
+            context.cacheEntries++;
+        }
+        return result;
+    }
+
+    private static int retainFactorizedField(
+            int[] factors, int[] abstractFields, int fieldIndex, int field,
+            FactorizedContractionContext context) {
+        int frameStart = stackTop;
+        LabelDecisionDiagramBackend backend = backendForField(field);
+        int capacity = backend.assignmentCapacity();
+        if (capacity != 0) {
+            collectRetainedAssignmentEdges(factors, abstractFields, fieldIndex,
+                    field, backend, capacity, frameStart, context);
+        } else {
+            int universe = refLabel(field, getFieldUniverseLabel(field));
+            int[] targets = new int[factors.length];
+            collectRetainedIntersectionEdges(factors, targets, 0, abstractFields,
+                    fieldIndex, field, universe, frameStart, context);
+            derefLabel(field, universe);
+        }
+        return edgeFlush(frameStart, field);
+    }
+
+    private static void collectRetainedAssignmentEdges(
+            int[] factors, int[] abstractFields, int fieldIndex, int field,
+            LabelDecisionDiagramBackend backend, int capacity, int frameStart,
+            FactorizedContractionContext context) {
+        int assignmentFrame = assignmentTop;
+        ensureAssignmentCapacity(capacity * factors.length);
+        int targetBase = assignmentTop;
+        assignmentTop += capacity * factors.length;
+        Arrays.fill(assignmentTargets, targetBase, assignmentTop, FALSE_ID);
+
+        for (int i = 0; i < factors.length; i++) {
+            int base = targetBase + i * capacity;
+            if (nodeTable.getField(factors[i]) > field) {
+                Arrays.fill(assignmentTargets, base, base + capacity, factors[i]);
+                continue;
+            }
+            int count = nodeTable.getEdgeCount(factors[i]);
+            for (int edge = 0; edge < count; edge++) {
+                backend.fillAssignmentTargets(nodeTable.getEdgeLabel(factors[i], edge),
+                        nodeTable.getEdgeTarget(factors[i], edge), assignmentTargets, base);
+            }
+        }
+
+        int[] tuple = new int[factors.length];
+        for (int assignment = 0; assignment < capacity; assignment++) {
+            for (int i = 0; i < factors.length; i++) {
+                tuple[i] = assignmentTargets[targetBase + i * capacity + assignment];
+            }
+            int[] normalized = normalizeProductTuple(tuple, tuple.length);
+            if (isZeroTuple(normalized)) continue;
+            int target = contractAndSumAbstractFieldsRec(
+                    normalized, abstractFields, fieldIndex, context);
+            if (target != FALSE_ID) {
+                edgeCollect(frameStart, field, target,
+                        refLabel(field, backend.assignmentLabel(assignment)));
+            }
+        }
+        assignmentTop = assignmentFrame;
+    }
+
+    private static void collectRetainedIntersectionEdges(
+            int[] factors, int[] targets, int index, int[] abstractFields,
+            int fieldIndex, int field, int intersection, int frameStart,
+            FactorizedContractionContext context) {
+        if (index == factors.length) {
+            int[] normalized = normalizeProductTuple(targets, targets.length);
+            if (!isZeroTuple(normalized)) {
+                int target = contractAndSumAbstractFieldsRec(
+                        normalized, abstractFields, fieldIndex, context);
+                if (target != FALSE_ID) {
+                    edgeCollect(frameStart, field, target, refLabel(field, intersection));
+                }
+            }
+            return;
+        }
+        int factor = factors[index];
+        if (nodeTable.getField(factor) > field) {
+            targets[index] = factor;
+            collectRetainedIntersectionEdges(factors, targets, index + 1,
+                    abstractFields, fieldIndex, field, intersection, frameStart, context);
+            return;
+        }
+        int count = nodeTable.getEdgeCount(factor);
+        for (int edge = 0; edge < count; edge++) {
+            int next = refLabel(field, labelAnd(
+                    field, intersection, nodeTable.getEdgeLabel(factor, edge)));
+            if (next != 0) {
+                targets[index] = nodeTable.getEdgeTarget(factor, edge);
+                collectRetainedIntersectionEdges(factors, targets, index + 1,
+                        abstractFields, fieldIndex, field, next, frameStart, context);
+            }
+            derefLabel(field, next);
+        }
+    }
+
+    private static final class FactorizedContractionContext {
+        final ArrayList<HashMap<IntArrayKey, Integer>> cacheByField;
+        final long cacheLimit;
+        final NaryProductContext productContext;
+        final ArrayList<Integer> cachedRoots = new ArrayList<>();
+        long recursiveCalls;
+        long cacheHits;
+        long cacheEntries;
+        long targetTuples;
+        int peakFactorCount;
+
+        FactorizedContractionContext(int fieldCount, int cacheLimit) {
+            this.cacheLimit = Math.max(0, cacheLimit);
+            this.productContext = new NaryProductContext(cacheLimit);
+            cacheByField = new ArrayList<>(fieldCount + 1);
+            for (int i = 0; i <= fieldCount; i++) {
+                cacheByField.add(new HashMap<>());
+            }
+        }
+
+        void releaseCachedRoots() {
+            productContext.cache.clear();
+            for (int root : cachedRoots) nodeTable.deref(root);
+            cachedRoots.clear();
+        }
+    }
+
+    /** Count nonzero downstream target tuples without constructing numeric products. */
+    public static long estimateContractionTargetTuples(NDD[] factors, int field) {
+        validateField(field);
+        if (factors == null || factors.length == 0) {
+            throw new IllegalArgumentException("at least one factor is required");
+        }
+        int[] roots = new int[factors.length];
+        for (int i = 0; i < factors.length; i++) {
+            if (factors[i] == null) throw new IllegalArgumentException("null factor");
+            roots[i] = id(factors[i]);
+            if (nodeTable.getField(roots[i]) < field) return -1L;
+        }
+        int[] normalized = normalizeProductTuple(roots, roots.length);
+        if (isZeroTuple(normalized)) return 0L;
+        if (minimumField(normalized) > field) return 1L;
+        return groupTargetsAtAbstractedField(normalized, field).counts.size();
+    }
+
+    /**
+     * Compute {@code sum_field(product(factors))} as one whole-bucket contraction.
+     * When the field is the first remaining field, equal tuples of downstream
+     * targets are grouped before their product is built. An optional bounded depth
+     * keeps downstream construction n-ary before returning to pairwise apply.
+     */
+    public static NDD contractAndSumAbstract(NDD[] factors, int field) {
+        return contractAndSumAbstract(factors, field, 0);
+    }
+
+    /** Whole-bucket contraction with a bounded number of n-ary downstream fields. */
+    public static NDD contractAndSumAbstract(
+            NDD[] factors, int field, int downstreamNaryDepth) {
+        validateField(field);
+        if (downstreamNaryDepth < 0) {
+            throw new IllegalArgumentException("downstream n-ary depth must be nonnegative");
+        }
+        if (factors == null || factors.length == 0) {
+            throw new IllegalArgumentException("at least one factor is required");
+        }
+        int[] roots = new int[factors.length];
+        for (int i = 0; i < factors.length; i++) {
+            if (factors[i] == null) throw new IllegalArgumentException("null factor");
+            roots[i] = id(factors[i]);
+        }
+
+        temporarilyProtect.clear();
+        NaryProductContext context = new NaryProductContext(CACHE_SIZE);
+        int[] normalized = normalizeProductTuple(roots, roots.length);
+        int currentField = minimumField(normalized);
+        long distinctTuples = 0L;
+        int result;
+        if (isZeroTuple(normalized)) {
+            result = FALSE_ID;
+        } else if (currentField < field) {
+            // Correct fallback for callers that do not obey bucket-elimination order.
+            result = sumAbstractRec(
+                    multiplyManyRec(normalized, context, downstreamNaryDepth), field);
+        } else if (currentField > field) {
+            result = multiplyByMultiplicity(
+                    multiplyManyRec(normalized, context, downstreamNaryDepth),
+                    fieldCardinality(field));
+        } else {
+            TupleMultiplicity groups = groupTargetsAtAbstractedField(
+                    normalized, field);
+            distinctTuples = groups.counts.size();
+            result = FALSE_ID;
+            int groupsSinceMaintenance = 0;
+            for (Map.Entry<IntArrayKey, Long> entry : groups.counts.entrySet()) {
+                int product = multiplyManyRec(
+                        entry.getKey().values, context, downstreamNaryDepth);
+                int weighted = multiplyByMultiplicity(product, entry.getValue());
+                result = addRec(result, weighted);
+                temporarilyProtect.add(result);
+                if (++groupsSinceMaintenance == 8) {
+                    naryContractionSafePoint(result, context);
+                    groupsSinceMaintenance = 0;
+                }
+            }
+        }
+        temporarilyProtect.add(result);
+        lastNaryContractionStats = new NaryContractionStats(
+                factors.length, fieldCardinality(field), distinctTuples,
+                context.productsComputed);
+        runSafePointMaintenance(result);
+        return wrap(result);
+    }
+
+    private static void naryContractionSafePoint(
+            int liveRoot, NaryProductContext context) {
+        // A whole-bucket call may add dozens of distinct target products. Without
+        // an internal safe point, all superseded sums remain temporarily protected
+        // until the public call returns and terminal storage can exhaust the heap.
+        nodeTable.ref(liveRoot);
+        temporarilyProtect.clear();
+        temporarilyProtect.add(liveRoot);
+        context.cache.clear();
+        clearCaches();
+        nodeTable.gc();
+        nodeTable.compactEdgesAtSafePoint();
+        nodeTable.deref(liveRoot);
+    }
+
+    private static int multiplyManyRec(int[] factors, NaryProductContext context,
+            int remainingNaryDepth) {
+        if (isZeroTuple(factors)) return FALSE_ID;
+        if (factors.length == 0) return TRUE_ID;
+        if (factors.length == 1) return factors[0];
+
+        IntArrayKey lookup = new IntArrayKey(factors, false);
+        Integer cached = context.cache.get(lookup);
+        if (cached != null) return cached;
+
+        int currentField = minimumField(factors);
+        if (remainingNaryDepth > 0 && currentField != NodeTable.TERMINAL_FIELD) {
+            int frameStart = stackTop;
+            LabelDecisionDiagramBackend backend = backendForField(currentField);
+            int capacity = backend.assignmentCapacity();
+            if (capacity != 0) {
+                collectNaryAssignmentEdges(factors, currentField, backend,
+                        capacity, frameStart, context, remainingNaryDepth - 1);
+            } else {
+                int universe = refLabel(currentField, getFieldUniverseLabel(currentField));
+                int[] targets = new int[factors.length];
+                collectNaryIntersectionEdges(factors, targets, 0, currentField,
+                        universe, frameStart, context, remainingNaryDepth - 1);
+                derefLabel(currentField, universe);
+            }
+            int result = edgeFlush(frameStart, currentField);
+            context.productsComputed++;
+            temporarilyProtect.add(result);
+            if (context.cache.size() < context.limit) {
+                context.cache.put(new IntArrayKey(factors, true), result);
+            }
+            return result;
+        }
+
+        // At the hybrid frontier, multiply smaller roots first and let the mature
+        // pairwise apply caches retain decision-diagram sharing.
+        int[] ordered = Arrays.copyOf(factors, factors.length);
+        for (int i = 1; i < ordered.length; i++) {
+            int value = ordered[i];
+            int weight = productRootWeight(value);
+            int j = i - 1;
+            while (j >= 0 && productRootWeight(ordered[j]) > weight) {
+                ordered[j + 1] = ordered[j];
+                j--;
+            }
+            ordered[j + 1] = value;
+        }
+        int result = TRUE_ID;
+        for (int factor : ordered) result = mulRec(result, factor);
+        context.productsComputed++;
+        temporarilyProtect.add(result);
+        if (context.cache.size() < context.limit) {
+            context.cache.put(new IntArrayKey(factors, true), result);
+        }
+        return result;
+    }
+
+    private static int productRootWeight(int node) {
+        return isTerminalId(node) ? 0 : nodeTable.getEdgeCount(node);
+    }
+
+    private static void collectNaryAssignmentEdges(int[] factors, int field,
+            LabelDecisionDiagramBackend backend, int capacity, int frameStart,
+            NaryProductContext context, int remainingNaryDepth) {
+        int assignmentFrame = assignmentTop;
+        ensureAssignmentCapacity(capacity * factors.length);
+        int targetBase = assignmentTop;
+        assignmentTop += capacity * factors.length;
+        Arrays.fill(assignmentTargets, targetBase, assignmentTop, FALSE_ID);
+
+        for (int i = 0; i < factors.length; i++) {
+            int base = targetBase + i * capacity;
+            if (nodeTable.getField(factors[i]) > field) {
+                Arrays.fill(assignmentTargets, base, base + capacity, factors[i]);
+                continue;
+            }
+            int count = nodeTable.getEdgeCount(factors[i]);
+            for (int edge = 0; edge < count; edge++) {
+                backend.fillAssignmentTargets(nodeTable.getEdgeLabel(factors[i], edge),
+                        nodeTable.getEdgeTarget(factors[i], edge), assignmentTargets, base);
+            }
+        }
+
+        int[] tuple = new int[factors.length];
+        for (int assignment = 0; assignment < capacity; assignment++) {
+            for (int i = 0; i < factors.length; i++) {
+                tuple[i] = assignmentTargets[targetBase + i * capacity + assignment];
+            }
+            int[] normalized = normalizeProductTuple(tuple, tuple.length);
+            if (isZeroTuple(normalized)) continue;
+            int target = multiplyManyRec(normalized, context, remainingNaryDepth);
+            if (target != FALSE_ID) {
+                edgeCollect(frameStart, field, target,
+                        refLabel(field, backend.assignmentLabel(assignment)));
+            }
+        }
+        assignmentTop = assignmentFrame;
+    }
+
+    private static void collectNaryIntersectionEdges(int[] factors, int[] targets,
+            int index, int field, int intersection, int frameStart,
+            NaryProductContext context, int remainingNaryDepth) {
+        if (index == factors.length) {
+            int[] normalized = normalizeProductTuple(targets, targets.length);
+            if (!isZeroTuple(normalized)) {
+                int target = multiplyManyRec(normalized, context, remainingNaryDepth);
+                if (target != FALSE_ID) {
+                    edgeCollect(frameStart, field, target, refLabel(field, intersection));
+                }
+            }
+            return;
+        }
+        int factor = factors[index];
+        if (nodeTable.getField(factor) > field) {
+            targets[index] = factor;
+            collectNaryIntersectionEdges(factors, targets, index + 1, field,
+                    intersection, frameStart, context, remainingNaryDepth);
+            return;
+        }
+        int count = nodeTable.getEdgeCount(factor);
+        for (int edge = 0; edge < count; edge++) {
+            int next = refLabel(field, labelAnd(
+                    field, intersection, nodeTable.getEdgeLabel(factor, edge)));
+            if (next != 0) {
+                targets[index] = nodeTable.getEdgeTarget(factor, edge);
+                collectNaryIntersectionEdges(factors, targets, index + 1, field,
+                        next, frameStart, context, remainingNaryDepth);
+            }
+            derefLabel(field, next);
+        }
+    }
+
+    private static TupleMultiplicity groupTargetsAtAbstractedField(
+            int[] factors, int field) {
+        LabelDecisionDiagramBackend backend = backendForField(field);
+        int capacity = backend.assignmentCapacity();
+        TupleMultiplicity result = new TupleMultiplicity();
+        if (capacity == 0) {
+            int universe = refLabel(field, getFieldUniverseLabel(field));
+            int[] targets = new int[factors.length];
+            groupNaryIntersections(factors, targets, 0, field, universe, result);
+            derefLabel(field, universe);
+            return result;
+        }
+
+        int assignmentFrame = assignmentTop;
+        ensureAssignmentCapacity(capacity * factors.length);
+        int targetBase = assignmentTop;
+        assignmentTop += capacity * factors.length;
+        Arrays.fill(assignmentTargets, targetBase, assignmentTop, FALSE_ID);
+        for (int i = 0; i < factors.length; i++) {
+            int base = targetBase + i * capacity;
+            if (nodeTable.getField(factors[i]) > field) {
+                Arrays.fill(assignmentTargets, base, base + capacity, factors[i]);
+                continue;
+            }
+            int count = nodeTable.getEdgeCount(factors[i]);
+            for (int edge = 0; edge < count; edge++) {
+                backend.fillAssignmentTargets(nodeTable.getEdgeLabel(factors[i], edge),
+                        nodeTable.getEdgeTarget(factors[i], edge), assignmentTargets, base);
+            }
+        }
+
+        int[] tuple = new int[factors.length];
+        long physicalPerLogical = 1L << (backendContexts[fieldMode(field).ordinal()].maxWidth
+                - pendingFieldBitNums.get(field));
+        for (int assignment = 0; assignment < capacity; assignment++) {
+            for (int i = 0; i < factors.length; i++) {
+                tuple[i] = assignmentTargets[targetBase + i * capacity + assignment];
+            }
+            int[] normalized = normalizeProductTuple(tuple, tuple.length);
+            if (!isZeroTuple(normalized)) result.add(normalized, 1L);
+        }
+        assignmentTop = assignmentFrame;
+        if (physicalPerLogical != 1L) result.divideCounts(physicalPerLogical);
+        return result;
+    }
+
+    private static void groupNaryIntersections(int[] factors, int[] targets,
+            int index, int field, int intersection, TupleMultiplicity result) {
+        if (index == factors.length) {
+            int[] normalized = normalizeProductTuple(targets, targets.length);
+            if (!isZeroTuple(normalized)) {
+                long multiplicity = Math.round(getLabelSatCount(field, intersection));
+                if (multiplicity != 0L) result.add(normalized, multiplicity);
+            }
+            return;
+        }
+        int factor = factors[index];
+        if (nodeTable.getField(factor) > field) {
+            targets[index] = factor;
+            groupNaryIntersections(factors, targets, index + 1,
+                    field, intersection, result);
+            return;
+        }
+        int count = nodeTable.getEdgeCount(factor);
+        for (int edge = 0; edge < count; edge++) {
+            int next = refLabel(field, labelAnd(
+                    field, intersection, nodeTable.getEdgeLabel(factor, edge)));
+            if (next != 0) {
+                targets[index] = nodeTable.getEdgeTarget(factor, edge);
+                groupNaryIntersections(factors, targets, index + 1, field, next, result);
+            }
+            derefLabel(field, next);
+        }
+    }
+
+    private static int[] normalizeProductTuple(int[] values, int length) {
+        int live = 0;
+        for (int i = 0; i < length; i++) {
+            if (values[i] == FALSE_ID) return new int[] {FALSE_ID};
+            if (values[i] != TRUE_ID) live++;
+        }
+        if (live == 0) return new int[0];
+        int[] result = new int[live];
+        int cursor = 0;
+        for (int i = 0; i < length; i++) {
+            if (values[i] != TRUE_ID) result[cursor++] = values[i];
+        }
+        // Preserve bucket-factor order. It is stable throughout the recursive
+        // contraction, so sorting every assignment tuple only adds O(m log m)
+        // work and is not required for cache correctness.
+        return result;
+    }
+
+    private static boolean isZeroTuple(int[] values) {
+        return values.length == 1 && values[0] == FALSE_ID;
+    }
+
+    private static int minimumField(int[] values) {
+        int result = NodeTable.TERMINAL_FIELD;
+        for (int value : values) result = Math.min(result, nodeTable.getField(value));
+        return result;
+    }
+
+    private static final class NaryProductContext {
+        final int limit;
+        final HashMap<IntArrayKey, Integer> cache = new HashMap<>();
+        long productsComputed;
+
+        NaryProductContext(int limit) {
+            this.limit = Math.max(1, limit);
+        }
+    }
+
+    private static final class TupleMultiplicity {
+        final HashMap<IntArrayKey, Long> counts = new HashMap<>();
+
+        void add(int[] tuple, long count) {
+            IntArrayKey key = new IntArrayKey(tuple, true);
+            counts.merge(key, count, Long::sum);
+        }
+
+        void divideCounts(long divisor) {
+            for (Map.Entry<IntArrayKey, Long> entry : counts.entrySet()) {
+                long count = entry.getValue();
+                if (count % divisor != 0L) {
+                    throw new IllegalStateException("assignment multiplicity is not integral");
+                }
+                entry.setValue(count / divisor);
+            }
+        }
+    }
+
+    private static final class IntArrayKey {
+        final int[] values;
+        final int hash;
+
+        IntArrayKey(int[] values, boolean copy) {
+            this.values = copy ? Arrays.copyOf(values, values.length) : values;
+            this.hash = Arrays.hashCode(values);
+        }
+
+        @Override
+        public int hashCode() { return hash; }
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof IntArrayKey
+                    && Arrays.equals(values, ((IntArrayKey) other).values);
+        }
+    }
+
+    private static int multiplySumAbstractRec(int a, int b, int field, int chunkDepth) {
+        if (isZeroId(a) || isZeroId(b)) return FALSE_ID;
+        if (isOneId(a)) return sumAbstractRec(b, field);
+        if (isOneId(b)) return sumAbstractRec(a, field);
+        if (multiplySumAbstractCache.getEntry(a, b)) {
+            return multiplySumAbstractCache.result;
+        }
+        int cacheIndex = multiplySumAbstractCache.hashValue;
+        int aField = nodeTable.getField(a);
+        int bField = nodeTable.getField(b);
+        int currentField = Math.min(aField, bField);
+        int result;
+        if (currentField > field) {
+            result = multiplyByMultiplicity(mulRec(a, b), fieldCardinality(field));
+        } else if (currentField == field) {
+            result = abstractProductAtField(a, aField, b, bField, field, chunkDepth);
+        } else {
+            int frameStart = stackTop;
+            if (aField == bField) {
+                int aCount = nodeTable.getEdgeCount(a);
+                int bCount = nodeTable.getEdgeCount(b);
+                for (int i = 0; i < aCount; i++) {
+                    int aLabel = nodeTable.getEdgeLabel(a, i);
+                    int aTarget = nodeTable.getEdgeTarget(a, i);
+                    for (int j = 0; j < bCount; j++) {
+                        int intersection = refLabel(currentField,
+                                labelAnd(currentField, aLabel,
+                                    nodeTable.getEdgeLabel(b, j)));
+                        if (intersection != 0) {
+                            int target = multiplySumAbstractRec(aTarget,
+                                    nodeTable.getEdgeTarget(b, j), field, chunkDepth);
+                            edgeCollect(frameStart, currentField, target, intersection);
+                        } else {
+                            derefLabel(currentField, intersection);
+                        }
+                    }
+                }
+            } else if (aField < bField) {
+                int count = nodeTable.getEdgeCount(a);
+                for (int i = 0; i < count; i++) {
+                    int target = multiplySumAbstractRec(
+                            nodeTable.getEdgeTarget(a, i), b, field, chunkDepth);
+                    edgeCollect(frameStart, aField, target,
+                            refLabel(aField, nodeTable.getEdgeLabel(a, i)));
+                }
+            } else {
+                int count = nodeTable.getEdgeCount(b);
+                for (int i = 0; i < count; i++) {
+                    int target = multiplySumAbstractRec(
+                            a, nodeTable.getEdgeTarget(b, i), field, chunkDepth);
+                    edgeCollect(frameStart, bField, target,
+                            refLabel(bField, nodeTable.getEdgeLabel(b, i)));
+                }
+            }
+            result = edgeFlush(frameStart, currentField);
+        }
+        temporarilyProtect.add(result);
+        multiplySumAbstractCache.setEntry(cacheIndex, a, b, result);
+        return result;
+    }
+
+    private static int abstractProductAtField(int a, int aField,
+            int b, int bField, int field, int chunkDepth) {
+        int result = FALSE_ID;
+        if (aField == field && bField == field) {
+            int aCount = nodeTable.getEdgeCount(a);
+            int bCount = nodeTable.getEdgeCount(b);
+            for (int i = 0; i < aCount; i++) {
+                int aLabel = nodeTable.getEdgeLabel(a, i);
+                int aTarget = nodeTable.getEdgeTarget(a, i);
+                for (int j = 0; j < bCount; j++) {
+                    int intersection = refLabel(field,
+                            labelAnd(field, aLabel, nodeTable.getEdgeLabel(b, j)));
+                    if (intersection != 0) {
+                        long multiplicity = Math.round(getLabelSatCount(field, intersection));
+                        if (multiplicity != 0) {
+                            int product = multiplyChunked(aTarget,
+                                    nodeTable.getEdgeTarget(b, j), chunkDepth, result);
+                            result = addRec(result,
+                                    multiplyByMultiplicity(product, multiplicity));
+                            temporarilyProtect.add(result);
+                        }
+                    }
+                    derefLabel(field, intersection);
+                }
+            }
+            return result;
+        }
+
+        int node = aField == field ? a : b;
+        int other = aField == field ? b : a;
+        int count = nodeTable.getEdgeCount(node);
+        for (int i = 0; i < count; i++) {
+            long multiplicity = Math.round(getLabelSatCount(
+                    field, nodeTable.getEdgeLabel(node, i)));
+            if (multiplicity == 0) continue;
+            int product = multiplyChunked(
+                    nodeTable.getEdgeTarget(node, i), other, chunkDepth, result);
+            result = addRec(result, multiplyByMultiplicity(product, multiplicity));
+            temporarilyProtect.add(result);
+        }
+        return result;
+    }
+
+    private static int multiplyChunked(
+            int a, int b, int depth, int protectedRoot) {
+        if (depth <= 0 || isZeroId(a) || isZeroId(b)
+                || isOneId(a) || isOneId(b)
+                || (isTerminalId(a) && isTerminalId(b))) {
+            return mulRec(a, b);
+        }
+
+        int aField = nodeTable.getField(a);
+        int bField = nodeTable.getField(b);
+        int currentField = Math.min(aField, bField);
+        boolean traceChunks = Boolean.getBoolean("mtndd.probabilityTraceBuckets");
+        if (traceChunks) {
+            System.err.printf("chunk_start depth=%d field=%d a_field=%d b_field=%d "
+                    + "a_edges=%d b_edges=%d live_nodes=%d physical_edges=%d%n",
+                    depth, currentField, aField, bField,
+                    isTerminalId(a) ? 0 : nodeTable.getEdgeCount(a),
+                    isTerminalId(b) ? 0 : nodeTable.getEdgeCount(b),
+                    getNodeCount(), nodeTable.getPhysicalEdgeSlots());
+        }
+        int frameStart = stackTop;
+        ArrayList<Integer> branchRoots = new ArrayList<>();
+        if (aField == bField) {
+            int aCount = nodeTable.getEdgeCount(a);
+            int bCount = nodeTable.getEdgeCount(b);
+            for (int i = 0; i < aCount; i++) {
+                int aLabel = nodeTable.getEdgeLabel(a, i);
+                int aTarget = nodeTable.getEdgeTarget(a, i);
+                for (int j = 0; j < bCount; j++) {
+                    int intersection = refLabel(currentField,
+                            labelAnd(currentField, aLabel,
+                                    nodeTable.getEdgeLabel(b, j)));
+                    if (intersection == 0) {
+                        derefLabel(currentField, intersection);
+                        continue;
+                    }
+                    int target = multiplyChunked(aTarget,
+                            nodeTable.getEdgeTarget(b, j), depth - 1, protectedRoot);
+                    protectChunkBranch(target, branchRoots);
+                    edgeCollect(frameStart, currentField, target, intersection);
+                    chunkedMultiplySafePoint(protectedRoot);
+                }
+            }
+        } else if (aField < bField) {
+            int count = nodeTable.getEdgeCount(a);
+            for (int i = 0; i < count; i++) {
+                int target = multiplyChunked(nodeTable.getEdgeTarget(a, i), b,
+                        depth - 1, protectedRoot);
+                protectChunkBranch(target, branchRoots);
+                edgeCollect(frameStart, currentField, target,
+                        refLabel(currentField, nodeTable.getEdgeLabel(a, i)));
+                chunkedMultiplySafePoint(protectedRoot);
+            }
+        } else {
+            int count = nodeTable.getEdgeCount(b);
+            for (int i = 0; i < count; i++) {
+                int target = multiplyChunked(a, nodeTable.getEdgeTarget(b, i),
+                        depth - 1, protectedRoot);
+                protectChunkBranch(target, branchRoots);
+                edgeCollect(frameStart, currentField, target,
+                        refLabel(currentField, nodeTable.getEdgeLabel(b, i)));
+                chunkedMultiplySafePoint(protectedRoot);
+            }
+        }
+
+        int result = edgeFlush(frameStart, currentField);
+        for (int branchRoot : branchRoots) nodeTable.deref(branchRoot);
+        temporarilyProtect.add(result);
+        if (traceChunks) {
+            System.err.printf("chunk_done depth=%d field=%d branches=%d result_field=%d "
+                    + "result_edges=%d live_nodes=%d physical_edges=%d%n",
+                    depth, currentField, branchRoots.size(), nodeTable.getField(result),
+                    isTerminalId(result) ? 0 : nodeTable.getEdgeCount(result),
+                    getNodeCount(), nodeTable.getPhysicalEdgeSlots());
+        }
+        return result;
+    }
+
+    private static void protectChunkBranch(int target, ArrayList<Integer> branchRoots) {
+        if (target == FALSE_ID) return;
+        nodeTable.ref(target);
+        branchRoots.add(target);
+    }
+
+    private static void chunkedMultiplySafePoint(int protectedRoot) {
+        temporarilyProtect.clear();
+        temporarilyProtect.add(protectedRoot);
+        clearCaches();
+        nodeTable.gc();
+        nodeTable.compactEdgesAtSafePoint();
+    }
+
+    private static int multiplyByMultiplicity(int value, long multiplicity) {
+        return multiplicity == 1 ? value
+                : mulRec(value, terminal(new Rational(multiplicity)));
     }
 
     private static int sumAbstractRec(int a, int field) {
@@ -1121,9 +2850,7 @@ public class NDD {
                     continue;
                 }
                 int target = nodeTable.getEdgeTarget(a, i);
-                int weighted = multiplicity == 1
-                        ? target
-                        : mulRec(target, terminal(new Rational(multiplicity)));
+                int weighted = multiplyByMultiplicity(target, multiplicity);
                 result = addRec(result, weighted);
                 temporarilyProtect.add(result);
             }
@@ -1151,18 +2878,32 @@ public class NDD {
     }
 
     private static void combineSameField(int a, int b, int frameStart, boolean isOr, TerminalOp op) {
+        int field = nodeTable.getField(a);
+        LabelDecisionDiagramBackend backend = backendForField(field);
+        int assignmentCapacity = backend.assignmentCapacity();
         int aCount = nodeTable.getEdgeCount(a);
         int bCount = nodeTable.getEdgeCount(b);
-        int[] residualA = new int[aCount];
-        int[] residualB = new int[bCount];
+        if (assignmentCapacity != 0
+                && (long) aCount * bCount > assignmentCapacity) {
+            combineSameFieldAssignments(a, b, frameStart, field, backend,
+                    assignmentCapacity, isOr, op);
+            return;
+        }
+        int residualFrame = residualTop;
+        ensureResidualCapacity(aCount + bCount);
+        int residualA = residualTop;
+        residualTop += aCount;
+        int residualB = residualTop;
+        residualTop += bCount;
         for (int i = 0; i < aCount; i++) {
-            residualA[i] = refLabel(nodeTable.getField(a), nodeTable.getEdgeLabel(a, i));
+            residualLabels[residualA + i] = refLabel(
+                    nodeTable.getField(a), nodeTable.getEdgeLabel(a, i));
         }
         for (int i = 0; i < bCount; i++) {
-            residualB[i] = refLabel(nodeTable.getField(b), nodeTable.getEdgeLabel(b, i));
+            residualLabels[residualB + i] = refLabel(
+                    nodeTable.getField(b), nodeTable.getEdgeLabel(b, i));
         }
 
-        int field = nodeTable.getField(a);
         for (int i = 0; i < aCount; i++) {
             int aTarget = nodeTable.getEdgeTarget(a, i);
             int aLabel = nodeTable.getEdgeLabel(a, i);
@@ -1171,8 +2912,10 @@ public class NDD {
                 int bLabel = nodeTable.getEdgeLabel(b, j);
                 int intersect = refLabel(field, labelAnd(field, aLabel, bLabel));
                 if (intersect != 0) {
-                    residualA[i] = labelDiffTo(residualA[i], intersect, field);
-                    residualB[j] = labelDiffTo(residualB[j], intersect, field);
+                    residualLabels[residualA + i] = labelDiffTo(
+                            residualLabels[residualA + i], intersect, field);
+                    residualLabels[residualB + j] = labelDiffTo(
+                            residualLabels[residualB + j], intersect, field);
                     int sub = isOr ? orRec(aTarget, bTarget) : arithmeticChild(aTarget, bTarget, op);
                     edgeCollect(frameStart, field, sub, intersect);
                 } else {
@@ -1183,7 +2926,7 @@ public class NDD {
 
         for (int i = 0; i < aCount; i++) {
             int target = nodeTable.getEdgeTarget(a, i);
-            int label = residualA[i];
+            int label = residualLabels[residualA + i];
             if (label != 0) {
                 edgeCollect(frameStart, field,
                         isOr ? target : arithmeticChild(target, FALSE_ID, op),
@@ -1193,7 +2936,7 @@ public class NDD {
         }
         for (int i = 0; i < bCount; i++) {
             int target = nodeTable.getEdgeTarget(b, i);
-            int label = residualB[i];
+            int label = residualLabels[residualB + i];
             if (label != 0) {
                 edgeCollect(frameStart, field,
                         isOr ? target : arithmeticChild(FALSE_ID, target, op),
@@ -1201,12 +2944,62 @@ public class NDD {
             }
             derefLabel(field, label);
         }
+        residualTop = residualFrame;
+    }
+
+    private static void combineSameFieldAssignments(int a, int b, int frameStart,
+            int field, LabelDecisionDiagramBackend backend, int capacity,
+            boolean isOr, TerminalOp op) {
+        int assignmentFrame = assignmentTop;
+        ensureAssignmentCapacity(capacity * 2);
+        int aTargets = assignmentTop;
+        int bTargets = aTargets + capacity;
+        assignmentTop += capacity * 2;
+        Arrays.fill(assignmentTargets, aTargets, assignmentTop, FALSE_ID);
+
+        int aCount = nodeTable.getEdgeCount(a);
+        for (int i = 0; i < aCount; i++) {
+            backend.fillAssignmentTargets(nodeTable.getEdgeLabel(a, i),
+                    nodeTable.getEdgeTarget(a, i), assignmentTargets, aTargets);
+        }
+        int bCount = nodeTable.getEdgeCount(b);
+        for (int i = 0; i < bCount; i++) {
+            backend.fillAssignmentTargets(nodeTable.getEdgeLabel(b, i),
+                    nodeTable.getEdgeTarget(b, i), assignmentTargets, bTargets);
+        }
+
+        for (int assignment = 0; assignment < capacity; assignment++) {
+            int left = assignmentTargets[aTargets + assignment];
+            int right = assignmentTargets[bTargets + assignment];
+            int target = isOr ? orRec(left, right) : arithmeticChild(left, right, op);
+            if (target != FALSE_ID) {
+                edgeCollect(frameStart, field, target,
+                        refLabel(field, backend.assignmentLabel(assignment)));
+            }
+        }
+        assignmentTop = assignmentFrame;
+    }
+
+    private static void ensureAssignmentCapacity(int additional) {
+        int required = assignmentTop + additional;
+        if (required <= assignmentTargets.length) return;
+        int capacity = assignmentTargets.length;
+        while (capacity < required) capacity <<= 1;
+        assignmentTargets = Arrays.copyOf(assignmentTargets, capacity);
+    }
+
+    private static void ensureResidualCapacity(int additional) {
+        int required = residualTop + additional;
+        if (required <= residualLabels.length) return;
+        int capacity = residualLabels.length;
+        while (capacity < required) capacity <<= 1;
+        residualLabels = Arrays.copyOf(residualLabels, capacity);
     }
 
     public static NDD exist(NDD a, int field) {
         temporarilyProtect.clear();
         int res = existRec(id(a), field);
-        runSafePointMaintenance();
+        runSafePointMaintenance(res);
         return wrap(res);
     }
 
@@ -1235,6 +3028,24 @@ public class NDD {
         if (prefixBinary.length == 0) return getTrue();
         int prefixLabel = encodePrefixLabel(prefixBinary, field);
         return wrap(nodeTable.mk(field, new int[] { TRUE_ID }, new int[] { prefixLabel }));
+    }
+
+    /**
+     * Build a referenced raw label for one concrete integer value of a field.
+     * The caller owns the returned label and must release it with
+     * {@link #derefLabel(int, int)}. This is useful for bulk construction via
+     * {@link #mk(int, NDD[], int[])} without materializing one NDD per value.
+     */
+    public static int encodeValueLabel(int value, int field) {
+        validateField(field);
+        int width = pendingFieldBitNums.get(field);
+        if (value < 0 || (width < 31 && value >= (1 << width))) {
+            throw new IllegalArgumentException("value does not fit field " + field);
+        }
+        BackendContext context = backendContexts[fieldMode(field).ordinal()];
+        int offset = context.maxWidth - width;
+        return backendForField(field).concreteValueLabel(
+                getFieldUniverseLabel(field), context.sharedVars, offset, width, value);
     }
 
     public static NDD encodePrefixs(ArrayList<int[]> prefixsBinary, int field) {
@@ -1327,7 +3138,7 @@ public class NDD {
     }
 
     private static int toBDDRec(int current) {
-        if (isTerminalId(current)) return value(current).doubleValue() == 0.0 ? 0 : 1;
+        if (isTerminalId(current)) return valueDouble(current) == 0.0 ? 0 : 1;
         int result = 0;
         int count = nodeTable.getEdgeCount(current);
         for (int i = 0; i < count; i++) {
@@ -1347,7 +3158,7 @@ public class NDD {
 
     private static double satCountRec(int curr, int field, int target) {
         if (isTerminalId(curr)) {
-            if (Math.abs(value(curr).doubleValue() - target) < eps) {
+            if (Math.abs(valueDouble(curr) - target) < eps) {
                 if (field > fieldNum) return 1;
                 int len = maxVariablePerField.get(maxVariablePerField.size() - 1);
                 return Math.pow(2, len + 1 - (field == 0 ? 0 : maxVariablePerField.get(field - 1) + 1));
@@ -1398,7 +3209,7 @@ public class NDD {
 
     private static void printRec(int current, HashSet<Integer> visited) {
         if (isTerminalId(current)) {
-            System.out.println("TERMINAL: " + value(current) + " node:" + current);
+            System.out.println("TERMINAL: " + valueDisplay(current) + " node:" + current);
             return;
         }
         if (!visited.add(current)) return;
@@ -1428,7 +3239,7 @@ public class NDD {
 
     private static void printDotRec(int current, StringBuilder sb, HashSet<Integer> visited) {
         if (isTerminalId(current)) {
-            sb.append("  N").append(current).append(" [shape=box,label=\"").append(value(current)).append("\"];\n");
+            sb.append("  N").append(current).append(" [shape=box,label=\"").append(valueDisplay(current)).append("\"];\n");
             return;
         }
         if (!visited.add(current)) return;
@@ -1467,11 +3278,19 @@ public class NDD {
     }
 
     public double getTerminalVal() {
-        return value(id).doubleValue();
+        return valueDouble(id);
     }
 
     public Rational getTerminalRational() {
-        return value(id);
+        return valueRational(id);
+    }
+
+    public double getTerminalLowerBound() {
+        return valueLower(id);
+    }
+
+    public double getTerminalUpperBound() {
+        return valueUpper(id);
     }
 
     public static NDD createTerminal(int terNum) {
@@ -1479,11 +3298,168 @@ public class NDD {
     }
 
     public static NDD createTerminal(double terNum) {
-        return wrap(terminal(new Rational(terNum)));
+        return wrap(terminal(terNum));
     }
 
     public static NDD createTerminal(Rational num) {
         return wrap(terminal(num));
+    }
+
+    public static NDD createExactIntervalTerminal(double value) {
+        if (terminalMode != TerminalMode.INTERVAL) return createTerminal(value);
+        if (!Double.isFinite(value)) {
+            throw new IllegalArgumentException("exact interval terminal must be finite");
+        }
+        return wrap(exactInterval(value));
+    }
+
+    public static NDD createIntervalTerminal(double lower, double upper) {
+        if (terminalMode != TerminalMode.INTERVAL) {
+            throw new IllegalStateException("interval terminal mode is not active");
+        }
+        return wrap(terminalInterval(lower, upper));
+    }
+
+    /**
+     * Allocation-light construction path for dense importers. Handles returned by this
+     * builder are owned references; {@link #node} consumes its target handles and
+     * {@link #finish} transfers the final owned handle to the regular object API.
+     */
+    public static final class BulkBuilder {
+        public int terminal(double value) {
+            return nodeTable.ref(NDD.terminal(value));
+        }
+
+        public int valueLabel(int value, int field) {
+            return NDD.encodeValueLabel(value, field);
+        }
+
+        /** Labels are borrowed; targets are consumed. */
+        public int node(int field, int[] targets, int[] labels) {
+            return node(field, targets, 0, targets.length, labels);
+        }
+
+        /** Labels are borrowed; the selected target slice is consumed. */
+        public int node(int field, int[] targets, int offset, int length, int[] labels) {
+            if (length != labels.length || offset < 0 || length < 0
+                    || offset + length > targets.length) {
+                throw new IllegalArgumentException(
+                        "target slice and labels must have the same length");
+            }
+            int frameStart = stackTop;
+            for (int i = 0; i < length; i++) {
+                edgeCollect(frameStart, field, targets[offset + i],
+                        refLabel(field, labels[i]));
+            }
+            int result = edgeFlush(frameStart, field);
+            nodeTable.ref(result);
+            for (int i = 0; i < length; i++) nodeTable.deref(targets[offset + i]);
+            return result;
+        }
+
+        public NDD finish(int ownedRoot) {
+            runSafePointMaintenance(ownedRoot);
+            return wrap(ownedRoot);
+        }
+    }
+
+    /**
+     * Replace nonnegative terminal values at or below {@code cutoff} with zero.
+     * The returned diagram is not referenced. The statistics count distinct
+     * terminal nodes reached from {@code ndd}.
+     */
+    public static PruneResult pruneNonnegativeAtMost(NDD ndd, double cutoff) {
+        if (terminalMode == TerminalMode.INTERVAL) {
+            throw new IllegalStateException("explicit pruning is not implemented for intervals");
+        }
+        if (!Double.isFinite(cutoff) || cutoff < 0.0 || cutoff >= 1.0) {
+            throw new IllegalArgumentException("prune cutoff must be in [0, 1)");
+        }
+        if (cutoff == 0.0) return new PruneResult(ndd, 0.0, 0);
+        temporarilyProtect.clear();
+        PruneAccumulator accumulator = new PruneAccumulator();
+        int result = pruneNonnegativeRec(id(ndd), cutoff, new HashMap<Integer, Integer>(),
+                accumulator);
+        runSafePointMaintenance(result);
+        return new PruneResult(wrap(result), accumulator.maximum, accumulator.count);
+    }
+
+    private static int pruneNonnegativeRec(int current, double cutoff,
+            HashMap<Integer, Integer> memo, PruneAccumulator accumulator) {
+        Integer cached = memo.get(current);
+        if (cached != null) return cached;
+        int result;
+        if (isTerminalId(current)) {
+            double value = valueDouble(current);
+            if (value < 0.0) {
+                throw new IllegalArgumentException("diagram contains a negative terminal");
+            }
+            if (value != 0.0 && value <= cutoff) {
+                result = FALSE_ID;
+                accumulator.maximum = Math.max(accumulator.maximum, value);
+                accumulator.count++;
+            } else {
+                result = current;
+            }
+        } else {
+            int field = nodeTable.getField(current);
+            int frameStart = stackTop;
+            int count = nodeTable.getEdgeCount(current);
+            for (int i = 0; i < count; i++) {
+                int target = pruneNonnegativeRec(nodeTable.getEdgeTarget(current, i), cutoff,
+                        memo, accumulator);
+                edgeCollect(frameStart, field, target,
+                        refLabel(field, nodeTable.getEdgeLabel(current, i)));
+            }
+            result = edgeFlush(frameStart, field);
+            temporarilyProtect.add(result);
+        }
+        memo.put(current, result);
+        return result;
+    }
+
+    private static final class PruneAccumulator {
+        double maximum;
+        int count;
+    }
+
+    /** Return the largest terminal of a nonnegative diagram, including implicit zero. */
+    public static double maxNonnegativeTerminalValue(NDD ndd) {
+        return maxNonnegativeTerminalBound(ndd, false);
+    }
+
+    public static double maxNonnegativeTerminalUpperValue(NDD ndd) {
+        return maxNonnegativeTerminalBound(ndd, true);
+    }
+
+    private static double maxNonnegativeTerminalBound(NDD ndd, boolean upperBound) {
+        BitSet visited = new BitSet();
+        int[] pending = new int[64];
+        int size = 1;
+        pending[0] = id(ndd);
+        double maximum = 0.0; // Missing assignments have the implicit value zero.
+        while (size > 0) {
+            int current = pending[--size];
+            if (visited.get(current)) continue;
+            visited.set(current);
+            if (isTerminalId(current)) {
+                double lower = valueLower(current);
+                double terminalValue = upperBound ? valueUpper(current) : valueDouble(current);
+                if (lower < 0.0) {
+                    throw new IllegalArgumentException("diagram contains a negative terminal");
+                }
+                maximum = Math.max(maximum, terminalValue);
+                continue;
+            }
+            int count = nodeTable.getEdgeCount(current);
+            if (size + count > pending.length) {
+                pending = Arrays.copyOf(pending, Math.max(pending.length << 1, size + count));
+            }
+            for (int edge = 0; edge < count; edge++) {
+                pending[size++] = nodeTable.getEdgeTarget(current, edge);
+            }
+        }
+        return maximum;
     }
 
     public int getField() {
@@ -1570,7 +3546,7 @@ public class NDD {
                         : (fieldValues[field] >>> shift) & 1;
             }
         }
-        return evaluate(ndd, assignment).doubleValue();
+        return evaluateDouble(ndd, assignment);
     }
 
     public static double readEpsilon() {
@@ -1623,6 +3599,34 @@ public class NDD {
         return nodeTable.getPhysicalEdgeSlots();
     }
 
+    public static int getPeakPhysicalEdgeSlots() {
+        return nodeTable.getPeakPhysicalEdgeSlots();
+    }
+
+    public static int getNodeCapacity() { return nodeTable.getNodeCapacity(); }
+
+    public static int getEdgeCapacity() { return nodeTable.getEdgeCapacity(); }
+
+    public static int getBlockCapacity() { return nodeTable.getBlockCapacity(); }
+
+    public static int getTerminalCapacity() { return nodeTable.getTerminalCapacity(); }
+
+    public static int getTerminalBucketCapacity() {
+        return nodeTable.getTerminalBucketCapacity();
+    }
+
+    public static long getUniqueBucketCapacity() {
+        return nodeTable.getUniqueBucketCapacity();
+    }
+
+    public static int getWrapperCapacity() { return wrappers.length; }
+
+    public static int getEdgeWorkStackCapacity() { return stackTargets.length; }
+
+    public static int getResidualWorkStackCapacity() { return residualLabels.length; }
+
+    public static int getAssignmentWorkStackCapacity() { return assignmentTargets.length; }
+
     private static LabelDecisionDiagramBackend backendOrNull(LabelMode mode) {
         if (backendContexts == null || mode == null) return null;
         BackendContext context = backendContexts[mode.ordinal()];
@@ -1670,6 +3674,14 @@ public class NDD {
         return nodeTable.getTerminalCount();
     }
 
+    public static int getIntervalNominalBucketCount() {
+        return nodeTable.getIntervalNominalBucketCount();
+    }
+
+    public static int getIntervalRadiusClassCount() {
+        return nodeTable.getIntervalRadiusClassCount();
+    }
+
     @Override
     public int hashCode() {
         return id;
@@ -1682,7 +3694,7 @@ public class NDD {
 
     @Override
     public String toString() {
-        return isTerminal() ? "NDD(" + value(id) + ")" : "NDD#" + id;
+        return isTerminal() ? "NDD(" + valueDisplay(id) + ")" : "NDD#" + id;
     }
 
     private static class IntOperationCache {
