@@ -2,17 +2,15 @@
 
 **Network Decision Diagram (NDD)** is a new decision diagram, built on the classical [Binary Decision Diagram (BDD)](https://en.wikipedia.org/wiki/Binary_decision_diagram).
 For BDD, each node looks at a single **bit** each time, and branches based on whether the bit is true or false;
-in contrast, each NDD node looks at a **field** consisting of a fixed number of bits each time, and branches based on the value of the field.
-As a result, there can be more than 2 branches for each NDD node. 
+in contrast, each NDD node looks at a **field** consisting of a fixed number of bits each time, and branches based on what set of values the field takes.
+But different from the classical multi-valued decision diagram (MDD), where a branch takes one **concrete** value from a domain, each branch in NDD takes a **symbolic** value, i.e., a subset of values from a domain.
 
-Different from the multi-valued decision diagram (MDD), where the branching conditions are **concrete**, i.e., a specific field should take a concrete value, the branching conditions in NDD are **symbolic**, i.e., a specific field can take any value of a set. 
-The branching conditions are compactly encoded with **external data structures**, including but not limited to BDDs.
-Currently, our NDD library supports several external data structures, including: BDD, complemented-edge BDD (BCDD), and zero-suppressed decision diagrams (ZDD).
+The branching conditions are compactly encoded with **external data structures**, including BDD, [complemented-edge BDD (BCDD)](https://dl.acm.org/doi/10.1145/123186.123222), and [zero-suppressed decision diagrams (ZDD)](https://en.wikipedia.org/wiki/Zero-suppressed_decision_diagram), etc.
 In this sense, NDD can be seen as wrapping a lower-level decision diagram with an outer field-aware layer, and therefore the name of NDD can also be interpreted as "Nested Decision Diagram".
 
-**An example of NDD** In this figure, we represent Hadamard matrix _H_<sub>4</sub>'s values on each coordinate (_x_<sub>0</sub>_x_<sub>1</sub>, _y_<sub>0</sub>_y_<sub>1</sub>) as a BDD (in (b)) and an NDD (in (c)). Each NDD node represents a 2-bit field (_f_<sub>1</sub> and _f_<sub>2</sub>), and the branching condition is encoded with 2 BDDs (in (d)).
-
 <img src="ndd_diagram.svg" width="100%">
+
+**An example of NDD** In the above figure, we represent Hadamard matrix _H_<sub>4</sub>'s values on each coordinate (_x_<sub>0</sub>_x_<sub>1</sub>, _y_<sub>0</sub>_y_<sub>1</sub>) as a BDD (in (b)) and an NDD (in (c)). Each NDD node represents a 2-bit field (_f_<sub>1</sub> and _f_<sub>2</sub>), and the branching condition is encoded with 2 BDDs (in (d)).
 
 ## Benchmark
 
@@ -33,20 +31,6 @@ For more details, please refer to [N-Queens Benchmark](https://github.com/XJTU-N
 
 ## How to use
 
-
-### NDD Label Backends
-
-NDD supports both homogeneous and mixed label backends: each field may select BDD, BCDD, or
-set-family ZDD labels. Every width-`w` field has the same Boolean domain of `2^w` bit vectors,
-independent of its backend. Fields of the same type share one backend engine and right-aligned
-variable layout. See the [Usage](https://github.com/XJTU-NetVerify/NDD/wiki/Usage) and
-[Design Notes](https://github.com/XJTU-NetVerify/NDD/wiki/Design-Notes) pages for details.
-
-The former finite-domain ZDD experiment used a different, one-of-`w` domain and has been retired.
-Its archived N-Queens measurements are identified as legacy data in
-[`results/nqueens_backend_results.md`](results/nqueens_backend_results.md); they are not results for
-the current `ZDD` backend.
-
 ## APIs
 
 The NDD library provides offers the following APIs.
@@ -59,6 +43,19 @@ The NDD library provides offers the following APIs.
 - `substitute()`: 
 
 Refer to the [API guide](https://github.com/XJTU-NetVerify/NDD/wiki/Manipulation-APIs) for more details. 
+
+## NDD Label Backends
+
+NDD supports both homogeneous and mixed label backends: each field may select BDD, BCDD, or
+set-family ZDD labels. Every width-`w` field has the same Boolean domain of `2^w` bit vectors,
+independent of its backend. Fields of the same type share one backend engine and right-aligned
+variable layout. See the [Usage](https://github.com/XJTU-NetVerify/NDD/wiki/Usage) and
+[Design Notes](https://github.com/XJTU-NetVerify/NDD/wiki/Design-Notes) pages for details.
+
+The former finite-domain ZDD experiment used a different, one-of-`w` domain and has been retired.
+Its archived N-Queens measurements are identified as legacy data in
+[`results/nqueens_backend_results.md`](results/nqueens_backend_results.md); they are not results for
+the current `ZDD` backend.
 
 ## The Origin of NDD
 
