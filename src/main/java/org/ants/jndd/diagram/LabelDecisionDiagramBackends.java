@@ -11,6 +11,9 @@ final class LabelDecisionDiagramBackends {
     private LabelDecisionDiagramBackends() {}
 
     static LabelDecisionDiagramBackend create(NDD.LabelMode mode, int nodeTableSize, int cacheSize) {
+        if (mode == NDD.LabelMode.BITSET) {
+            return new BitsetBackend();
+        }
         if (mode == NDD.LabelMode.COMPLEMENTED_BDD) {
             return new ComplementedBddBackend(new ComplementedBDD(nodeTableSize, cacheSize));
         }
@@ -400,6 +403,236 @@ final class LabelDecisionDiagramBackends {
         @Override
         public void gc() {
             engine.gc();
+        }
+    }
+
+    /** Canonical two-word truth tables for fields of at most seven bits (128 values). */
+    private static final class BitsetBackend implements LabelDecisionDiagramBackend {
+        private static final int MAX_WIDTH = 7;
+
+        private int variables;
+        private int width = -1;
+        private long universeLow;
+        private long universeHigh;
+        private long[] lows = new long[16];
+        private long[] highs = new long[16];
+        private int[] next = new int[16];
+        private int[] buckets = new int[32];
+        private int count;
+        private long totalCreated;
+
+        @Override
+        public NDD.LabelMode mode() {
+            return NDD.LabelMode.BITSET;
+        }
+
+        @Override
+        public boolean hasExplicitUniverse() {
+            return true;
+        }
+
+        @Override
+        public Object rawEngine() {
+            return this;
+        }
+
+        @Override
+        public int createVariableLabel() {
+            return -(++variables);
+        }
+
+        @Override
+        public int variableId(int label) {
+            if (label >= 0) {
+                throw new IllegalArgumentException("not a bitset variable token");
+            }
+            return -label - 1;
+        }
+
+        @Override
+        public int buildUniverse(int[] variableLabels, int offset, int length) {
+            if (width < 0) {
+                initialize(variableLabels.length);
+            }
+            if (width != variableLabels.length) {
+                throw new IllegalStateException("bitset backend width changed");
+            }
+            return 1;
+        }
+
+        private void initialize(int maximumWidth) {
+            if (maximumWidth <= 0 || maximumWidth > MAX_WIDTH) {
+                throw new IllegalArgumentException(
+                        "bitset labels support field widths 1-" + MAX_WIDTH
+                                + ", requested " + maximumWidth);
+            }
+            width = maximumWidth;
+            int assignments = 1 << width;
+            universeLow = assignments >= 64 ? -1L : (1L << assignments) - 1L;
+            universeHigh = assignments == 128 ? -1L : 0L;
+            lows[0] = 0L;
+            highs[0] = 0L;
+            lows[1] = universeLow;
+            highs[1] = universeHigh;
+            count = 2;
+            totalCreated = 2;
+            rebuildBuckets();
+        }
+
+        @Override
+        public int positiveLiteral(int universe, int variableLabel) {
+            int variable = variableId(variableLabel);
+            long low = 0L;
+            long high = 0L;
+            int assignments = 1 << width;
+            for (int assignment = 0; assignment < assignments; assignment++) {
+                if (((assignment >>> variable) & 1) == 0) {
+                    continue;
+                }
+                if (assignment < 64) {
+                    low |= 1L << assignment;
+                } else {
+                    high |= 1L << (assignment - 64);
+                }
+            }
+            return intern(low, high);
+        }
+
+        @Override
+        public int negativeLiteral(int universe, int variableLabel) {
+            return not(universe, positiveLiteral(universe, variableLabel));
+        }
+
+        @Override
+        public int ref(int label) {
+            return label;
+        }
+
+        @Override
+        public void deref(int label) {
+            // Interned truth tables live for the lifetime of this small backend.
+        }
+
+        @Override
+        public int and(int left, int right) {
+            return intern(lows[left] & lows[right], highs[left] & highs[right]);
+        }
+
+        @Override
+        public boolean matches(int label, int assignment) {
+            return (lows[label] & lows[assignment]) != 0L
+                    || (highs[label] & highs[assignment]) != 0L;
+        }
+
+        @Override
+        public int or(int left, int right) {
+            return intern(lows[left] | lows[right], highs[left] | highs[right]);
+        }
+
+        @Override
+        public int diff(int universe, int left, int right) {
+            return intern(lows[left] & ~lows[right], highs[left] & ~highs[right]);
+        }
+
+        @Override
+        public int not(int universe, int label) {
+            return intern(universeLow & ~lows[label], universeHigh & ~highs[label]);
+        }
+
+        @Override
+        public int orTo(int current, int add) {
+            return or(current, add);
+        }
+
+        @Override
+        public int andTo(int current, int other) {
+            return and(current, other);
+        }
+
+        @Override
+        public double satCount(int label, int fieldBits, int maxBits) {
+            long assignments = Long.bitCount(lows[label]) + Long.bitCount(highs[label]);
+            return assignments / Math.pow(2.0, maxBits - fieldBits);
+        }
+
+        private int intern(long low, long high) {
+            low &= universeLow;
+            high &= universeHigh;
+            if ((low | high) == 0L) {
+                return 0;
+            }
+            if (low == universeLow && high == universeHigh) {
+                return 1;
+            }
+            int bucket = hash(low, high) & (buckets.length - 1);
+            for (int entry = buckets[bucket]; entry != 0; entry = next[entry - 1]) {
+                int id = entry - 1;
+                if (lows[id] == low && highs[id] == high) {
+                    return id;
+                }
+            }
+            ensureCapacity();
+            if (count * 10 >= buckets.length * 7) {
+                buckets = new int[buckets.length << 1];
+                rebuildBuckets();
+                bucket = hash(low, high) & (buckets.length - 1);
+            }
+            int id = count++;
+            lows[id] = low;
+            highs[id] = high;
+            next[id] = buckets[bucket];
+            buckets[bucket] = id + 1;
+            totalCreated++;
+            return id;
+        }
+
+        private void ensureCapacity() {
+            if (count < lows.length) {
+                return;
+            }
+            int capacity = lows.length << 1;
+            long[] newLows = new long[capacity];
+            long[] newHighs = new long[capacity];
+            int[] newNext = new int[capacity];
+            System.arraycopy(lows, 0, newLows, 0, count);
+            System.arraycopy(highs, 0, newHighs, 0, count);
+            System.arraycopy(next, 0, newNext, 0, count);
+            lows = newLows;
+            highs = newHighs;
+            next = newNext;
+        }
+
+        private void rebuildBuckets() {
+            java.util.Arrays.fill(buckets, 0);
+            for (int id = 0; id < count; id++) {
+                int bucket = hash(lows[id], highs[id]) & (buckets.length - 1);
+                next[id] = buckets[bucket];
+                buckets[bucket] = id + 1;
+            }
+        }
+
+        private static int hash(long low, long high) {
+            long value = low * 0x9e3779b97f4a7c15L
+                    ^ Long.rotateLeft(high * 0xc2b2ae3d27d4eb4fL, 29);
+            value ^= value >>> 33;
+            value *= 0xff51afd7ed558ccdL;
+            value ^= value >>> 33;
+            return (int) (value ^ (value >>> 32));
+        }
+
+        @Override
+        public long nodeCount() {
+            return count;
+        }
+
+        @Override
+        public long totalCreated() {
+            return totalCreated;
+        }
+
+        @Override
+        public void gc() {
+            // Labels are compact canonical values and are retained until NDD is reinitialized.
         }
     }
 }

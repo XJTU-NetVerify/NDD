@@ -11,7 +11,8 @@ class LabelDecisionDiagramBackendFactoryTest {
         NDD.LabelMode[] modes = {
                 NDD.LabelMode.BDD,
                 NDD.LabelMode.COMPLEMENTED_BDD,
-                NDD.LabelMode.ZDD
+                NDD.LabelMode.ZDD,
+                NDD.LabelMode.BITSET
         };
 
         for (NDD.LabelMode mode : modes) {

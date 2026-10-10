@@ -30,7 +30,9 @@ public class NDD {
     public enum LabelMode {
         BDD,
         COMPLEMENTED_BDD,
-        ZDD
+        ZDD,
+        /** Explicit canonical truth-table labels for fields up to seven bits wide. */
+        BITSET
     }
 
     /** Operations accepted by {@link #apply(BinaryOperation, int, int)}. */
@@ -367,7 +369,7 @@ public class NDD {
         Object raw = backend.rawEngine();
         if (mode == LabelMode.BDD) bddEngine = (BDD) raw;
         else if (mode == LabelMode.COMPLEMENTED_BDD) bcddEngine = (ComplementedBDD) raw;
-        else zddEngine = (ZDD) raw;
+        else if (mode == LabelMode.ZDD) zddEngine = (ZDD) raw;
         return context;
     }
 

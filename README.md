@@ -5,7 +5,10 @@ For BDD, each node looks at a single **bit** each time, and branches based on wh
 in contrast, each NDD node looks at a **field** consisting of a fixed number of bits each time, and branches based on what set of values the field takes.
 But different from the classical multi-valued decision diagram (MDD), where a branch takes one **concrete** value from a domain, each branch in NDD takes a **symbolic** value, i.e., a subset of values from a domain.
 
-The branching conditions are compactly encoded with **external data structures**, including BDD, [complemented-edge BDD (BCDD)](https://dl.acm.org/doi/10.1145/123186.123222), and [zero-suppressed decision diagrams (ZDD)](https://en.wikipedia.org/wiki/Zero-suppressed_decision_diagram), etc.
+The branching conditions are compactly encoded with interchangeable label representations,
+including BDD, [complemented-edge BDD (BCDD)](https://dl.acm.org/doi/10.1145/123186.123222),
+[zero-suppressed decision diagrams (ZDD)](https://en.wikipedia.org/wiki/Zero-suppressed_decision_diagram),
+and explicit BITSET truth tables for small domains.
 In this sense, NDD can be seen as wrapping a lower-level decision diagram with an outer field-aware layer, and therefore the name of NDD can also be interpreted as "Nested Decision Diagram".
 
 <img src="ndd_diagram.svg" width="100%">
@@ -46,11 +49,25 @@ Refer to the [API guide](https://github.com/XJTU-NetVerify/NDD/wiki/Manipulation
 
 ## NDD Label Backends
 
-NDD supports both homogeneous and mixed label backends: each field may select BDD, BCDD, or
-set-family ZDD labels. Every width-`w` field has the same Boolean domain of `2^w` bit vectors,
+NDD supports both homogeneous and mixed label backends: each field may select BDD, BCDD,
+set-family ZDD, or BITSET labels. Every width-`w` field has the same Boolean domain of `2^w` bit vectors,
 independent of its backend. Fields of the same type share one backend engine and right-aligned
 variable layout. See the [Usage](https://github.com/XJTU-NetVerify/NDD/wiki/Usage) and
 [Design Notes](https://github.com/XJTU-NetVerify/NDD/wiki/Design-Notes) pages for details.
+
+BITSET stores a field's complete truth table in two machine words. Its set operations are constant
+time, but it is intentionally limited to fields of at most 7 bits; use a decision-diagram backend
+for wider domains.
+
+The same non-network product-configuration example can be run with BDD or BITSET labels:
+
+```bash
+mvn -DskipTests package
+java -cp target/ndd-1.0.1-jar-with-dependencies.jar application.examples.ProductConfigurationExample
+java -cp target/ndd-1.0.1-jar-with-dependencies.jar application.examples.ProductConfigurationExample BITSET
+```
+
+Both runs report 8 valid configurations and 3 valid blue configurations.
 
 The former finite-domain ZDD experiment used a different, one-of-`w` domain and has been retired.
 Its archived N-Queens measurements are identified as legacy data in
