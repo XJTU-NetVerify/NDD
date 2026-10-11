@@ -29,6 +29,8 @@ axes[0].set_ylabel('Compute speedup vs same-backend 1 worker')
 fig.suptitle('Original encoding, fixed left-fold; 5 fresh-process runs per point\n'
              'Lines: ratio of medians; shading: min/max of five paired-round ratios', fontsize=11)
 fig.savefig(root / 'scaling.svg')
+svg = root / 'scaling.svg'
+svg.write_text('\n'.join(line.rstrip() for line in svg.read_text().splitlines()) + '\n')
 fig.savefig(root / 'scaling.png', dpi=180)
 plt.close(fig)
 print('matplotlib', matplotlib.__version__)
