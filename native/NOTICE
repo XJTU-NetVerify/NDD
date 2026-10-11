@@ -13,3 +13,9 @@ return an invalid sentinel on table exhaustion, and records node allocations.
 It uses checked PNDD apply kernels, not upstream apply routines that assume
 node creation cannot fail. The original dependency checkout is not modified.
 Upstream copyright notices are retained in the fetched build sources.
+
+The build-local Lace adapter adds bounded sleeping to barrier and TOGETHER
+completion waits when workers outnumber the available processing units. It
+preserves the pinned dependency checkout and its upstream copyright notices.
+The affinity feature check enables GNU declarations so Linux CPU masks are
+respected when deciding whether the worker pool is oversubscribed.

@@ -26,8 +26,13 @@ For an existing pinned checkout use
 The supplied Sylvan checkout must be at
 `c8bf561ee64036375f4693eb389e57ec8ef4aa6d`; Lace is pinned to
 `63d8a5ea79922a234e284ee4b264fa5e4e784939` (1.6.2).
-The build adapts a private copy of Sylvan; it does not edit MTPNDD or its submodule.
+The build adapts private copies of Sylvan and Lace; it does not edit MTPNDD or its submodule.
 ZDD complement edges are disabled consistently in the dependency and caller.
+When workers outnumber the CPUs available to the process, the Lace adapter adds
+50 microsecond sleeps to GC barrier and `TOGETHER` completion waits. This avoids
+waiting workers occupying CPUs needed by preempted workers. The normal worker
+configuration retains the upstream busy waiting path. CI includes the full
+6-worker correctness/GC suite restricted to two CPUs, with its 120 second timeout.
 
 Native assertions are enabled in the test executable even in Release. Java native
 tests are opt-in; normal Maven tests do not require a native library. Native CI

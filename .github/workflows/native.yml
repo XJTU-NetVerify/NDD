@@ -21,7 +21,14 @@ jobs:
           cmake -S native -B native/build -DCMAKE_BUILD_TYPE=Debug
           cmake --build native/build -j2
       - name: Native differential and GC tests
-        run: ctest --test-dir native/build --output-on-failure
+        run: |
+          nproc
+          lscpu
+          ctest --test-dir native/build --output-on-failure
+      - name: Oversubscribed workers and GC
+        run: |
+          cpus=$(python3 -c 'import os; print(",".join(map(str, sorted(os.sched_getaffinity(0))[:2])))')
+          taskset -c "$cpus" ctest --test-dir native/build -R '^pndd_correctness_6$' --output-on-failure
       - name: Java integration and legacy regression tests
         run: mvn --batch-mode --no-transfer-progress -Dpndd.tests=true -Dpndd.library="$PWD/native/build/libpnddjni.so" verify
       - name: Sanitizers

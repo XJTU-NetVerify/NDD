@@ -231,6 +231,9 @@ MTPNDD; see the [benchmark reference](native/README.md#benchmarks).
 
 - One native engine can be active per JVM/process. External calls serialize
   admission; operation-internal and explicit batch tasks execute in parallel.
+- Prefer a worker count within the process's available CPUs. A build-local Lace
+  adapter respects Linux affinity masks and adds short sleeps to GC synchronization
+  waits when workers outnumber CPUs. CI also tests six workers on two CPUs.
 - NDD mark/sweep runs **between operations** in a stopped Lace frame. Sylvan
   label GC can run **inside** label operations, with temporary roots and pending
   results protected. A single operation or batch must fit its graph budget.
