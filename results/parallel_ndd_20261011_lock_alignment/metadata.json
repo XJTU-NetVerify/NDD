@@ -1,0 +1,21 @@
+{
+  "seed": 20261011,
+  "rounds": 5,
+  "memory_mib": 3072,
+  "cpu_masks": {
+    "1": "0",
+    "6": "0,2,4,6,8,10"
+  },
+  "binaries": {
+    "original": {
+      "path": "/home/cheney/NDD/native/build-release/pndd_nqueens",
+      "sha256": "5096dd19c5f0a3bd5d0e5b280e8cad983b148a1a775ffb7b9e231291c73d5132"
+    },
+    "aligned": {
+      "path": "/home/cheney/NDD/native/build-aligned/pndd_nqueens",
+      "sha256": "b1cfecc5528e07b3510fd8ce524bb1a5c33ce930eaa41317d47c16780890e9e0"
+    }
+  },
+  "change": "SpinLock alignas(64); engine aligned_alloc; all other production sources identical",
+  "clock": "CLOCK_MONOTONIC via Python perf_counter; communicate observes exit; GNU elapsed diagnostic only"
+}

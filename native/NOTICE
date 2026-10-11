@@ -1,0 +1,15 @@
+Parallel NDD uses Sylvan and Lace, licensed under Apache License 2.0.
+Sylvan: Copyright 2011-2016 Formal Methods and Tools, University of Twente;
+Copyright 2016-2017 Tom van Dijk, Johannes Kepler University Linz.
+The pinned Augists Sylvan fork supplies worker reference infrastructure.
+
+The task decomposition, sharded canonicalization and temporary ownership design
+are informed by MTPNDD, Copyright Augists and XJTU ANTS Netverify Lab,
+also licensed under Apache License 2.0. PNDD storage and Boolean kernels are
+new implementations, not a copy of MTPNDD's numerical leaves or caches.
+
+The build-local Sylvan adapter changes only Boolean/ZDD node construction to
+return an invalid sentinel on table exhaustion, and records node allocations.
+It uses checked PNDD apply kernels, not upstream apply routines that assume
+node creation cannot fail. The original dependency checkout is not modified.
+Upstream copyright notices are retained in the fetched build sources.

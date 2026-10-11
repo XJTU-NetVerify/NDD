@@ -1,0 +1,190 @@
+-- 
+-- Lace 1.6.2 configuration summary:
+--   Build type        : Release
+--   Shared libraries  : OFF
+--   Top-level project : OFF
+--   Use HWLOC         : OFF
+--   Use -march=native : ON
+--   Use -fPIC         : ON
+--   Backoff when idle : ON
+--   Count tasks       : OFF
+--   Count steals      : OFF
+--   Count splits      : OFF
+--   Record PIE times  : OFF
+-- 
+-- Configuring done (0.1s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/cheney/NDD/native/build-release
+[  7%] Built target lace
+[ 14%] Built target lace14
+[ 17%] Building C object sylvan-build/src/CMakeFiles/sylvan.dir/sylvan_mtbdd.c.o
+[ 21%] Building C object sylvan-build/src/CMakeFiles/sylvan.dir/sylvan_zdd.c.o
+[ 25%] Linking C static library libsylvan.a
+[ 64%] Built target sylvan
+[ 67%] Building C object CMakeFiles/pndd.dir/src/pndd.c.o
+[ 71%] Linking C static library libpndd.a
+[ 71%] Built target pndd
+[ 75%] Linking C executable pndd_nqueens
+[ 78%] Linking C executable pndd_entry
+[ 82%] Linking C executable pndd_test
+[ 85%] Linking C shared library libpnddjni.so
+[ 89%] Built target pndd_nqueens
+[ 92%] Built target pndd_entry
+[ 96%] Built target pndd_test
+[100%] Built target pnddjni
+Internal ctest changing into directory: /home/cheney/NDD/native/build-release
+Test project /home/cheney/NDD/native/build-release
+    Start 1: pndd_correctness_1
+1/4 Test #1: pndd_correctness_1 ...............   Passed    0.44 sec
+    Start 2: pndd_correctness_2
+2/4 Test #2: pndd_correctness_2 ...............   Passed    2.60 sec
+    Start 3: pndd_correctness_4
+3/4 Test #3: pndd_correctness_4 ...............   Passed    6.77 sec
+    Start 4: pndd_correctness_6
+4/4 Test #4: pndd_correctness_6 ...............   Passed    7.19 sec
+
+100% tests passed, 0 tests failed out of 4
+
+Total Test time (real) =  17.00 sec
+-- 
+-- Lace 1.6.2 configuration summary:
+--   Build type        : Debug
+--   Shared libraries  : OFF
+--   Top-level project : OFF
+--   Use HWLOC         : OFF
+--   Use -march=native : ON
+--   Use -fPIC         : ON
+--   Backoff when idle : ON
+--   Count tasks       : OFF
+--   Count steals      : OFF
+--   Count splits      : OFF
+--   Record PIE times  : OFF
+-- 
+-- Configuring done (0.1s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/cheney/NDD/native/build
+[  7%] Built target lace
+[ 14%] Built target lace14
+[ 17%] Building C object sylvan-build/src/CMakeFiles/sylvan.dir/sylvan_mtbdd.c.o
+[ 21%] Building C object sylvan-build/src/CMakeFiles/sylvan.dir/sylvan_zdd.c.o
+[ 25%] Linking C static library libsylvan.a
+[ 64%] Built target sylvan
+[ 67%] Building C object CMakeFiles/pndd.dir/src/pndd.c.o
+[ 71%] Linking C static library libpndd.a
+[ 71%] Built target pndd
+[ 75%] Linking C shared library libpnddjni.so
+[ 78%] Linking C executable pndd_entry
+[ 82%] Linking C executable pndd_test
+[ 85%] Linking C executable pndd_nqueens
+[ 89%] Built target pndd_nqueens
+[ 92%] Built target pndd_entry
+[ 96%] Built target pnddjni
+[100%] Built target pndd_test
+Internal ctest changing into directory: /home/cheney/NDD/native/build
+Test project /home/cheney/NDD/native/build
+    Start 1: pndd_correctness_1
+1/4 Test #1: pndd_correctness_1 ...............   Passed    0.72 sec
+    Start 2: pndd_correctness_2
+2/4 Test #2: pndd_correctness_2 ...............   Passed    2.71 sec
+    Start 3: pndd_correctness_4
+3/4 Test #3: pndd_correctness_4 ...............   Passed    7.03 sec
+    Start 4: pndd_correctness_6
+4/4 Test #4: pndd_correctness_6 ...............   Passed    7.53 sec
+
+100% tests passed, 0 tests failed out of 4
+
+Total Test time (real) =  17.98 sec
+-- 
+-- Lace 1.6.2 configuration summary:
+--   Build type        : Debug
+--   Shared libraries  : OFF
+--   Top-level project : OFF
+--   Use HWLOC         : OFF
+--   Use -march=native : ON
+--   Use -fPIC         : ON
+--   Backoff when idle : ON
+--   Count tasks       : OFF
+--   Count steals      : OFF
+--   Count splits      : OFF
+--   Record PIE times  : OFF
+-- 
+-- Configuring done (0.1s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/cheney/NDD/native/build-asan
+[  7%] Built target lace
+[ 15%] Built target lace14
+[ 19%] Building C object sylvan-build/src/CMakeFiles/sylvan.dir/sylvan_mtbdd.c.o
+[ 23%] Building C object sylvan-build/src/CMakeFiles/sylvan.dir/sylvan_zdd.c.o
+[ 26%] Linking C static library libsylvan.a
+[ 69%] Built target sylvan
+[ 73%] Building C object CMakeFiles/pndd.dir/src/pndd.c.o
+[ 76%] Linking C static library libpndd.a
+[ 76%] Built target pndd
+[ 80%] Linking C executable pndd_entry
+[ 84%] Linking C executable pndd_nqueens
+[ 88%] Linking C executable pndd_test
+[ 92%] Built target pndd_nqueens
+[ 96%] Built target pndd_entry
+[100%] Built target pndd_test
+BDD Unique table full, 16380 of 16384 buckets filled!
+all four backends, mixed fields, GC, batch, N-Queens: 1 workers OK
+BDD Unique table full, 16384 of 16384 buckets filled!
+all four backends, mixed fields, GC, batch, N-Queens: 6 workers OK
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ----------------------------< org.ants:ndd >----------------------------
+[INFO] Building ndd 1.0.1
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ ndd ---
+[WARNING] Using platform encoding (UTF-8 actually) to copy filtered resources, i.e. build is platform dependent!
+[INFO] skip non existing resourceDirectory /home/cheney/NDD/src/main/resources
+[INFO] 
+[INFO] --- compiler:3.11.0:compile (default-compile) @ ndd ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ ndd ---
+[WARNING] Using platform encoding (UTF-8 actually) to copy filtered resources, i.e. build is platform dependent!
+[INFO] skip non existing resourceDirectory /home/cheney/NDD/src/test/resources
+[INFO] 
+[INFO] --- compiler:3.11.0:testCompile (default-testCompile) @ ndd ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO] 
+[INFO] --- surefire:3.2.5:test (default-test) @ ndd ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running application.examples.ProductConfigurationExampleTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.037 s -- in application.examples.ProductConfigurationExampleTest
+[INFO] Running org.ants.jndd.bdd.ComplementedBDDTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.002 s -- in org.ants.jndd.bdd.ComplementedBDDTest
+[INFO] Running org.ants.jndd.parallel.ParallelNDDTest
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.942 s -- in org.ants.jndd.parallel.ParallelNDDTest
+[INFO] Running org.ants.jndd.diagram.NDDManipulationApiTest
+[INFO] Tests run: 10, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.022 s -- in org.ants.jndd.diagram.NDDManipulationApiTest
+[INFO] Running org.ants.jndd.diagram.NDDMixedBackendTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.007 s -- in org.ants.jndd.diagram.NDDMixedBackendTest
+[INFO] Running org.ants.jndd.diagram.NDDBitsetBackendTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.003 s -- in org.ants.jndd.diagram.NDDBitsetBackendTest
+[INFO] Running org.ants.jndd.diagram.LabelDecisionDiagramBackendFactoryTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.002 s -- in org.ants.jndd.diagram.LabelDecisionDiagramBackendFactoryTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 29, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] 
+[INFO] --- jar:3.4.1:jar (default-jar) @ ndd ---
+[INFO] 
+[INFO] --- assembly:3.7.1:single (make-assembly) @ ndd ---
+[INFO] Building jar: /home/cheney/NDD/target/ndd-1.0.1-jar-with-dependencies.jar
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  3.248 s
+[INFO] Finished at: 2026-10-11T15:05:35+08:00
+[INFO] ------------------------------------------------------------------------
+{"n":7,"backend":"BCDD","workers":6,"batch":true,"tree":false,"solutions":40,"init_s":0.008089362,"build_s":0.022645537,"reduce_s":0.003075851,"count_s":0.000042493,"compute_s":0.025802076,"cleanup_s":0.003001462,"nodes_created":4275,"tasks":778,"stolen_tasks":0,"external_runs":25,"gc":2,"native_bytes":10105144,"peak_native_bytes":10144346}

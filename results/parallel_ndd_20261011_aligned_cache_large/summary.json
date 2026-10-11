@@ -1,0 +1,114 @@
+[
+  {
+    "engine": "c",
+    "n": 13,
+    "backend": "BCDD",
+    "workers": 6,
+    "compact": 0,
+    "tree": 0,
+    "batch": null,
+    "ndd": 1,
+    "labels": 0,
+    "threshold": 4,
+    "chunk": 2,
+    "cache": 65536,
+    "successes": 5,
+    "failures": [],
+    "compute_s": {
+      "median": 7.870965137,
+      "minimum": 7.815894524,
+      "maximum": 8.001254695
+    },
+    "wall_s": {
+      "median": 8.032865966000827,
+      "minimum": 7.9701880239990714,
+      "maximum": 8.165385586000411
+    },
+    "max_rss_kb": {
+      "median": 877368,
+      "minimum": 877100,
+      "maximum": 877616
+    },
+    "init_s": {
+      "median": 0.022592578,
+      "minimum": 0.005064131,
+      "maximum": 0.038783291
+    },
+    "build_s": {
+      "median": 0.015392313,
+      "minimum": 0.014746088,
+      "maximum": 0.015893874
+    },
+    "reduce_s": {
+      "median": 7.827090779,
+      "minimum": 7.77413254,
+      "maximum": 7.958920251
+    },
+    "count_s": {
+      "median": 0.028276279,
+      "minimum": 0.026964868,
+      "maximum": 0.029850806
+    },
+    "cleanup_s": {
+      "median": 0.11677343,
+      "minimum": 0.110247811,
+      "maximum": 0.123659379
+    }
+  },
+  {
+    "engine": "c",
+    "n": 13,
+    "backend": "BCDD",
+    "workers": 6,
+    "compact": 0,
+    "tree": 0,
+    "batch": null,
+    "ndd": 1,
+    "labels": 0,
+    "threshold": 4,
+    "chunk": 2,
+    "cache": 262144,
+    "successes": 5,
+    "failures": [],
+    "compute_s": {
+      "median": 7.545770348,
+      "minimum": 7.506361654,
+      "maximum": 7.692572666
+    },
+    "wall_s": {
+      "median": 7.708871934000854,
+      "minimum": 7.663756552999985,
+      "maximum": 7.848979601998508
+    },
+    "max_rss_kb": {
+      "median": 883836,
+      "minimum": 883596,
+      "maximum": 884240
+    },
+    "init_s": {
+      "median": 0.026645662,
+      "minimum": 0.017037003,
+      "maximum": 0.028266124
+    },
+    "build_s": {
+      "median": 0.02097589,
+      "minimum": 0.02056101,
+      "maximum": 0.021606706
+    },
+    "reduce_s": {
+      "median": 7.496475613,
+      "minimum": 7.455997464,
+      "maximum": 7.642785804
+    },
+    "count_s": {
+      "median": 0.02871902,
+      "minimum": 0.027672009,
+      "maximum": 0.029842466
+    },
+    "cleanup_s": {
+      "median": 0.120800358,
+      "minimum": 0.109061183,
+      "maximum": 0.125049564
+    }
+  }
+]

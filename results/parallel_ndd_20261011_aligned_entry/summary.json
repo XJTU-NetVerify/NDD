@@ -1,0 +1,34 @@
+[
+  {
+    "engine": "c",
+    "workers": 1,
+    "scalar_s": 0.106579023,
+    "batch_s": 0.001299233,
+    "scalar_us_per_op": 10.6579023,
+    "batch_us_per_op": 0.1299233
+  },
+  {
+    "engine": "c",
+    "workers": 6,
+    "scalar_s": 0.006234575,
+    "batch_s": 0.000864702,
+    "scalar_us_per_op": 0.6234575,
+    "batch_us_per_op": 0.0864702
+  },
+  {
+    "engine": "jni",
+    "workers": 1,
+    "scalar_s": 0.112399733,
+    "batch_s": 0.003011869,
+    "scalar_us_per_op": 11.2399733,
+    "batch_us_per_op": 0.3011869
+  },
+  {
+    "engine": "jni",
+    "workers": 6,
+    "scalar_s": 0.007605336,
+    "batch_s": 0.002253574,
+    "scalar_us_per_op": 0.7605336,
+    "batch_us_per_op": 0.22535739999999999
+  }
+]

@@ -1,0 +1,2 @@
+["taskset", "-c", "0", "/home/cheney/NDD/native/build-release/pndd_entry", "1", "10000", "100"]
+{"engine":"c","workers":1,"operations":10000,"batch_size":100,"scalar_s":0.105917627,"batch_s":0.001267233}

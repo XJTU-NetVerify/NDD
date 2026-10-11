@@ -1,0 +1,9 @@
+{
+  "native/src/pndd.c": "6d48d898e2f0f74b445fc4f469f6f3461c090d3b611bfa6a838311f302da0f31",
+  "native/src/jni.c": "2306df775a39cc85cbb7ad250fb57ad27cdd760a305aa241bf8f6a7f48b0646b",
+  "native/tests/test_pndd.c": "26fd385dfc8266a4b351983c0d42facb13b3cc23ee6ea3230957af745ebcef6a",
+  "src/test/java/org/ants/jndd/parallel/ParallelNDDTest.java": "7daa17db29e9666068f80ddda53ad92cd90e2df1a08ea0f89bea24cad0cb6ae9",
+  "native/build-release/pndd_nqueens": "b1cfecc5528e07b3510fd8ce524bb1a5c33ce930eaa41317d47c16780890e9e0",
+  "native/build-release/libpnddjni.so": "b5357530488a3506f08012eaae33247f45464a03a212ca74aedfd9f86039ca84",
+  "target/ndd-1.0.1-jar-with-dependencies.jar": "f4ca30d1f07caf9721914bd96bf14960afe9165043f95f306f41b0e2960ba6d7"
+}

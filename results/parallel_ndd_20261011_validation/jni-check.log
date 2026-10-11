@@ -1,0 +1,1 @@
+{"n":7,"backend":"BCDD","workers":6,"batch":true,"tree":false,"solutions":40,"init_s":0.008426477,"build_s":0.029837699,"reduce_s":0.002806257,"count_s":0.000036426,"compute_s":0.032718209,"cleanup_s":0.002638625,"nodes_created":4275,"tasks":778,"stolen_tasks":0,"external_runs":25,"gc":2,"native_bytes":10056032,"peak_native_bytes":10094946}

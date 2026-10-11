@@ -1,0 +1,93 @@
+-- 
+-- Lace 1.6.2 configuration summary:
+--   Build type        : Debug
+--   Shared libraries  : OFF
+--   Top-level project : OFF
+--   Use HWLOC         : OFF
+--   Use -march=native : ON
+--   Use -fPIC         : ON
+--   Backoff when idle : ON
+--   Count tasks       : OFF
+--   Count steals      : OFF
+--   Count splits      : OFF
+--   Record PIE times  : OFF
+-- 
+-- Configuring done (0.1s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/cheney/NDD/native/build
+[  7%] Built target lace14
+[ 14%] Built target lace
+[ 17%] Building C object sylvan-build/src/CMakeFiles/sylvan.dir/sylvan_mtbdd.c.o
+[ 21%] Building C object sylvan-build/src/CMakeFiles/sylvan.dir/sylvan_zdd.c.o
+[ 25%] Linking C static library libsylvan.a
+[ 64%] Built target sylvan
+[ 67%] Building C object CMakeFiles/pndd.dir/src/pndd.c.o
+[ 71%] Linking C static library libpndd.a
+[ 71%] Built target pndd
+[ 75%] Building C object CMakeFiles/pndd_entry.dir/bench/entry.c.o
+[ 78%] Building C object CMakeFiles/pnddjni.dir/src/jni.c.o
+[ 82%] Building C object CMakeFiles/pndd_nqueens.dir/bench/nqueens.c.o
+[ 85%] Building C object CMakeFiles/pndd_test.dir/tests/test_pndd.c.o
+[ 89%] Linking C executable pndd_entry
+[ 92%] Linking C executable pndd_nqueens
+[ 96%] Linking C shared library libpnddjni.so
+[100%] Linking C executable pndd_test
+[100%] Built target pndd_test
+[100%] Built target pndd_entry
+[100%] Built target pnddjni
+[100%] Built target pndd_nqueens
+Internal ctest changing into directory: /home/cheney/NDD/native/build
+Test project /home/cheney/NDD/native/build
+    Start 1: pndd_correctness_1
+1/4 Test #1: pndd_correctness_1 ...............   Passed    0.69 sec
+    Start 2: pndd_correctness_2
+2/4 Test #2: pndd_correctness_2 ...............   Passed    2.76 sec
+    Start 3: pndd_correctness_4
+3/4 Test #3: pndd_correctness_4 ...............   Passed    7.17 sec
+    Start 4: pndd_correctness_6
+4/4 Test #4: pndd_correctness_6 ...............   Passed    7.88 sec
+
+100% tests passed, 0 tests failed out of 4
+
+Total Test time (real) =  18.51 sec
+-- 
+-- Lace 1.6.2 configuration summary:
+--   Build type        : Debug
+--   Shared libraries  : OFF
+--   Top-level project : OFF
+--   Use HWLOC         : OFF
+--   Use -march=native : ON
+--   Use -fPIC         : ON
+--   Backoff when idle : ON
+--   Count tasks       : OFF
+--   Count steals      : OFF
+--   Count splits      : OFF
+--   Record PIE times  : OFF
+-- 
+-- Configuring done (0.1s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/cheney/NDD/native/build-asan
+[  7%] Built target lace
+[ 15%] Built target lace14
+[ 19%] Building C object sylvan-build/src/CMakeFiles/sylvan.dir/sylvan_mtbdd.c.o
+[ 23%] Building C object sylvan-build/src/CMakeFiles/sylvan.dir/sylvan_zdd.c.o
+[ 26%] Linking C static library libsylvan.a
+[ 69%] Built target sylvan
+[ 73%] Building C object CMakeFiles/pndd.dir/src/pndd.c.o
+[ 76%] Linking C static library libpndd.a
+[ 76%] Built target pndd
+[ 80%] Building C object CMakeFiles/pndd_entry.dir/bench/entry.c.o
+[ 84%] Building C object CMakeFiles/pndd_nqueens.dir/bench/nqueens.c.o
+[ 88%] Building C object CMakeFiles/pndd_test.dir/tests/test_pndd.c.o
+[ 92%] Linking C executable pndd_entry
+[ 96%] Linking C executable pndd_nqueens
+[100%] Linking C executable pndd_test
+[100%] Built target pndd_entry
+[100%] Built target pndd_nqueens
+[100%] Built target pndd_test
+all four backends, mixed fields, GC, batch, N-Queens: 1 workers OK
+all four backends, mixed fields, GC, batch, N-Queens: 6 workers OK
+Exception in thread "main" java.lang.IllegalArgumentException: No enum constant org.ants.jndd.parallel.ParallelNDD.Backend.MIXED
+	at java.base/java.lang.Enum.valueOf(Enum.java:273)
+	at org.ants.jndd.parallel.ParallelNDD$Backend.valueOf(ParallelNDD.java:10)
+	at org.ants.jndd.parallel.ParallelNQueens.main(ParallelNQueens.java:94)

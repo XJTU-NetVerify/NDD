@@ -1,0 +1,3 @@
+# Preserve benchmark CSV CRLF and captured tool output without whitespace warnings.
+results/parallel_ndd_*/*.csv -whitespace
+results/parallel_ndd_*/*.log -whitespace

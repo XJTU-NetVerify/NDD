@@ -1,0 +1,22 @@
+{
+  "repeats": 5,
+  "cores": [
+    "0",
+    "2",
+    "4",
+    "6",
+    "8",
+    "10"
+  ],
+  "operations": 10000,
+  "batch_size": 100,
+  "sha256": {
+    "native/build-release/pndd_entry": "6f5b91d5135faf6caac7b8b4888fe0c25e53a6c6536d23b74a3623d6f3aeba57",
+    "native/build-release/libpnddjni.so": "e462eaac13a705e0cf64e8fb2a09f65189b2b8a7d16fd4f63de82fdf91e264ed",
+    "target/ndd-1.0.1-jar-with-dependencies.jar": "afc97def6ec920804959e9def5b3df2e68a6adbe70159d107b6acaa3d6eb1c84",
+    "native/bench/entry.c": "a65cc793fa72a63c437f0f701d58d70fc126a74fae15288e7b42ccc9f15c8f5a",
+    "native/bench/EntryBenchmark.java": "6ee803dc6992187329eafd476393c5da5657241aa4b67fc38275de829ab1a7a8",
+    "native/scripts/benchmark_entry.py": "149ec62a302688a3e43fb116da1c7de21698ebb648f14db46ef363d77be2d4cd"
+  },
+  "methodology": "Sequential shuffled paired rounds; fresh process per sample. Warm cache-hit AND; scalar then batch; includes release. GC and batch task splitting disabled. Scalar warmup 2000 operations; Java additionally warms 20 batches. Timings exclude init and warmup; this is not cold N-Queens."
+}

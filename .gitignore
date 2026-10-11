@@ -6,3 +6,10 @@
 **/.DS_Store
 wiki/
 NDD.wiki/
+
+# Native C/JNI build products
+/native/build*/
+/results/parallel_ndd_*/classes/
+/results/parallel_ndd_*/logs/
+
+/native/scripts/__pycache__/

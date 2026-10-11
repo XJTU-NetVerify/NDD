@@ -1,0 +1,2 @@
+["taskset", "-c", "0", "/home/cheney/.cache/ndd-bench-tools/sysroot/usr/lib/jvm/java-17-openjdk-amd64/bin/java", "-Xmx512m", "-XX:ActiveProcessorCount=1", "-Dpndd.library=/home/cheney/NDD/native/build-release/libpnddjni.so", "-cp", "results/parallel_ndd_20261011_entry/classes:/home/cheney/NDD/target/ndd-1.0.1-jar-with-dependencies.jar", "org.ants.jndd.parallel.EntryBenchmark", "1", "10000", "100"]
+{"engine":"jni","workers":1,"operations":10000,"batch_size":100,"scalar_s":0.112837522,"batch_s":0.002832308}

@@ -1,0 +1,51 @@
+Internal ctest changing into directory: /home/cheney/NDD/native/build-release
+Test project /home/cheney/NDD/native/build-release
+    Start 1: pndd_correctness_1
+1/4 Test #1: pndd_correctness_1 ...............   Passed    0.46 sec
+    Start 2: pndd_correctness_2
+2/4 Test #2: pndd_correctness_2 ...............   Passed    2.44 sec
+    Start 3: pndd_correctness_4
+3/4 Test #3: pndd_correctness_4 ...............   Passed    7.01 sec
+    Start 4: pndd_correctness_6
+4/4 Test #4: pndd_correctness_6 ...............   Passed    7.60 sec
+
+100% tests passed, 0 tests failed out of 4
+
+Total Test time (real) =  17.52 sec
+[  7%] Built target lace14
+[ 14%] Built target lace
+[ 64%] Built target sylvan
+[ 71%] Built target pndd
+[ 85%] Built target pndd_nqueens
+[ 85%] Built target pnddjni
+[ 92%] Built target pndd_entry
+[ 96%] Building C object CMakeFiles/pndd_test.dir/tests/test_pndd.c.o
+[100%] Linking C executable pndd_test
+[100%] Built target pndd_test
+Internal ctest changing into directory: /home/cheney/NDD/native/build
+Test project /home/cheney/NDD/native/build
+    Start 1: pndd_correctness_1
+1/4 Test #1: pndd_correctness_1 ...............   Passed    0.70 sec
+    Start 2: pndd_correctness_2
+2/4 Test #2: pndd_correctness_2 ...............   Passed    2.57 sec
+    Start 3: pndd_correctness_4
+3/4 Test #3: pndd_correctness_4 ...............   Passed    7.25 sec
+    Start 4: pndd_correctness_6
+4/4 Test #4: pndd_correctness_6 ...............   Passed    8.00 sec
+
+100% tests passed, 0 tests failed out of 4
+
+Total Test time (real) =  18.52 sec
+[  7%] Built target lace
+[ 15%] Built target lace14
+[ 69%] Built target sylvan
+[ 76%] Built target pndd
+[ 84%] Built target pndd_entry
+[ 96%] Building C object CMakeFiles/pndd_test.dir/tests/test_pndd.c.o
+[ 92%] Built target pndd_nqueens
+[100%] Linking C executable pndd_test
+[100%] Built target pndd_test
+BDD Unique table full, 16380 of 16384 buckets filled!
+all four backends, mixed fields, GC, batch, N-Queens: 1 workers OK
+BDD Unique table full, 16384 of 16384 buckets filled!
+all four backends, mixed fields, GC, batch, N-Queens: 6 workers OK

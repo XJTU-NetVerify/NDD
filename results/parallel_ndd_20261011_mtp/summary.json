@@ -1,0 +1,214 @@
+[
+  {
+    "engine": "mtp",
+    "n": 12,
+    "backend": "BCDD",
+    "workers": 2,
+    "compact": 0,
+    "tree": 0,
+    "batch": null,
+    "ndd": null,
+    "labels": null,
+    "threshold": null,
+    "chunk": null,
+    "cache": null,
+    "successes": 5,
+    "failures": [],
+    "compute_s": {
+      "median": 2.796,
+      "minimum": 2.741,
+      "maximum": 2.97
+    },
+    "wall_s": {
+      "median": 2.84,
+      "minimum": 2.81,
+      "maximum": 3.01
+    },
+    "max_rss_kb": {
+      "median": 1624204,
+      "minimum": 1623728,
+      "maximum": 1624872
+    }
+  },
+  {
+    "engine": "mtp",
+    "n": 12,
+    "backend": "BCDD",
+    "workers": 6,
+    "compact": 0,
+    "tree": 0,
+    "batch": null,
+    "ndd": null,
+    "labels": null,
+    "threshold": null,
+    "chunk": null,
+    "cache": null,
+    "successes": 5,
+    "failures": [],
+    "compute_s": {
+      "median": 1.188,
+      "minimum": 1.151,
+      "maximum": 1.206
+    },
+    "wall_s": {
+      "median": 1.27,
+      "minimum": 1.2,
+      "maximum": 1.29
+    },
+    "max_rss_kb": {
+      "median": 1624868,
+      "minimum": 1623960,
+      "maximum": 1632920
+    }
+  },
+  {
+    "engine": "mtp",
+    "n": 12,
+    "backend": "BCDD",
+    "workers": 4,
+    "compact": 0,
+    "tree": 0,
+    "batch": null,
+    "ndd": null,
+    "labels": null,
+    "threshold": null,
+    "chunk": null,
+    "cache": null,
+    "successes": 5,
+    "failures": [],
+    "compute_s": {
+      "median": 1.585,
+      "minimum": 1.578,
+      "maximum": 1.758
+    },
+    "wall_s": {
+      "median": 1.65,
+      "minimum": 1.62,
+      "maximum": 1.83
+    },
+    "max_rss_kb": {
+      "median": 1625096,
+      "minimum": 1623244,
+      "maximum": 1627112
+    }
+  },
+  {
+    "engine": "mtp",
+    "n": 13,
+    "backend": "BCDD",
+    "workers": 1,
+    "compact": 0,
+    "tree": 0,
+    "batch": null,
+    "ndd": null,
+    "labels": null,
+    "threshold": null,
+    "chunk": null,
+    "cache": null,
+    "successes": 0,
+    "failures": [
+      "rss_limit",
+      "rss_limit",
+      "rss_limit",
+      "rss_limit",
+      "rss_limit"
+    ]
+  },
+  {
+    "engine": "mtp",
+    "n": 13,
+    "backend": "BCDD",
+    "workers": 2,
+    "compact": 0,
+    "tree": 0,
+    "batch": null,
+    "ndd": null,
+    "labels": null,
+    "threshold": null,
+    "chunk": null,
+    "cache": null,
+    "successes": 0,
+    "failures": [
+      "rss_limit",
+      "rss_limit",
+      "rss_limit",
+      "rss_limit",
+      "rss_limit"
+    ]
+  },
+  {
+    "engine": "mtp",
+    "n": 13,
+    "backend": "BCDD",
+    "workers": 6,
+    "compact": 0,
+    "tree": 0,
+    "batch": null,
+    "ndd": null,
+    "labels": null,
+    "threshold": null,
+    "chunk": null,
+    "cache": null,
+    "successes": 0,
+    "failures": [
+      "rss_limit",
+      "rss_limit",
+      "rss_limit",
+      "rss_limit",
+      "rss_limit"
+    ]
+  },
+  {
+    "engine": "mtp",
+    "n": 12,
+    "backend": "BCDD",
+    "workers": 1,
+    "compact": 0,
+    "tree": 0,
+    "batch": null,
+    "ndd": null,
+    "labels": null,
+    "threshold": null,
+    "chunk": null,
+    "cache": null,
+    "successes": 5,
+    "failures": [],
+    "compute_s": {
+      "median": 4.948,
+      "minimum": 4.911,
+      "maximum": 5.151
+    },
+    "wall_s": {
+      "median": 4.99,
+      "minimum": 4.95,
+      "maximum": 5.19
+    },
+    "max_rss_kb": {
+      "median": 1623280,
+      "minimum": 1623072,
+      "maximum": 1623572
+    }
+  },
+  {
+    "engine": "mtp",
+    "n": 13,
+    "backend": "BCDD",
+    "workers": 4,
+    "compact": 0,
+    "tree": 0,
+    "batch": null,
+    "ndd": null,
+    "labels": null,
+    "threshold": null,
+    "chunk": null,
+    "cache": null,
+    "successes": 0,
+    "failures": [
+      "rss_limit",
+      "rss_limit",
+      "rss_limit",
+      "rss_limit",
+      "rss_limit"
+    ]
+  }
+]

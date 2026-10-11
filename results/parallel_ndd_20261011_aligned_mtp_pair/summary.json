@@ -1,0 +1,89 @@
+[
+  {
+    "engine": "c",
+    "n": 12,
+    "backend": "BCDD",
+    "workers": 6,
+    "compact": 0,
+    "tree": 0,
+    "batch": null,
+    "ndd": 1,
+    "labels": 0,
+    "threshold": 4,
+    "chunk": 2,
+    "cache": 262144,
+    "successes": 5,
+    "failures": [],
+    "compute_s": {
+      "median": 1.104916143,
+      "minimum": 1.072993388,
+      "maximum": 1.11554544
+    },
+    "wall_s": {
+      "median": 1.2209604870004114,
+      "minimum": 1.1591795410004124,
+      "maximum": 1.240183681000417
+    },
+    "max_rss_kb": {
+      "median": 189004,
+      "minimum": 188764,
+      "maximum": 189504
+    },
+    "init_s": {
+      "median": 0.035044787,
+      "minimum": 0.011396368,
+      "maximum": 0.050957076
+    },
+    "build_s": {
+      "median": 0.01783126,
+      "minimum": 0.017330687,
+      "maximum": 0.018383484
+    },
+    "reduce_s": {
+      "median": 1.083401789,
+      "minimum": 1.052066054,
+      "maximum": 1.093418134
+    },
+    "count_s": {
+      "median": 0.003666304,
+      "minimum": 0.003571944,
+      "maximum": 0.00380713
+    },
+    "cleanup_s": {
+      "median": 0.069228948,
+      "minimum": 0.068414922,
+      "maximum": 0.075670978
+    }
+  },
+  {
+    "engine": "mtp",
+    "n": 12,
+    "backend": "BCDD",
+    "workers": 6,
+    "compact": 0,
+    "tree": 0,
+    "batch": null,
+    "ndd": null,
+    "labels": null,
+    "threshold": null,
+    "chunk": null,
+    "cache": null,
+    "successes": 5,
+    "failures": [],
+    "compute_s": {
+      "median": 1.215,
+      "minimum": 1.198,
+      "maximum": 1.31
+    },
+    "wall_s": {
+      "median": 1.291177360999427,
+      "minimum": 1.2860240579993842,
+      "maximum": 1.3651492290009628
+    },
+    "max_rss_kb": {
+      "median": 1623732,
+      "minimum": 1622800,
+      "maximum": 1636504
+    }
+  }
+]

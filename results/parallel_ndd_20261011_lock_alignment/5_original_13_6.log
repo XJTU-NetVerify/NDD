@@ -1,0 +1,2 @@
+{"n":13,"backend":"BCDD","workers":6,"compact":0,"tree":0,"solutions":73712,"init_s":0.021634992,"compute_s":10.836537731,"cleanup_s":0.123216951,"nodes_live":9355911,"nodes_created":9355911,"tasks":6211,"stolen_tasks":2528,"cache_hits":69809022,"cache_misses":53155362,"gc":0,"external_runs":1,"merge_ns":26168927043,"native_bytes":760851904,"peak_native_bytes":845059514,"label_gc":0,"build_s":0.022749302,"reduce_s":10.784057854,"count_s":0.029705385}
+rss_kb=882532
