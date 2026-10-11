@@ -1,0 +1,22 @@
+{
+  "timed_samples": 300,
+  "all_timed_samples_correct": true,
+  "measured_driver_and_jni_unchanged": true,
+  "binary_sha256": {
+    "pndd_nqueens": "62779302c4394222e762c9439a05ed70663ab03817617d555842d4637c88a361",
+    "libpnddjni.so": "3dfb0bfb151660fdfe7a4bead0dfa1f148120a93563409f6ddef6b2979fdb873",
+    "pndd_test": "5e7d2595e0e4a7987fa0ce397dfcfeb20be069699877ccaf9833948475aeaacd"
+  },
+  "validation_test_sha256": "52eebbab99fc8d6875f9f167ab8ee2877f4ca22cacd700b02fbc028e94e07ec9",
+  "pressure_fixture_mib": 64,
+  "release_workers": [
+    1,
+    2,
+    4,
+    6,
+    28
+  ],
+  "asan_ubsan_workers": 28,
+  "diagnostic_command": "cc -O2 -std=gnu11 -I native/include -I native/build-release/sylvan-adapter/src -I native/build-release/lace-adapter/src -I native/build-release/_deps/lace-build results/parallel_ndd_20261011_wide_scaling/pressure_diagnostic.c native/build-release/libpndd.a native/build-release/sylvan-build/src/libsylvan.a native/build-release/_deps/lace-build/liblace.a -lpthread -lm -o /tmp/pndd-pressure-diagnostic; /tmp/pndd-pressure-diagnostic",
+  "note": "Timed source snapshot predates the test-fixture change. Runtime core/driver/JNI were unchanged. Original test assertion failure and the too-small 16 MiB crossproduct fixture trial are preserved separately. Revised 64 MiB fixture passes and tests active-task GC."
+}

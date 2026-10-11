@@ -1,0 +1,2 @@
+pndd_test: /home/cheney/NDD/native/tests/test_pndd.c:94: pressure: Assertion `pndd_apply_batch(e, PNDD_AND, a, b, CASES, out)' failed.
+timeout: the monitored command dumped core

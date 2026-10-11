@@ -183,6 +183,23 @@ This isolates scaling within the native engine. Its single-worker path is still
 slower than the corresponding legacy Java baseline; further serial optimization
 is needed.
 
+### Wider worker sweep: up to 28 workers
+
+A separate [five-round experiment](results/parallel_ndd_20261011_wide_scaling/REPORT.md)
+tests 1/6/8/10/12/14/16/20/24/28 workers with the same original encoding,
+left-fold and capacity settings. Each speedup uses the same backend's one-worker
+median **within this new cohort**. All 300 samples returned the correct counts.
+
+| N | Highest compute speedup | Configuration | Highest C process speedup | Configuration |
+|---:|---:|---|---:|---|
+| 12 | 3.92× | ZDD, 28 workers | 3.71× | BDD, 16 workers |
+| 13 | 4.01× | BCDD, 16 workers | 3.91× | BCDD, 16 workers |
+
+Scaling approaches a plateau: N=13/BCDD reaches 3.98× with 8 workers and 4.01×
+with 16 workers, a difference of less than 1%. Nearby configurations have
+overlapping timing ranges. [Full curves and raw data](results/parallel_ndd_20261011_wide_scaling/REPORT.md)
+include every backend/configuration and initialization/cleanup costs.
+
 ### Java API: end-to-end time and peak RSS
 
 Native Java API rows use six workers and batch construction. Legacy Java rows

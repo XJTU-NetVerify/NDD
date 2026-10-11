@@ -1,0 +1,16 @@
+workers=6 backend=1 round=0 GC=1->2 table=32768->65536
+workers=6 backend=1 round=1 GC=3->3 table=65536->65536
+workers=6 backend=1 round=2 GC=4->4 table=65536->65536
+workers=6 backend=1 round=3 GC=5->5 table=65536->65536
+workers=28 backend=1 round=0 GC=1->2 table=32768->65536
+workers=28 backend=1 round=1 GC=3->3 table=65536->65536
+workers=28 backend=1 round=2 GC=4->4 table=65536->65536
+workers=28 backend=1 round=3 GC=5->5 table=65536->65536
+workers=6 backend=2 round=0 GC=0->1 table=16384->32768
+workers=6 backend=2 round=1 GC=2->2 table=65536->65536
+workers=6 backend=2 round=2 GC=3->3 table=65536->65536
+workers=6 backend=2 round=3 GC=4->4 table=65536->65536
+workers=28 backend=2 round=0 GC=1->1 table=32768->32768
+workers=28 backend=2 round=1 GC=2->2 table=65536->65536
+workers=28 backend=2 round=2 GC=3->3 table=65536->65536
+workers=28 backend=2 round=3 GC=4->4 table=65536->65536

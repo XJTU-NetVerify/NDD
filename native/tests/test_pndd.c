@@ -63,22 +63,48 @@ static void exercise(unsigned workers, int mixed, pndd_backend backend) {
 }
 static void pressure(unsigned workers, pndd_backend backend) {
     pndd_field field = {16, backend}; pndd_config c = pndd_default_config();
-    c.workers = workers; c.memory_bytes = 16u * 1024 * 1024; c.cache_entries = 4096;
+    c.workers = workers; c.memory_bytes = 64u * 1024 * 1024; c.cache_entries = 4096;
     c.gc_interval = 0; c.label_parallel = 1; c.task_threshold = 2; c.chunk_size = 1;
     pndd_engine *e = pndd_open(&c, &field, 1); assert(e);
-    enum { CASES = 2048 };
+    enum { PREFIXES = 256, SUFFIXES = 128, CASES = PREFIXES * SUFFIXES };
+    pndd_handle prefix[PREFIXES], suffix[SUFFIXES];
     pndd_handle a[CASES], b[CASES], out[CASES];
-    /* Adjacent points share a long prefix. Their unions allocate fresh label
-     * paths while tasks are active, rather than only one new top-level node. */
-    for (unsigned i = 0; i < CASES; ++i) { a[i] = pndd_value(e, 0, i * 26); b[i] = pndd_value(e, 0, i * 26 + 1); assert(a[i] != PNDD_INVALID && b[i] != PNDD_INVALID); }
+    /* Worker-local allocation regions can grow the table during construction,
+     * leaving enough space for the old adjacent-point OR batch without a GC.
+     * Instead build small sets of half-word cubes, then materialize their full
+     * Cartesian product inside one batch. Its fresh labels outgrow the initial
+     * Sylvan table while remaining within the configured maximum capacity. */
+    for (unsigned half = 0; half < 2; ++half) {
+        unsigned count = half ? SUFFIXES : PREFIXES;
+        pndd_handle *parts = half ? suffix : prefix;
+        for (unsigned value = 0; value < count; ++value) {
+            pndd_handle root = pndd_constant(e, 1);
+            for (unsigned bit = 0; bit < 8; ++bit) {
+                pndd_handle literal = pndd_literal(e, 0, half * 8 + bit, (value >> (7 - bit)) & 1);
+                pndd_handle next = pndd_apply(e, PNDD_AND, root, literal);
+                assert(next != PNDD_INVALID);
+                pndd_release(e, root); pndd_release(e, literal); root = next;
+            }
+            parts[value] = root;
+        }
+    }
+    for (unsigned i = 0; i < CASES; ++i) { a[i] = prefix[i / SUFFIXES]; b[i] = suffix[i % SUFFIXES]; }
     for (unsigned round = 0; round < 4; ++round) {
         uint64_t before = pndd_get_stats(e).label_collections;
-        assert(pndd_apply_batch(e, PNDD_OR, a, b, CASES, out));
+        assert(pndd_apply_batch(e, PNDD_AND, a, b, CASES, out));
         if (round == 0) assert(pndd_get_stats(e).label_collections > before);
-        for (unsigned i = 0; i < CASES; ++i) { assert(pndd_satcount(e, out[i]) == 2); assert(pndd_release(e, out[i])); }
+        for (unsigned i = 0; i < CASES; ++i) {
+            assert(pndd_satcount(e, out[i]) == 1);
+            if (round == 0) {
+                uint64_t value = ((uint64_t)(i / SUFFIXES) << 8) | (i % SUFFIXES);
+                assert(pndd_evaluate(e, out[i], &value, 1) == 1);
+            }
+            assert(pndd_release(e, out[i]));
+        }
         assert(pndd_collect(e));
     }
-    for (unsigned i = 0; i < CASES; ++i) { pndd_release(e, a[i]); pndd_release(e, b[i]); }
+    for (unsigned i = 0; i < PREFIXES; ++i) pndd_release(e, prefix[i]);
+    for (unsigned i = 0; i < SUFFIXES; ++i) pndd_release(e, suffix[i]);
     assert(pndd_collect(e)); assert(pndd_get_stats(e).label_collections > 0); pndd_close(e);
 }
 static void memory_failure(unsigned workers) {

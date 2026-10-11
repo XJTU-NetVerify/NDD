@@ -37,6 +37,12 @@ configuration retains the upstream busy waiting path. CI includes the full
 Native assertions are enabled in the test executable even in Release. Java native
 tests are opt-in; normal Maven tests do not require a native library. Native CI
 adds C/JNI differential tests and ASan/UBSan checks.
+For a wider native scaling sweep use `benchmark.py --suite wide-scaling` with
+`--workers 1,6,8,10,12,14,16,20,24,28` and an explicit `--cores` list covering the
+largest worker count. Put distinct guest cores first, then their SMT siblings.
+The suite compares N=12/13 with BDD, BCDD and ZDD using the original encoding and
+fixed left-fold; each sample checks the known solution count. See the
+[28-worker experiment](../results/parallel_ndd_20261011_wide_scaling/REPORT.md).
 
 ```sh
 cmake -S native -B native/build-asan -DCMAKE_BUILD_TYPE=Debug \

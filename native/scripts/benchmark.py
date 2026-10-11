@@ -51,8 +51,11 @@ def native(n, mode, w, compact=0, tree=0, nd=1, lab=0, threshold=4, chunk=2, cac
     return dict(engine='c', n=n, backend=mode, workers=w, compact=compact, tree=tree,
                 ndd=nd, labels=lab, threshold=threshold, chunk=chunk, cache=cache)
 
-def configurations(suite):
+def configurations(suite, workers=None):
     result = []
+    if suite == 'wide-scaling':
+        result += [native(n, b, w) for n in (12, 13) for b in ('BDD', 'BCDD', 'ZDD')
+                   for w in workers]
     if suite in ('smoke', 'all'):
         result += [native(7, b, w) for b in ('BDD', 'BCDD', 'ZDD', 'BITSET', 'MIXED') for w in (1, 2, 4, 6)]
         result += [dict(engine='java', n=7, backend=b, workers=1, compact=0, tree=0) for b in ('BDD', 'BCDD', 'ZDD', 'BITSET')]
@@ -103,7 +106,9 @@ def configurations(suite):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--suite', choices=('smoke', 'scaling', 'final', 'compact', 'ablation', 'jni', 'tuning', 'cache-large', 'mtp', 'mtp-pair', 'mid', 'compact-middle', 'jni-large', 'jni-final', 'api-comparison', 'all'), default='smoke')
+    p.add_argument('--suite', choices=('smoke', 'scaling', 'wide-scaling', 'final', 'compact', 'ablation', 'jni', 'tuning', 'cache-large', 'mtp', 'mtp-pair', 'mid', 'compact-middle', 'jni-large', 'jni-final', 'api-comparison', 'all'), default='smoke')
+    p.add_argument('--workers', default='1,6,8,10,12,14,16,20,24,28',
+                   help='Worker grid for wide-scaling; must include the 1-worker baseline')
     p.add_argument('--mtp-root', type=Path, default=Path('/home/cheney/mtpndd'))
     p.add_argument('--repeats', type=int, default=5)
     p.add_argument('--rss-mib', type=int, default=4096)
@@ -114,14 +119,24 @@ def main():
     p.add_argument('--resume', action='store_true', help='Resume completed CSV rows with identical binaries and parameters')
     p.add_argument('--build', type=Path, default=ROOT / 'native/build-release')
     p.add_argument('--java', default=os.environ.get('JAVA', shutil.which('java') or '/home/cheney/.cache/ndd-bench-tools/sysroot/usr/lib/jvm/java-17-openjdk-amd64/bin/java'))
-    p.add_argument('--cores', default='0,2,4,6,8,10', help='Ordered distinct-core CPU IDs; inspect guest topology before use')
+    p.add_argument('--cores', default='0,2,4,6,8,10', help='Ordered CPU affinity IDs; put distinct cores before SMT siblings')
     args = p.parse_args()
     if args.repeats < 1 or args.engine_mib < 4 or args.engine_mib >= args.rss_mib:
         p.error('Invalid repetition count or memory budget')
     if args.timeout <= 0 or (args.tree_timeout is not None and args.tree_timeout <= 0):
         p.error('Timeouts must be positive')
-    cores = args.cores.split(',')
-    configs = configurations(args.suite)
+    try:
+        workers = [int(x) for x in args.workers.split(',')]
+        cpu_ids = [int(x) for x in args.cores.split(',')]
+    except ValueError:
+        p.error('Workers and CPU IDs must be comma-separated integers')
+    if args.suite == 'wide-scaling' and (1 not in workers or len(set(workers)) != len(workers)
+                                       or any(w < 1 or w > 256 for w in workers)):
+        p.error('Worker grid must contain 1, be unique, and stay within 1..256')
+    if len(set(cpu_ids)) != len(cpu_ids) or not set(cpu_ids) <= os.sched_getaffinity(0):
+        p.error('CPU IDs must be unique and available to this process')
+    cores = list(map(str, cpu_ids))
+    configs = configurations(args.suite, workers)
     if len(cores) < max(c['workers'] for c in configs):
         p.error('Not enough distinct-core CPU IDs')
     out = args.out or ROOT / 'results' / ('parallel_ndd_' + time.strftime('%Y%m%d_%H%M%S') + '_' + args.suite)
@@ -146,6 +161,8 @@ def main():
                     source_sha256={str(f.relative_to(ROOT)): sha(f) for f in sources},
                     native_sha256=sha(args.build / 'pndd_nqueens'), jni_sha256=sha(args.build / 'libpnddjni.so'), java_jar_sha256=sha(jar), java=capture([args.java, '-version']),
                     topology=capture(['lscpu']), compiler=capture(['gcc', '--version']), cores=cores,
+                    worker_grid=workers if args.suite == 'wide-scaling' else None,
+                    cpu_topology=capture(['lscpu', '-e=CPU,CORE,SOCKET,ONLINE']),
                     cmake_cache=(args.build / 'CMakeCache.txt').read_text(),
                     methodology='Fresh processes, no warmup, paired shuffled rounds, exclusive sequential samples; outer monotonic wall from process spawn to dedicated wait-thread completion, independent of RSS polling; GNU time/realtime wall recorded separately, /usr/bin/time RSS; 50ms process-tree RSS ceiling; cold JIT included; init includes field generation. Native combined cache and legacy per-operation/backend caches are not identical budgets.')
     if args.suite in ('mtp', 'mtp-pair'):
@@ -154,7 +171,7 @@ def main():
         metadata['mtp_note'] = 'Original fixed-capacity driver; same RSS ceiling but different table/cache allocation and init timing. Ceiling failures are retained.'
     if args.resume:
         previous = json.loads((out / 'metadata.json').read_text())
-        for key in ('timer_version', 'suite', 'repeats', 'rss_mib', 'engine_mib', 'timeout', 'tree_timeout', 'native_sha256', 'jni_sha256', 'java_jar_sha256', 'cores', 'topology'):
+        for key in ('timer_version', 'suite', 'repeats', 'rss_mib', 'engine_mib', 'timeout', 'tree_timeout', 'native_sha256', 'jni_sha256', 'java_jar_sha256', 'cores', 'topology', 'worker_grid'):
             if previous.get(key) != metadata.get(key): raise SystemExit(f'Resume mismatch: {key}')
         (out / 'resume_metadata.json').write_text(json.dumps(metadata, indent=2))
     else:
