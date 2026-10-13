@@ -1,0 +1,22 @@
+Internal ctest changing into directory: /home/cheney/NDD-parallel-MTNDD/mtndd/build-asan
+Test project /home/cheney/NDD-parallel-MTNDD/mtndd/build-asan
+    Start 1: mtndd_nqueens8
+1/8 Test #1: mtndd_nqueens8 ...................   Passed    0.32 sec
+    Start 2: mtndd_conversion
+2/8 Test #2: mtndd_conversion .................   Passed    0.10 sec
+    Start 3: mtndd_fraction
+3/8 Test #3: mtndd_fraction ...................   Passed    0.01 sec
+    Start 4: mtndd_fraction_1
+4/8 Test #4: mtndd_fraction_1 .................   Passed    0.01 sec
+    Start 5: mtndd_fraction_6
+5/8 Test #5: mtndd_fraction_6 .................   Passed    0.02 sec
+    Start 6: mtndd_cache_publication
+6/8 Test #6: mtndd_cache_publication ..........   Passed    0.04 sec
+    Start 7: mtndd_arithmetic_oracle_1
+7/8 Test #7: mtndd_arithmetic_oracle_1 ........   Passed    0.09 sec
+    Start 8: mtndd_arithmetic_oracle_6
+8/8 Test #8: mtndd_arithmetic_oracle_6 ........   Passed    0.25 sec
+
+100% tests passed, 0 tests failed out of 8
+
+Total Test time (real) =   0.85 sec

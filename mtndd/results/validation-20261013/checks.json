@@ -1,0 +1,21 @@
+{
+  "date": "2026-10-13",
+  "java": {
+    "tests": 10,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "release_ctest": 8,
+  "debug_asan_ubsan_ctest": 8,
+  "asan_options": "detect_leaks=1",
+  "ubsan_options": "halt_on_error=1",
+  "numerical_oracle": "2 fields x 16 values, fraction/double, four pointwise operations + sum-out, workers 1 and 6",
+  "performance_runs_added": 0,
+  "upstream_tsv_unchanged": {
+    "bench_results_serial_release_20260422_112658.tsv": true,
+    "bench_results_parallel_release_20260422_112922.tsv": true,
+    "bench_results_parallel_pgo_20260422_113509.tsv": true,
+    "bench_results_serial_pgo_20260422_113253.tsv": true
+  }
+}

@@ -1,0 +1,73 @@
+digraph MTPNDD {
+    rankdir=TB;
+    splines=true;
+    bgcolor="white";
+    compound=true;
+    newrank=true;
+    node [shape=box, style="rounded,filled", fillcolor="#f7f7f7", color="#555555", fontname="Helvetica", fontsize=11];
+    edge [color="#606060", fontname="Helvetica", fontsize=10, arrowsize=0.8];
+
+    subgraph cluster_java {
+        label="Java API";
+        style="dashed";
+        color="#b0b0b0";
+        java_api [label="MTPNDDEngine / MTPNDD / MTPNDDConfig\n• lifecycle, field management\n• boolean & quantifier ops\n• builder-pattern config", shape=component, fillcolor="#d7ecff"];
+    }
+
+    subgraph cluster_jni {
+        label="JNI Bridge";
+        style="dashed";
+        color="#b0b0b0";
+        jni [label="mtpndd_jni.c\n• maps Java calls to C API\n• pointer ↔ long conversion", shape=component, fillcolor="#dbe8ff"];
+    }
+
+    subgraph cluster_api {
+        label="C API";
+        style="dashed";
+        color="#b0b0b0";
+        api [label="mtpndd.h\n• single include header\n• init/shutdown & ops", shape=component, fillcolor="#c5dcff"];
+    }
+
+    subgraph cluster_core {
+        label="Core Library";
+        style="rounded";
+        color="#c0c0c0";
+        common [label="mtpndd_common.c\n• runtime init/quit\n• field & config registry\n• error/status tracking", fillcolor="#ffe5cc"];
+        config [label="Global State\n(g_mtpndd_config, g_mtpndd_pal_config)\n• per-field metadata\n• nodetables & caches\n• GC protection registry", fillcolor="#fff4d9"];
+        node_ops [label="mtpndd_node.c\n• node/edge structures\n• AND/OR/NOT/DIFF/EXIST ops\n• two-phase AND (filter→recurse)\n• MTBDD conversion bridge", fillcolor="#e4f7d7"];
+        nodetable [label="mtpndd_nodetable.c\n• unique-table canonicalization\n• spinlock-sharded buckets\n• dynamic rehash & GC trigger", fillcolor="#e4f7d7"];
+        cache [label="mtpndd_operation_cache.c\n• AND/OR/NOT result cache\n• lock-striped entries\n• hash by node identity", fillcolor="#e4f7d7"];
+        mempool [label="mtpndd_memory_pool.c\n• slab-based object pools\n• nodes, edges, entries, maps\n• batch alloc, reuse on free", fillcolor="#e4f7d7"];
+    }
+
+    subgraph cluster_runtime {
+        label="External Runtime";
+        style="dotted";
+        color="#bcbcbc";
+        lace [label="Lace\n• work-stealing scheduler\n• SPAWN/SYNC task parallelism", shape=ellipse, fillcolor="#f0f0f0"];
+        sylvan [label="Sylvan\n• BDD/MTBDD storage & ops\n• satcount, refs, GC", shape=ellipse, fillcolor="#f0f0f0"];
+    }
+
+    java_api -> jni [label="JNI calls"];
+    jni -> api [label="C function calls"];
+
+    api -> common [label="init/quit" weight=2];
+    api -> node_ops [label="boolean ops" weight=2];
+
+    common -> config [label="initializes" weight=2];
+    common -> lace [label="lace_start"];
+    common -> sylvan [label="sylvan_init_*"];
+
+    node_ops -> nodetable [label="mtpndd_mk" weight=2];
+    node_ops -> cache [label="lookup/store"];
+    node_ops -> mempool [label="alloc/free"];
+    node_ops -> sylvan [label="BDD label ops"];
+
+    nodetable -> config [label="stats"];
+    nodetable -> mempool [label="alloc entries"];
+
+    cache -> config [label="registered caches"];
+    mempool -> config [label="capacity params"];
+
+    config -> sylvan [label="size params" style="dashed"];
+}

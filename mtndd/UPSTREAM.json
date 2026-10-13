@@ -1,0 +1,9 @@
+{
+  "repository": "https://github.com/Augists/mtpndd",
+  "commit": "a8649f58ca1ee4841dd37fca86288dd5809cd12c",
+  "branch": "feature/c",
+  "sylvan_commit": "c8bf561ee64036375f4693eb389e57ec8ef4aa6d",
+  "lace_commit": "63d8a5ea79922a234e284ee4b264fa5e4e784939",
+  "imported": "2026-10-13",
+  "historical_benchmarks": "Original four TSV sweeps retained byte-for-byte; not measurements of branch fixes."
+}

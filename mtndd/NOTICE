@@ -1,0 +1,8 @@
+This module imports source from https://github.com/Augists/mtpndd at
+commit a8649f58ca1ee4841dd37fca86288dd5809cd12c (feature/c).
+Original copyright notices and Apache-2.0 LICENSE are retained.
+The branch adds build integration, correctness fixes, tests and documentation.
+Sylvan and Lace are fetched at the same commits as native/; their licenses
+and attribution are described in ../native/NOTICE and their source repositories.
+Historical TSV benchmark files are preserved byte-for-byte, with SHA256 in
+results/upstream-20260422/provenance.json. They predate this branch's fixes.

@@ -13,3 +13,8 @@ NDD.wiki/
 /results/parallel_ndd_*/logs/
 
 /native/scripts/__pycache__/
+
+# Separate MTNDD build/module products
+/mtndd/build*/
+/mtndd/jni/target/
+/mtndd/scripts/__pycache__/

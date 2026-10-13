@@ -1,0 +1,28 @@
+{
+  "source_commit": "a8649f58ca1ee4841dd37fca86288dd5809cd12c",
+  "samples": 168,
+  "files": [
+    {
+      "file": "bench_results_parallel_pgo_20260422_113509.tsv",
+      "sha256": "d4ef5bfa3c8e72086a75fd203777c9e90ecf75f9ae22d5b20fbf67fa43cf9eae",
+      "samples": 42
+    },
+    {
+      "file": "bench_results_parallel_release_20260422_112922.tsv",
+      "sha256": "a5a7af79fef3c9383b4e2ed036df3155b8c4ec6505e8ca21de2aa9eb1629a44d",
+      "samples": 42
+    },
+    {
+      "file": "bench_results_serial_pgo_20260422_113253.tsv",
+      "sha256": "b4dbc3c1ec919cec2c4fb06ac143bc04d8ed74581788a4bfc307e2ffd6940caa",
+      "samples": 42
+    },
+    {
+      "file": "bench_results_serial_release_20260422_112658.tsv",
+      "sha256": "49145fff6ffc4a3dac54a3f7bbae8a893f98d2030b3fbc9720635edf35307d4e",
+      "samples": 42
+    }
+  ],
+  "aggregation": "One historical observation per configuration; no new performance runs.",
+  "scope": "C solver wall after runtime init and before shutdown, including field/formula construction and count; machine metadata incomplete."
+}
