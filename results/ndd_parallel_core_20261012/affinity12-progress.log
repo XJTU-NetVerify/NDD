@@ -1,0 +1,142 @@
+01 fattree12-mf3-native1-r1: ok total=121.913557785s wall=123.313s RSS=3201.9MiB
+01 fattree12-mf3-native6-r1: ok total=65.128472915s wall=66.585s RSS=3364.9MiB
+01 fattree12-mf3-native6-r2: ok total=64.84022357s wall=66.373s RSS=3326.7MiB
+01 fattree12-mf3-native1-r2: ok total=124.034343396s wall=125.478s RSS=3116.5MiB
+[
+  {
+    "size": 12,
+    "variant": "affinity",
+    "workers": 1,
+    "samples": 2,
+    "ndd_nodes_alive": 5913915,
+    "spf_reachability": 21.893942656500002,
+    "mean_cpu_cores": 1.2566076896478244,
+    "verification_seconds": 0.925211162,
+    "native_priority_list_batches": 946,
+    "label_nodes_alive_bcdd": 5404132,
+    "native_cache_hits": 509321504,
+    "label_nodes_created_bcdd": 47077935,
+    "label_nodes_alive_total": 5404132,
+    "ndd_test_plan": 1,
+    "native_tasks": 0,
+    "native_external_runs": 1588649,
+    "ndd_native_budget_mib": 3072,
+    "label_nodes_alive_bdd": 0,
+    "native_collections": 4,
+    "mine": 0.0022662925,
+    "spf_fwd": 6.328988239,
+    "label_nodes_created_bdd": 0,
+    "semantic_condition_rows": 335628,
+    "src_compute": 92.8951620245,
+    "src_compute_range": [
+      91.960723186,
+      93.829600863
+    ],
+    "exit": 8.44875e-05,
+    "timed_peak_rss_mib": 3153.134765625,
+    "adapter_collections": 4,
+    "src_rib_dump": 0.7763740885,
+    "native_stolen_tasks": 0,
+    "spf_acl": 0.0016802125,
+    "src": 93.672442913,
+    "native_peak_bytes": 1340238584,
+    "peak_rss_mib": 3159.185546875,
+    "peak_rss_mib_range": [
+      3116.49609375,
+      3201.875
+    ],
+    "reachability_csv_rows": 0,
+    "native_label_collections": 8,
+    "native_cache_misses": 437888164,
+    "total": 122.9739505905,
+    "total_range": [
+      121.913557785,
+      124.034343396
+    ],
+    "label_nodes_alive_zdd": 0,
+    "cpu_seconds": 156.316958,
+    "native_priority_list_requests": 31715,
+    "native_merge_seconds": 27.4012673035,
+    "spf": 28.2265130365,
+    "ndd_nodes_created": 13035253,
+    "bgp_routes": 163890,
+    "wall_seconds": 124.39546914099992,
+    "wall_seconds_range": [
+      123.31336082600046,
+      125.47757745599938
+    ],
+    "native_bytes": 1183438141,
+    "rib_rows": 72,
+    "init": 0.9881906675000001,
+    "label_nodes_created_zdd": 0,
+    "self_scaling": 1.0
+  },
+  {
+    "size": 12,
+    "variant": "affinity",
+    "workers": 6,
+    "samples": 2,
+    "ndd_nodes_alive": 5952245,
+    "spf_reachability": 14.3370092915,
+    "mean_cpu_cores": 3.022661921894893,
+    "verification_seconds": 0.9548667685000001,
+    "native_priority_list_batches": 946,
+    "label_nodes_alive_bcdd": 5443993,
+    "native_cache_hits": 513555702,
+    "label_nodes_created_bcdd": 48329424,
+    "label_nodes_alive_total": 5443993,
+    "ndd_test_plan": 1,
+    "native_tasks": 1741109.5,
+    "native_external_runs": 1588733.5,
+    "ndd_native_budget_mib": 3072,
+    "label_nodes_alive_bdd": 0,
+    "native_collections": 4,
+    "mine": 0.0022501285000000003,
+    "spf_fwd": 7.1158729009999995,
+    "label_nodes_created_bdd": 0,
+    "semantic_condition_rows": 335628,
+    "src_compute": 41.670927844,
+    "src_compute_range": [
+      41.400797002,
+      41.941058686
+    ],
+    "exit": 9.72115e-05,
+    "timed_peak_rss_mib": 3337.861328125,
+    "adapter_collections": 4,
+    "src_rib_dump": 0.768668083,
+    "native_stolen_tasks": 132574,
+    "spf_acl": 0.001012759,
+    "src": 42.4404077825,
+    "native_peak_bytes": 1342979762,
+    "peak_rss_mib": 3345.791015625,
+    "peak_rss_mib_range": [
+      3326.671875,
+      3364.91015625
+    ],
+    "reachability_csv_rows": 0,
+    "native_label_collections": 8,
+    "native_cache_misses": 453823439,
+    "total": 64.9843482425,
+    "total_range": [
+      64.84022357,
+      65.128472915
+    ],
+    "label_nodes_alive_zdd": 0,
+    "cpu_seconds": 200.9425225,
+    "native_priority_list_requests": 31715,
+    "native_merge_seconds": 29.470492444999998,
+    "spf": 21.455874425,
+    "ndd_nodes_created": 13037610,
+    "bgp_routes": 163890,
+    "wall_seconds": 66.47887888749983,
+    "wall_seconds_range": [
+      66.37256679199982,
+      66.58519098299985
+    ],
+    "native_bytes": 1191282612,
+    "rib_rows": 72,
+    "init": 1.0155679115,
+    "label_nodes_created_zdd": 0,
+    "self_scaling": 1.892362606017099
+  }
+]

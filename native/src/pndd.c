@@ -3,6 +3,9 @@
  * Sylvan/Lace remain separate Apache-2.0 dependencies. See native/NOTICE. */
 #include "pndd.h"
 #include <sylvan.h>
+#if defined(PNDD_EXPERIMENT_SYLVAN_CACHE) || defined(PNDD_FAST_BCDD)
+#include <sylvan_int.h>
+#endif
 #include <pthread.h>
 #include <stdatomic.h>
 #include <stdlib.h>
@@ -10,6 +13,20 @@
 #include <math.h>
 #include <time.h>
 #include <limits.h>
+#if defined(PNDD_PROFILE) || defined(PNDD_PAR_PROFILE)
+#include <stdio.h>
+#endif
+#ifdef PNDD_PAR_PROFILE
+typedef struct {
+    uint64_t lock_calls[4], lock_samples[4], lock_contended[4], lock_wait_ns[4], lock_max_ns[4];
+    uint64_t lists, list_ns, list_max_ns;
+} ParallelProfile;
+#endif
+#ifdef PNDD_PROFILE
+typedef struct {
+    uint64_t labels_calls, labels_ns, label_hits, label_misses, prepare_ns, misses, jobs, costly_jobs, bins[5];
+} Profile;
+#endif
 
 #define SHARDS 64
 #define BLOCK 1024
@@ -17,14 +34,22 @@
 #define INVALID_ID UINT32_MAX
 #define MAX_FIELDS 256
 #define LABEL_BITS UINT32_MAX
+#define LOCAL_CACHE_ENTRIES 16384
 
 typedef struct { uint64_t label; uint32_t target; } Edge;
 typedef struct Node {
     uint64_t hash;
     uint32_t field, count, next, cookie, refs;
     unsigned char mark;
+#ifdef PNDD_EXPERIMENT_SATCOUNT_CACHE
+    /* Relative cardinality is immutable with this node. The admitted count
+       path alone writes it; a newly allocated/reused node starts invalid. */
+    double sat_count;
+    unsigned char sat_count_valid;
+#endif
     Edge edges[];
 } Node;
+typedef struct NodeSlab { struct NodeSlab *next; unsigned char storage[]; } NodeSlab;
 typedef struct { uint64_t low, high, hash; uint32_t var, next; unsigned char mark; } Label;
 /* Independent shards must not invalidate each other's lock cache line. */
 typedef struct { _Alignas(64) atomic_flag flag; } SpinLock;
@@ -40,6 +65,18 @@ static void spin_lock(SpinLock *lock) {
 static void spin_unlock(SpinLock *lock) { atomic_flag_clear_explicit(&lock->flag, memory_order_release); }
 typedef struct { SpinLock lock; uint32_t *buckets; size_t size, count; } Unique;
 typedef struct { uint64_t a, b, result; uint32_t key; } Cache;
+#ifdef PNDD_OPTIMISTIC_CACHE
+/* Keep the existing 32-byte budget. Full operation keys use 19 bits; bit 19
+ * marks an in-progress write, and the remaining 44 bits are a version. */
+#define CACHE_BUSY (UINT64_C(1) << 19)
+#define CACHE_KEY_MASK (CACHE_BUSY - 1)
+#define CACHE_VERSION_STEP (CACHE_BUSY << 1)
+#define CACHE_VERSION_MASK (~(CACHE_VERSION_STEP - 1))
+typedef struct { _Atomic uint64_t a, b, result, stamp; } SharedCache;
+_Static_assert(sizeof(SharedCache) == sizeof(Cache), "Shared cache budget must remain unchanged");
+#else
+typedef Cache SharedCache;
+#endif
 typedef struct RootFrame {
     struct RootFrame *previous;
     uint64_t *values;
@@ -47,13 +84,35 @@ typedef struct RootFrame {
     uint32_t field;
 } RootFrame;
 typedef struct {
+    RootFrame *head;
+#ifdef PNDD_PAD_ROOTS
+    /* The allocation header permits pointer alignment, not over-alignment.
+       A 64-byte stride isolates the only written member without aligned_alloc. */
+    unsigned char padding[64 - sizeof(RootFrame *)];
+#endif
+} RootSlot;
+typedef struct {
     pndd_field spec;
     uint32_t start;
     uint64_t universe;
-    uint32_t literals[128];
+    uint32_t *literals;
 } Field;
 typedef struct { uint64_t label; uint32_t a, b, target; } Job;
-typedef struct { uint64_t hits, misses, nodes_live, nodes_created, labels_live, labels_created, merge_ns; size_t credit; uint32_t node_next, node_end, cookie_next; char padding[180]; } WorkerStats;
+typedef struct { _Alignas(64) uint64_t hits, misses, nodes_live, nodes_created, labels_live, labels_created, merge_ns; size_t credit; uint32_t node_next, node_end, cookie_next; char padding[180];
+#ifdef PNDD_NODE_SLABS
+    Node *node_cells;
+#endif
+#ifdef PNDD_LOCAL_CACHE
+    Cache *local_cache;
+    size_t local_entries;
+#endif
+#ifdef PNDD_PROFILE
+    Profile profile;
+#endif
+#ifdef PNDD_PAR_PROFILE
+    ParallelProfile parallel_profile;
+#endif
+} WorkerStats;
 struct pndd_engine {
     pndd_config config;
     size_t field_count;
@@ -65,11 +124,13 @@ struct pndd_engine {
     uint32_t node_high, label_high;
     uint32_t *free_nodes, *free_labels;
     size_t free_node_count, free_label_count;
+    NodeSlab *node_slabs;
+    Node *free_node_cells;
     Unique node_unique[SHARDS], label_unique[SHARDS];
     pthread_mutex_t allocation;
     SpinLock cache_locks[SHARDS];
-    Cache *cache;
-    RootFrame **roots;
+    SharedCache *cache;
+    RootSlot *roots;
     _Atomic int failure;
     _Atomic uint64_t bytes, peak, nodes_live, nodes_created, labels_live, labels_created;
     _Atomic uint64_t tasks, stolen, hits, misses, collections, runs, merge_ns, label_collections;
@@ -77,9 +138,66 @@ struct pndd_engine {
     size_t allocation_limit, hard_limit;
     WorkerStats worker_stats[256];
     uint64_t admissions, last_gc_bytes;
+#ifdef PNDD_BATCH_GRAIN
+    _Alignas(64) _Atomic size_t coarse_remaining;
+#endif
+#ifdef PNDD_EXPERIMENT_SYLVAN_CACHE
+    uint64_t label_cache_opid;
+#endif
+#ifdef PNDD_PROFILE
+    uint64_t profile_calls[8], profile_ns[8];
+#endif
 };
 static pndd_engine *G;
-void pndd_sylvan_node_created(void) { if (G) atomic_fetch_add(&G->labels_created, 1); }
+static WorkerStats *worker_stats(void);
+static int inner_parallel_available(void) {
+#ifdef PNDD_BATCH_GRAIN
+    /* This is a scheduling hint, never a correctness or lifetime condition. */
+    return atomic_load_explicit(&G->coarse_remaining, memory_order_relaxed) < G->config.workers;
+#else
+    return 1;
+#endif
+}
+static int coarse_batch_begin(size_t count) {
+#ifdef PNDD_BATCH_GRAIN
+    if (G->config.batch_parallel && G->config.workers > 1 && count > G->config.chunk_size && G->config.spawn_depth) {
+        /* Count actual independent leaf blocks, not all their future items.
+         * Otherwise one remaining large block would suppress parallelism even
+         * while the other workers were idle. The tree is a balanced split. */
+        unsigned depth = 0; uint64_t blocks = 1;
+        while (depth < G->config.spawn_depth && count / blocks > G->config.chunk_size) { ++depth; blocks *= 2; }
+        size_t leaves = (size_t)blocks;
+        if (depth < G->config.spawn_depth && count / blocks == G->config.chunk_size)
+            leaves += count % blocks;
+        if (leaves >= G->config.workers) {
+            atomic_store_explicit(&G->coarse_remaining, leaves, memory_order_relaxed); return 1;
+        }
+    }
+#else
+    (void)count;
+#endif
+    return 0;
+}
+static void coarse_leaf_done(int coarse) {
+#ifdef PNDD_BATCH_GRAIN
+    if (coarse) atomic_fetch_sub_explicit(&G->coarse_remaining, 1, memory_order_relaxed);
+#else
+    (void)coarse;
+#endif
+}
+static void coarse_batch_end(int coarse) {
+#ifdef PNDD_BATCH_GRAIN
+    if (coarse) atomic_store_explicit(&G->coarse_remaining, 0, memory_order_relaxed);
+#else
+    (void)coarse;
+#endif
+}
+void pndd_sylvan_node_created(void) {
+    if (G) {
+        WorkerStats *w = worker_stats();
+        if (w) ++w->labels_created; else atomic_fetch_add(&G->labels_created, 1);
+    }
+}
 static pthread_mutex_t admission = PTHREAD_MUTEX_INITIALIZER;
 static _Atomic uint64_t cookies = 1;
 static const char *open_error = "No active native engine";
@@ -88,12 +206,44 @@ static uint64_t now_ns(void) {
     struct timespec t; clock_gettime(CLOCK_MONOTONIC, &t);
     return (uint64_t)t.tv_sec * 1000000000 + (uint64_t)t.tv_nsec;
 }
+#ifdef PNDD_PROFILE
+/* API times are inclusive; label/prepare sums are worker wall-time, not additive
+   wall-time shares in parallel runs. They exclude close but include checks. */
+#define PROFILE_START uint64_t profile_start = now_ns()
+#define PROFILE_END(kind) do { if (G) { ++G->profile_calls[kind]; G->profile_ns[kind] += now_ns() - profile_start; } } while (0)
+static void profile_dump(void) {
+    Profile p = {0};
+    for (unsigned i = 0; i < G->config.workers; ++i) {
+        Profile *w = &G->worker_stats[i].profile;
+        p.labels_calls += w->labels_calls; p.labels_ns += w->labels_ns;
+        p.label_hits += w->label_hits; p.label_misses += w->label_misses;
+        p.prepare_ns += w->prepare_ns; p.misses += w->misses;
+        p.jobs += w->jobs; p.costly_jobs += w->costly_jobs;
+        for (int j = 0; j < 5; ++j) p.bins[j] += w->bins[j];
+    }
+    const char *names[] = {"apply", "count", "snapshot", "reachable", "gc", "mincost", "exist", "evaluate"};
+    for (int i = 0; i < 8; ++i)
+        fprintf(stderr, "profile_%s_calls:%llu\nprofile_%s_seconds:%.9f\n", names[i], (unsigned long long)G->profile_calls[i], names[i], G->profile_ns[i] / 1e9);
+    fprintf(stderr, "profile_label_calls:%llu\nprofile_label_worker_seconds:%.9f\nprofile_prepare_worker_seconds:%.9f\nprofile_ndd_misses:%llu\nprofile_jobs:%llu\nprofile_costly_jobs:%llu\n", (unsigned long long)p.labels_calls, p.labels_ns / 1e9, p.prepare_ns / 1e9, (unsigned long long)p.misses, (unsigned long long)p.jobs, (unsigned long long)p.costly_jobs);
+    for (int i = 0; i < 5; ++i) fprintf(stderr, "profile_job_bin_%d:%llu\n", i, (unsigned long long)p.bins[i]);
+    fprintf(stderr, "profile_label_cache_hits:%llu\nprofile_label_cache_misses:%llu\n", (unsigned long long)p.label_hits, (unsigned long long)p.label_misses);
+}
+#else
+#define PROFILE_START ((void)0)
+#define PROFILE_END(kind) ((void)0)
+#endif
 static uint64_t mix(uint64_t x) {
     x ^= x >> 30; x *= UINT64_C(0xbf58476d1ce4e5b9);
     x ^= x >> 27; x *= UINT64_C(0x94d049bb133111eb);
     return x ^ (x >> 31);
 }
 static void fail(int code) { int zero = 0; atomic_compare_exchange_strong(&G->failure, &zero, code); }
+static void reset_failure(void) {
+    /* Admission excludes active operations. Keep the common success flag
+       read-only rather than invalidating every worker's copy on every JNI call. */
+    if (atomic_load_explicit(&G->failure, memory_order_relaxed))
+        atomic_store_explicit(&G->failure, 0, memory_order_relaxed);
+}
 static WorkerStats *worker_stats(void);
 static void *allocate(size_t n) {
     if (!n) n = 1;
@@ -124,6 +274,52 @@ static void deallocate(void *p) {
     } else atomic_fetch_sub(&G->bytes, *q);
     free(q);
 }
+static Node *allocate_node(size_t edges) {
+#ifdef PNDD_NODE_SLABS
+    _Static_assert(sizeof(Node) + sizeof(Edge) <= 64, "Single-edge nodes must fit a cache line");
+    if (edges <= 1) {
+        WorkerStats *w = worker_stats(); if (!w) w = &G->worker_stats[0];
+        if (!w->node_cells) {
+            pthread_mutex_lock(&G->allocation);
+            if (G->free_node_cells) {
+                for (unsigned i = 0; i < 64 && G->free_node_cells; ++i) {
+                    Node *cell = G->free_node_cells;
+                    memcpy(&G->free_node_cells, cell, sizeof(Node *));
+                    memcpy(cell, &w->node_cells, sizeof(Node *)); w->node_cells = cell;
+                }
+            } else {
+                NodeSlab *slab = allocate(sizeof(NodeSlab) + 63 + 256 * 64);
+                if (slab) {
+                    slab->next = G->node_slabs; G->node_slabs = slab;
+                    uintptr_t base = ((uintptr_t)slab->storage + 63) & ~(uintptr_t)63;
+                    for (unsigned i = 0; i < 256; ++i) {
+                        Node *cell = (Node *)(base + i * 64);
+                        memcpy(cell, &w->node_cells, sizeof(Node *)); w->node_cells = cell;
+                    }
+                }
+            }
+            pthread_mutex_unlock(&G->allocation);
+        }
+        Node *cell = w->node_cells;
+        if (!cell) return NULL;
+        memcpy(&w->node_cells, cell, sizeof(Node *));
+        memset(cell, 0, sizeof(Node)); return cell;
+    }
+#endif
+    return allocate(sizeof(Node) + edges * sizeof(Edge));
+}
+static void deallocate_node(Node *n) {
+    if (!n) return;
+#ifdef PNDD_NODE_SLABS
+    if (n->count <= 1) {
+        /* Failure cleanup may run on multiple workers as well as during GC. */
+        pthread_mutex_lock(&G->allocation);
+        memcpy(n, &G->free_node_cells, sizeof(Node *)); G->free_node_cells = n;
+        pthread_mutex_unlock(&G->allocation); return;
+    }
+#endif
+    deallocate(n);
+}
 
 static Node *node(uint32_t id) {
     Node **b = atomic_load_explicit(&G->node_blocks[id / BLOCK], memory_order_acquire);
@@ -134,33 +330,225 @@ static Label *label(uint64_t id) {
     return b ? b[id % BLOCK] : NULL;
 }
 static uint32_t node_field(uint32_t id) { return id < 2 ? (uint32_t)G->field_count : node(id)->field; }
+static int reversed(uint32_t field) {
+    return G->config.reverse_labels && G->fields[field].spec.backend <= PNDD_BCDD;
+}
+static uint32_t label_end(uint32_t field) {
+    return reversed(field) ? G->fields[field].spec.width : G->widths[G->fields[field].spec.backend];
+}
 static void root_push(RootFrame *r, uint32_t field, void *values, size_t stride, size_t count) {
     unsigned worker = lace_get_worker()->worker;
-    r->previous = G->roots[worker]; r->values = values;
+    r->previous = G->roots[worker].head; r->values = values;
     r->stride = stride; r->count = count; r->field = field;
-    G->roots[worker] = r;
+    G->roots[worker].head = r;
 }
-static void root_pop(RootFrame *r) { G->roots[lace_get_worker()->worker] = r->previous; }
+static void root_pop(RootFrame *r) { G->roots[lace_get_worker()->worker].head = r->previous; }
 static WorkerStats *worker_stats(void) {
     WorkerP *worker = lace_get_worker();
     return worker ? &G->worker_stats[worker->worker] : NULL;
 }
+/* Sampling is diagnostic only. The production build calls the original lock
+ * directly; no timer, counter or extra branch enters its cache hot path. */
+static void measured_lock(SpinLock *lock, unsigned kind) {
+#ifdef PNDD_PAR_PROFILE
+    WorkerStats *w = worker_stats();
+    ParallelProfile *p = w ? &w->parallel_profile : NULL;
+    int sample = p && !(++p->lock_calls[kind] & 1023);
+    uint64_t start = sample ? now_ns() : 0;
+    int contended = 0;
+    while (atomic_flag_test_and_set_explicit(&lock->flag, memory_order_acquire)) {
+        contended = 1;
+#if defined(__i386__) || defined(__x86_64__)
+        __builtin_ia32_pause();
+#else
+        atomic_signal_fence(memory_order_seq_cst);
+#endif
+    }
+    if (sample) {
+        ++p->lock_samples[kind];
+        if (contended) {
+            uint64_t elapsed = now_ns() - start;
+            ++p->lock_contended[kind]; p->lock_wait_ns[kind] += elapsed;
+            if (elapsed > p->lock_max_ns[kind]) p->lock_max_ns[kind] = elapsed;
+        }
+    }
+#else
+    (void)kind; spin_lock(lock);
+#endif
+}
+#ifdef PNDD_PAR_PROFILE
+static void parallel_profile_dump(void) {
+    const char *names[] = {"cache_read", "cache_write", "ndd_unique", "plain_unique"};
+    for (unsigned kind = 0; kind < 4; ++kind) {
+        uint64_t calls = 0, samples = 0, contended = 0, wait = 0, maximum = 0;
+        for (unsigned i = 0; i < G->config.workers; ++i) {
+            ParallelProfile *p = &G->worker_stats[i].parallel_profile;
+            calls += p->lock_calls[kind]; samples += p->lock_samples[kind];
+            contended += p->lock_contended[kind]; wait += p->lock_wait_ns[kind];
+            if (p->lock_max_ns[kind] > maximum) maximum = p->lock_max_ns[kind];
+        }
+        fprintf(stderr, "parallel_%s_calls:%llu\nparallel_%s_samples:%llu\nparallel_%s_contended:%llu\nparallel_%s_sample_wait_seconds:%.9f\nparallel_%s_max_wait_seconds:%.9f\n",
+            names[kind], (unsigned long long)calls, names[kind], (unsigned long long)samples,
+            names[kind], (unsigned long long)contended, names[kind], wait / 1e9, names[kind], maximum / 1e9);
+    }
+    for (unsigned i = 0; i < G->config.workers; ++i) {
+        ParallelProfile *p = &G->worker_stats[i].parallel_profile;
+        fprintf(stderr, "parallel_worker_%u_lists:%llu\nparallel_worker_%u_list_seconds:%.9f\nparallel_worker_%u_list_max_seconds:%.9f\n",
+            i, (unsigned long long)p->lists, i, p->list_ns / 1e9, i, p->list_max_ns / 1e9);
+    }
+}
+#endif
 static uint64_t cache_hash(uint32_t key, uint64_t a, uint64_t b) { return mix(a ^ mix(b) ^ ((uint64_t)key << 32)); }
-static int cache_get(uint32_t key, uint64_t a, uint64_t b, uint64_t *result) {
-    uint64_t h = cache_hash(key, a, b); size_t index = h & (G->config.cache_entries - 1);
-    SpinLock *lock = &G->cache_locks[index % SHARDS];
-    spin_lock(lock); Cache entry = G->cache[index]; spin_unlock(lock);
+static int cache_is_ndd(uint32_t key) {
+    return (key >= 1 && key <= PNDD_NOR + 1) ||
+           (key >= 0x10000 && key < 0x10000 + MAX_FIELDS) || key == 0x40000;
+}
+static void clear_operation_caches(void) {
+    /* Both GC callers have stopped all workers before recycling handles. */
+    memset(G->cache, 0, G->config.cache_entries * sizeof(SharedCache));
+#ifdef PNDD_LOCAL_CACHE
+    for (unsigned i = 0; i < G->config.workers; ++i)
+        if (G->worker_stats[i].local_cache) memset(G->worker_stats[i].local_cache, 0, G->worker_stats[i].local_entries * sizeof(Cache));
+#endif
+}
+static void clear_label_caches(void) {
+#ifndef PNDD_LABEL_GC_KEEP_NDD
+    clear_operation_caches();
+#else
+    /* Label GC never recycles NDD IDs and marks every allocated NDD's labels.
+       NDD apply/exist/fingerprint entries therefore remain valid. */
+#ifdef PNDD_SPLIT_CACHE
+    if (G->config.cache_entries > 1)
+        memset(G->cache + G->config.cache_entries / 2, 0, G->config.cache_entries / 2 * sizeof(SharedCache));
+    else
+#endif
+        for (size_t i = 0; i < G->config.cache_entries; ++i)
+            if (!cache_is_ndd(
+#ifdef PNDD_OPTIMISTIC_CACHE
+                (uint32_t)(atomic_load_explicit(&G->cache[i].stamp, memory_order_relaxed) & CACHE_KEY_MASK)))
+                atomic_store_explicit(&G->cache[i].stamp, 0, memory_order_relaxed);
+#else
+                G->cache[i].key)) G->cache[i].key = 0;
+#endif
+#ifdef PNDD_LOCAL_CACHE
+    for (unsigned i = 0; i < G->config.workers; ++i) {
+        WorkerStats *w = &G->worker_stats[i];
+        if (w->local_cache) memset(w->local_cache + w->local_entries / 2, 0, w->local_entries / 2 * sizeof(Cache));
+    }
+#endif
+#endif
+}
+static Cache *local_cache_slot(WorkerStats *worker, uint32_t key, uint64_t hash) {
+#ifdef PNDD_LOCAL_CACHE
+    if (worker && worker->local_cache) {
+        size_t half = worker->local_entries / 2;
+        return &worker->local_cache[(hash & (half - 1)) + (cache_is_ndd(key) ? 0 : half)];
+    }
+#else
+    (void)worker; (void)key; (void)hash;
+#endif
+    return NULL;
+}
+static size_t cache_index(uint32_t key, uint64_t hash) {
+#ifdef PNDD_SPLIT_CACHE
+    if (G->config.cache_entries > 1) {
+        size_t half = G->config.cache_entries / 2;
+        return (hash & (half - 1)) + (cache_is_ndd(key) ? 0 : half);
+    }
+#endif
+    return hash & (G->config.cache_entries - 1);
+}
+#ifndef PNDD_OPTIMISTIC_CACHE
+static SpinLock *cache_lock(uint32_t key, size_t index) {
+#ifdef PNDD_SPLIT_CACHE
+    return &G->cache_locks[(index % (SHARDS / 2)) + (cache_is_ndd(key) ? 0 : SHARDS / 2)];
+#else
+    (void)key; return &G->cache_locks[index % SHARDS];
+#endif
+}
+#endif
+static int pndd_cache_get(uint32_t key, uint64_t a, uint64_t b, uint64_t *result) {
+    uint64_t h = cache_hash(key, a, b); size_t index = cache_index(key, h);
+    WorkerStats *stats = worker_stats(); Cache *local = local_cache_slot(stats, key, h);
+    if (local && local->key == key && local->a == a && local->b == b) {
+        *result = local->result; ++stats->hits; return 1;
+    }
+    Cache entry;
+#ifdef PNDD_OPTIMISTIC_CACHE
+    SharedCache *slot = G->cache + index;
+    uint64_t before = atomic_load_explicit(&slot->stamp, memory_order_acquire);
+    int found = !(before & CACHE_BUSY) && (before & CACHE_KEY_MASK) == key;
+    if (found) {
+        entry = (Cache){atomic_load_explicit(&slot->a, memory_order_relaxed),
+            atomic_load_explicit(&slot->b, memory_order_relaxed),
+            atomic_load_explicit(&slot->result, memory_order_relaxed), key};
+        /* If any payload load sees a concurrent writer, its release fence
+         * synchronizes with this acquire fence. That writer's BUSY stamp then
+         * happens-before our second stamp read, rejecting any mixed tuple.
+         * See C11 N1570 7.17.4p2. Payload words themselves are all atomic. */
+        atomic_thread_fence(memory_order_acquire);
+        found = entry.a == a && entry.b == b &&
+            atomic_load_explicit(&slot->stamp, memory_order_relaxed) == before;
+    }
+#else
+    SpinLock *lock = cache_lock(key, index);
+    measured_lock(lock, 0); entry = G->cache[index]; spin_unlock(lock);
     int found = entry.key == key && entry.a == a && entry.b == b;
-    WorkerStats *stats = worker_stats();
+#endif
+    if (found && local) *local = entry;
     if (found) { *result = entry.result; if (stats) ++stats->hits; else atomic_fetch_add(&G->hits, 1); }
     else { if (stats) ++stats->misses; else atomic_fetch_add(&G->misses, 1); }
     return found;
 }
-static void cache_put(uint32_t key, uint64_t a, uint64_t b, uint64_t result) {
+static void pndd_cache_put(uint32_t key, uint64_t a, uint64_t b, uint64_t result) {
     if (atomic_load(&G->failure) || result == PNDD_INVALID) return;
-    uint64_t h = cache_hash(key, a, b); size_t index = h & (G->config.cache_entries - 1);
-    SpinLock *lock = &G->cache_locks[index % SHARDS];
-    spin_lock(lock); G->cache[index] = (Cache){a, b, result, key}; spin_unlock(lock);
+    uint64_t h = cache_hash(key, a, b); size_t index = cache_index(key, h);
+    Cache *local = local_cache_slot(worker_stats(), key, h);
+    if (local) *local = (Cache){a, b, result, key};
+#ifdef PNDD_OPTIMISTIC_CACHE
+    if (!key || key > CACHE_KEY_MASK) return;
+    SharedCache *slot = G->cache + index;
+    uint64_t before = atomic_load_explicit(&slot->stamp, memory_order_relaxed);
+    /* Never wrap a version: an exhausted slot stops accepting replacements
+     * until stopped-world cache invalidation resets it. No ABA assumption. */
+    if ((before & CACHE_BUSY) || (before & CACHE_VERSION_MASK) == CACHE_VERSION_MASK) return;
+    uint64_t published = ((before & CACHE_VERSION_MASK) + CACHE_VERSION_STEP) | key;
+    if (!atomic_compare_exchange_strong_explicit(&slot->stamp, &before, published | CACHE_BUSY,
+            memory_order_acquire, memory_order_relaxed)) return;
+    atomic_thread_fence(memory_order_release);
+    atomic_store_explicit(&slot->a, a, memory_order_relaxed);
+    atomic_store_explicit(&slot->b, b, memory_order_relaxed);
+    atomic_store_explicit(&slot->result, result, memory_order_relaxed);
+    atomic_store_explicit(&slot->stamp, published, memory_order_release);
+#else
+    SpinLock *lock = cache_lock(key, index);
+    measured_lock(lock, 1); G->cache[index] = (Cache){a, b, result, key}; spin_unlock(lock);
+#endif
+}
+static int label_cache_get(uint32_t mode, uint32_t op, uint64_t a, uint64_t b, uint64_t *result) {
+    int found;
+#ifdef PNDD_EXPERIMENT_SYLVAN_CACHE
+    if (mode == PNDD_BCDD) {
+        found = cache_get3(G->label_cache_opid, a, b, op, result);
+        WorkerStats *stats = worker_stats();
+        if (found) ++stats->hits; else ++stats->misses;
+    } else
+#endif
+    found = pndd_cache_get(0x100 + mode * 16 + op, a, b, result);
+#ifdef PNDD_PROFILE
+    if (found) ++worker_stats()->profile.label_hits; else ++worker_stats()->profile.label_misses;
+#endif
+    return found;
+}
+static void label_cache_put(uint32_t mode, uint32_t op, uint64_t a, uint64_t b, uint64_t result) {
+#ifdef PNDD_EXPERIMENT_SYLVAN_CACHE
+    if (mode == PNDD_BCDD) {
+        if (!atomic_load(&G->failure) && result != PNDD_INVALID)
+            cache_put3(G->label_cache_opid, a, b, op, result);
+        return;
+    }
+#endif
+    pndd_cache_put(0x100 + mode * 16 + op, a, b, result);
 }
 /* Table growth is performed under its shard lock; published objects never move. */
 static int grow_unique(Unique *u, int labels) {
@@ -218,11 +606,11 @@ static uint64_t plain_make(uint32_t var, uint64_t low, uint64_t high) {
     if (var != LABEL_BITS && low == high) return low;
     if (var == LABEL_BITS && !(low | high)) return 0;
     uint64_t h = mix(low ^ mix(high) ^ ((uint64_t)var << 32));
-    Unique *u = &G->label_unique[h % SHARDS]; spin_lock(&u->lock);
+    Unique *u = &G->label_unique[h % SHARDS]; measured_lock(&u->lock, 3);
     size_t bucket = (h / SHARDS) & (u->size - 1);
     for (uint32_t id = u->buckets[bucket]; id; id = label(id)->next) {
         Label *l = label(id);
-        if (l->var == var && l->low == low && l->high == high) { spin_unlock(&u->lock); return id; }
+        if (l->hash == h && l->var == var && l->low == low && l->high == high) { spin_unlock(&u->lock); return id; }
     }
     if (!grow_unique(u, 1)) { spin_unlock(&u->lock); return PNDD_INVALID; }
     bucket = (h / SHARDS) & (u->size - 1);
@@ -277,6 +665,24 @@ static uint64_t make_label(uint32_t field, uint32_t var, uint64_t low, uint64_t 
     return result;
 }
 TASK_DECL_6(uint64_t, label_apply, uint32_t, uint32_t, uint64_t, uint64_t, uint32_t, uint32_t);
+#ifdef PNDD_LABEL_GRAIN
+static int label_known(uint32_t field, uint32_t op, uint64_t a, uint64_t b, uint64_t *result, int cache) {
+    pndd_backend mode = G->fields[field].spec.backend;
+    if (a == b) { *result = op == PNDD_DIFF ? 0 : a; return 1; }
+    if ((op == PNDD_AND && (!a || !b)) || (op == PNDD_DIFF && !a)) { *result = 0; return 1; }
+    if (!b) { *result = a; return 1; }
+    if (op == PNDD_OR && !a) { *result = b; return 1; }
+    if (mode != PNDD_ZDD) {
+        uint64_t one = truth(field);
+        if (op == PNDD_AND && a == one) { *result = b; return 1; }
+        if (op == PNDD_AND && b == one) { *result = a; return 1; }
+        if (op == PNDD_OR && (a == one || b == one)) { *result = one; return 1; }
+        if (op == PNDD_DIFF && b == one) { *result = 0; return 1; }
+    }
+    if (op != PNDD_DIFF && a > b) { uint64_t t = a; a = b; b = t; }
+    return cache && label_cache_get(mode, op, a, b, result);
+}
+#endif
 TASK_IMPL_6(uint64_t, label_apply, uint32_t, field, uint32_t, op, uint64_t, a, uint64_t, b, uint32_t, depth, uint32_t, owner) {
     if (__lace_worker->worker != owner) atomic_fetch_add(&G->stolen, 1);
     YIELD_NEWFRAME();
@@ -289,6 +695,10 @@ TASK_IMPL_6(uint64_t, label_apply, uint32_t, field, uint32_t, op, uint64_t, a, u
     if (op == PNDD_DIFF && (!a || a == b)) return 0;
     if (op == PNDD_DIFF && !b) return a;
     if (a == b) return a;
+#ifdef PNDD_EXPERIMENT_BCDD_AND
+    if (mode == PNDD_BCDD && a == (b ^ sylvan_complement))
+        return op == PNDD_AND ? 0 : op == PNDD_OR ? truth(field) : a;
+#endif
     if (mode == PNDD_BITSET) {
         uint64_t al = a ? label(a)->low : 0, ah = a ? label(a)->high : 0;
         uint64_t bl = b ? label(b)->low : 0, bh = b ? label(b)->high : 0;
@@ -303,16 +713,23 @@ TASK_IMPL_6(uint64_t, label_apply, uint32_t, field, uint32_t, op, uint64_t, a, u
         if (op == PNDD_DIFF && b == one) return 0;
         if (mode == PNDD_BCDD && op == PNDD_DIFF && a == one) return b ^ sylvan_complement;
     }
-    uint32_t key = 0x100 + mode * 16 + op;
     uint64_t cached;
-    if (cache_get(key, a, b, &cached)) return cached;
+    if (label_cache_get(mode, op, a, b, &cached)) return cached;
     uint32_t av = label_var(field, a), bv = label_var(field, b), var = av < bv ? av : bv;
     if (var == UINT32_MAX) return op == PNDD_AND ? (a && b ? one : 0) : op == PNDD_OR ? (a || b ? one : 0) : (a && !b ? one : 0);
     uint64_t temporary[4] = {a, b, 0, 0}; RootFrame roots;
     root_push(&roots, field, temporary, sizeof(uint64_t), 4);
     uint64_t al = branch(field, a, var, 0), ah = branch(field, a, var, 1);
     uint64_t bl = branch(field, b, var, 0), bh = branch(field, b, var, 1);
-    int spawn = G->config.label_parallel && G->config.workers > 1 && depth < G->config.spawn_depth && (av != UINT32_MAX && bv != UINT32_MAX);
+    int spawn = G->config.label_parallel && G->config.workers > 1 && depth < G->config.spawn_depth && (av != UINT32_MAX && bv != UINT32_MAX) && inner_parallel_available();
+    int low_done = 0, high_done = 0;
+#ifdef PNDD_LABEL_GRAIN
+    if (spawn) {
+        low_done = label_known(field, op, al, bl, &temporary[2], 1);
+        high_done = label_known(field, op, ah, bh, &temporary[3], 1);
+        spawn = !low_done && !high_done;
+    }
+#endif
     if (spawn) {
         atomic_fetch_add(&G->tasks, 1);
         Task *task = SPAWN(label_apply, field, op, ah, bh, depth + 1, __lace_worker->worker);
@@ -322,14 +739,116 @@ TASK_IMPL_6(uint64_t, label_apply, uint32_t, field, uint32_t, op, uint64_t, a, u
         uint64_t result = SYNC(label_apply);
         temporary[3] = mode == PNDD_BCDD ? bdd_refs_sync(result) : mode == PNDD_ZDD ? zdd_refs_sync(result) : result;
     } else {
-        temporary[2] = CALL(label_apply, field, op, al, bl, depth + 1, __lace_worker->worker);
-        temporary[3] = CALL(label_apply, field, op, ah, bh, depth + 1, __lace_worker->worker);
+        if (!low_done) temporary[2] = CALL(label_apply, field, op, al, bl, depth + 1, __lace_worker->worker);
+        if (!high_done) temporary[3] = CALL(label_apply, field, op, ah, bh, depth + 1, __lace_worker->worker);
     }
     uint64_t result = make_label(field, var, temporary[2], temporary[3]);
-    root_pop(&roots); cache_put(key, a, b, result); return result == PNDD_INVALID ? 0 : result;
+    root_pop(&roots); label_cache_put(mode, op, a, b, result); return result == PNDD_INVALID ? 0 : result;
 }
+#ifdef PNDD_FAST_BCDD
+/* Checked specialization of the Sylvan AND recursion (Apache-2.0, see NOTICE).
+ * Read each node once, prune terminal cofactors before CALL/SPAWN, and use
+ * Sylvan's worker-local result roots instead of a generic label RootFrame at
+ * every recursive step. Failures return false with G->failure set, so a failed
+ * stolen result remains a valid GC handle until its parent observes the error. */
+static inline int bcdd_and_terminal(uint64_t a, uint64_t b, uint64_t *out) {
+    if (a == sylvan_true) { *out = b; return 1; }
+    if (b == sylvan_true || a == b) { *out = a; return 1; }
+    if (!a || !b || a == (b ^ sylvan_complement)) { *out = 0; return 1; }
+    return 0;
+}
+TASK_DECL_4(uint64_t, bcdd_and, uint64_t, uint64_t, uint32_t, uint32_t);
+TASK_IMPL_4(uint64_t, bcdd_and, uint64_t, a, uint64_t, b, uint32_t, depth, uint32_t, owner) {
+    uint64_t result;
+    if (bcdd_and_terminal(a, b, &result)) return result;
+    YIELD_NEWFRAME();
+    if (atomic_load(&G->failure)) return 0;
+    if (__lace_worker->worker != owner) atomic_fetch_add(&G->stolen, 1);
+    if (BDD_STRIPMARK(a) > BDD_STRIPMARK(b)) { uint64_t t = a; a = b; b = t; }
+    if (label_cache_get(PNDD_BCDD, PNDD_AND, a, b, &result)) return result;
+    bddnode_t an = MTBDD_GETNODE(a), bn = MTBDD_GETNODE(b);
+    uint32_t av = bddnode_getvariable(an), bv = bddnode_getvariable(bn), var = av < bv ? av : bv;
+    uint64_t al = av == var ? node_low(a, an) : a, ah = av == var ? node_high(a, an) : a;
+    uint64_t bl = bv == var ? node_low(b, bn) : b, bh = bv == var ? node_high(b, bn) : b;
+    uint64_t low, high;
+    int high_done = bcdd_and_terminal(ah, bh, &high);
+    int spawn = !high_done && G->config.label_parallel && G->config.workers > 1 && depth < G->config.spawn_depth && inner_parallel_available();
+#ifdef PNDD_LABEL_GRAIN
+    int low_done = bcdd_and_terminal(al, bl, &low), high_cached = 0;
+    if (spawn && !low_done) {
+        uint64_t x = al, y = bl;
+        if (BDD_STRIPMARK(x) > BDD_STRIPMARK(y)) { uint64_t t = x; x = y; y = t; }
+        low_done = label_cache_get(PNDD_BCDD, PNDD_AND, x, y, &low);
+        x = ah; y = bh;
+        if (BDD_STRIPMARK(x) > BDD_STRIPMARK(y)) { uint64_t t = x; x = y; y = t; }
+        high_cached = high_done = label_cache_get(PNDD_BCDD, PNDD_AND, x, y, &high);
+    }
+    spawn = spawn && !low_done && !high_done;
+    /* Unlike terminal cofactors, a memoized high result may be a temporary
+     * label outside the inputs. Keep it rooted through the low recursion. */
+    if (high_cached) bdd_refs_push(high);
+#endif
+    if (spawn) {
+        atomic_fetch_add(&G->tasks, 1);
+        bdd_refs_spawn(SPAWN(bcdd_and, ah, bh, depth + 1, __lace_worker->worker));
+    }
+#ifdef PNDD_LABEL_GRAIN
+    if (!low_done) low = CALL(bcdd_and, al, bl, depth + 1, __lace_worker->worker);
+#else
+    if (!bcdd_and_terminal(al, bl, &low)) low = CALL(bcdd_and, al, bl, depth + 1, __lace_worker->worker);
+#endif
+    if (spawn) {
+        bdd_refs_push(low); high = bdd_refs_sync(SYNC(bcdd_and)); bdd_refs_pop(1);
+    } else if (!high_done) {
+        bdd_refs_push(low); high = CALL(bcdd_and, ah, bh, depth + 1, __lace_worker->worker); bdd_refs_pop(1);
+    }
+#ifdef PNDD_LABEL_GRAIN
+    if (high_cached) bdd_refs_pop(1);
+#endif
+    if (atomic_load(&G->failure)) return 0;
+    result = low == high ? low : sylvan_makenode(var, low, high);
+    if (result == PNDD_INVALID) { fail(1); return 0; }
+    label_cache_put(PNDD_BCDD, PNDD_AND, a, b, result);
+    return result;
+}
+#endif
 static uint64_t labels(uint32_t field, uint32_t op, uint64_t a, uint64_t b) {
-    LACE_VARS; return CALL(label_apply, field, op, a, b, 0, __lace_worker->worker);
+    LACE_VARS;
+#ifdef PNDD_PROFILE
+    uint64_t start = now_ns();
+#endif
+    uint64_t result;
+    if (a == b) result = op == PNDD_DIFF ? 0 : a;
+    else if (op == PNDD_AND && (!a || !b)) result = 0;
+    else if (op == PNDD_OR && !a) result = b;
+    else if (op == PNDD_OR && !b) result = a;
+    else if (op == PNDD_DIFF && !a) result = 0;
+    else if (op == PNDD_DIFF && !b) result = a;
+    else
+#ifdef PNDD_FAST_BCDD
+    if (G->fields[field].spec.backend == PNDD_BCDD) {
+        uint64_t negate = op == PNDD_OR ? sylvan_complement : 0;
+        if (op == PNDD_OR) { a ^= sylvan_complement; b ^= sylvan_complement; }
+        else if (op == PNDD_DIFF) b ^= sylvan_complement;
+        result = CALL(bcdd_and, a, b, 0, __lace_worker->worker) ^ negate;
+        if (atomic_load(&G->failure)) result = PNDD_INVALID;
+    } else
+#endif
+#ifdef PNDD_EXPERIMENT_BCDD_AND
+    if (G->fields[field].spec.backend == PNDD_BCDD) {
+        uint64_t negate = op == PNDD_OR ? sylvan_complement : 0;
+        if (op == PNDD_OR) { a ^= sylvan_complement; b ^= sylvan_complement; }
+        else if (op == PNDD_DIFF) b ^= sylvan_complement;
+        result = CALL(label_apply, field, PNDD_AND, a, b, 0, __lace_worker->worker) ^ negate;
+        if (atomic_load(&G->failure)) result = PNDD_INVALID;
+    } else
+#endif
+    result = CALL(label_apply, field, op, a, b, 0, __lace_worker->worker);
+#ifdef PNDD_PROFILE
+    ++worker_stats()->profile.labels_calls;
+    worker_stats()->profile.labels_ns += now_ns() - start;
+#endif
+    return result;
 }
 static int compare_edges(const void *a, const void *b) {
     uint32_t x = ((const Edge *)a)->target, y = ((const Edge *)b)->target;
@@ -344,7 +863,13 @@ static uint32_t make_node(uint32_t field, Edge *edges, size_t count) {
     }
     if (!kept) return 0;
     RootFrame roots; root_push(&roots, field, edges, sizeof(Edge), kept);
-    qsort(edges, kept, sizeof(Edge), compare_edges);
+    if (kept <= 16) {
+        for (size_t i = 1; i < kept; ++i) {
+            Edge item = edges[i]; size_t j = i;
+            while (j && edges[j - 1].target > item.target) { edges[j] = edges[j - 1]; --j; }
+            edges[j] = item;
+        }
+    } else qsort(edges, kept, sizeof(Edge), compare_edges);
     size_t out = 0;
     for (size_t i = 0; i < kept; ++i) {
         if (out && edges[out - 1].target == edges[i].target)
@@ -357,22 +882,22 @@ static uint32_t make_node(uint32_t field, Edge *edges, size_t count) {
     }
     uint64_t h = mix(field);
     for (size_t i = 0; i < out; ++i) h = mix(h ^ mix(edges[i].label) ^ edges[i].target);
-    Unique *u = &G->node_unique[h % SHARDS]; spin_lock(&u->lock);
+    Unique *u = &G->node_unique[h % SHARDS]; measured_lock(&u->lock, 2);
     size_t bucket = (h / SHARDS) & (u->size - 1);
     for (uint32_t id = u->buckets[bucket]; id; id = node(id)->next) {
         Node *n = node(id);
-        if (n->field != field || n->count != out) continue;
+        if (n->hash != h || n->field != field || n->count != out) continue;
         size_t i = 0; for (; i < out && n->edges[i].target == edges[i].target && n->edges[i].label == edges[i].label; ++i) {}
         if (i == out) { spin_unlock(&u->lock); root_pop(&roots); return id; }
     }
     if (!grow_unique(u, 0)) { spin_unlock(&u->lock); root_pop(&roots); return INVALID_ID; }
     bucket = (h / SHARDS) & (u->size - 1);
-    Node *n = allocate(sizeof(Node) + out * sizeof(Edge));
+    Node *n = allocate_node(out);
     uint32_t id = INVALID_ID;
     if (n) {
         n->hash = h; n->field = field; n->count = (uint32_t)out; n->next = u->buckets[bucket];
         memcpy(n->edges, edges, out * sizeof(Edge)); id = publish_node(n);
-        if (id != INVALID_ID) { u->buckets[bucket] = id; ++u->count; } else deallocate(n);
+        if (id != INVALID_ID) { u->buckets[bucket] = id; ++u->count; } else deallocate_node(n);
     }
     spin_unlock(&u->lock); root_pop(&roots); return id;
 }
@@ -380,14 +905,52 @@ TASK_DECL_4(uint32_t, apply_rec, uint32_t, uint32_t, uint32_t, uint32_t);
 TASK_DECL_3(uint32_t, exist_rec, uint32_t, uint32_t, uint32_t);
 VOID_TASK_DECL_5(process_jobs, Job *, size_t, uint32_t, uint32_t, uint32_t);
 VOID_TASK_IMPL_5(process_jobs, Job *, jobs, size_t, count, uint32_t, op, uint32_t, depth, uint32_t, owner) {
+    if (atomic_load(&G->failure)) return;
     if (__lace_worker->worker != owner) atomic_fetch_add(&G->stolen, 1);
-    if (G->config.ndd_parallel && G->config.workers > 1 && depth < G->config.spawn_depth && count >= G->config.task_threshold && count > G->config.chunk_size) {
+    size_t pending = count;
+#ifdef PNDD_COST_GRAIN
+    pending = 0;
+    for (size_t i = 0; i < count; ++i) if (jobs[i].target == INVALID_ID) {
+        uint32_t a = jobs[i].a, b = jobs[i].b, result = INVALID_ID; uint64_t cached;
+        if (op >= 16) {
+            if (node_field(a) > op - 16) result = a;
+            else if (pndd_cache_get(0x10000 + op - 16, a, 0, &cached)) result = (uint32_t)cached;
+        } else {
+            if ((op == PNDD_AND || op == PNDD_OR) && a > b) { uint32_t t = a; a = b; b = t; }
+            if (op == PNDD_AND) {
+                if (!a || !b) result = 0; else if (a == 1) result = b; else if (b == 1 || a == b) result = a;
+            } else if (op == PNDD_OR) {
+                if (a == 1 || b == 1) result = 1; else if (!a) result = b; else if (!b || a == b) result = a;
+            } else if (op == PNDD_DIFF) {
+                if (!a || b == 1 || a == b) result = 0; else if (!b) result = a;
+            }
+            if (result == INVALID_ID && pndd_cache_get(op + 1, a, b, &cached)) result = (uint32_t)cached;
+        }
+        jobs[i].target = result; pending += result == INVALID_ID;
+    }
+    if (!pending) return;
+#endif
+    if (G->config.ndd_parallel && G->config.workers > 1 && depth < G->config.spawn_depth && pending >= G->config.task_threshold && count > G->config.chunk_size && inner_parallel_available()) {
+#if defined(PNDD_PENDING_PARTITION) && defined(PNDD_COST_GRAIN)
+        /* The caller consumes a set of labeled results, not positional outputs.
+         * Moving whole jobs preserves their labels and cached targets. Only the
+         * unresolved suffix is split; the full parent root frame stays valid. */
+        size_t done = 0;
+        for (size_t i = 0; i < count; ++i) if (jobs[i].target != INVALID_ID) {
+            Job t = jobs[done]; jobs[done++] = jobs[i]; jobs[i] = t;
+        }
+        jobs += done; count = pending;
+#endif
         size_t half = count / 2; atomic_fetch_add(&G->tasks, 1);
         SPAWN(process_jobs, jobs, half, op, depth + 1, __lace_worker->worker);
         CALL(process_jobs, jobs + half, count - half, op, depth + 1, __lace_worker->worker);
         SYNC(process_jobs);
-    } else for (size_t i = 0; i < count; ++i)
+    } else for (size_t i = 0; i < count; ++i) {
+#ifdef PNDD_COST_GRAIN
+        if (jobs[i].target != INVALID_ID) continue;
+#endif
         jobs[i].target = op >= 16 ? CALL(exist_rec, jobs[i].a, op - 16, depth) : CALL(apply_rec, op, jobs[i].a, jobs[i].b, depth);
+    }
 }
 static uint64_t coverage(uint32_t field, const Edge *edges, size_t count) {
     uint64_t value = 0; RootFrame r; root_push(&r, field, &value, sizeof(value), 1);
@@ -402,7 +965,7 @@ TASK_IMPL_4(uint32_t, apply_rec, uint32_t, op, uint32_t, a, uint32_t, b, uint32_
     if (op == PNDD_OR) { if (a == 1 || b == 1) return 1; if (!a) return b; if (!b || a == b) return a; }
     if (op == PNDD_DIFF) { if (!a || b == 1 || a == b) return 0; if (!b) return a; }
     uint64_t result;
-    if (cache_get(op + 1, a, b, &result)) return (uint32_t)result;
+    if (pndd_cache_get(op + 1, a, b, &result)) return (uint32_t)result;
     if (op > PNDD_DIFF) {
         uint32_t x, y;
         switch (op) {
@@ -417,23 +980,89 @@ TASK_IMPL_4(uint32_t, apply_rec, uint32_t, op, uint32_t, a, uint32_t, b, uint32_
             x = CALL(apply_rec, op == PNDD_NAND ? PNDD_AND : PNDD_OR, a, b, depth);
             result = CALL(apply_rec, PNDD_DIFF, 1, x, depth); break;
         }
-        cache_put(op + 1, a, b, result); return (uint32_t)result;
+        pndd_cache_put(op + 1, a, b, result); return (uint32_t)result;
     }
     uint32_t af = node_field(a), bf = node_field(b), field = af < bf ? af : bf;
+#ifdef PNDD_LEAF_APPLY
+    if (af == bf) {
+        Node *an = node(a), *bn = node(b);
+        if (an->count == 1 && bn->count == 1 && an->edges[0].target == bn->edges[0].target) {
+            Edge edge = {labels(field, op, an->edges[0].label, bn->edges[0].label), an->edges[0].target};
+            result = make_node(field, &edge, 1);
+            pndd_cache_put(op + 1, a, b, result); return (uint32_t)result;
+        }
+    }
+#endif
+#ifdef PNDD_PROFILE
+    uint64_t prepare_start = now_ns();
+#endif
     Edge av = {G->fields[field].universe, a}, bv = {G->fields[field].universe, b};
     const Edge *ae = af == field ? node(a)->edges : &av, *be = bf == field ? node(b)->edges : &bv;
     size_t ac = af == field ? node(a)->count : 1, bc = bf == field ? node(b)->count : 1;
     if (ac > (SIZE_MAX - ac - bc) / bc) { fail(1); return INVALID_ID; }
-    size_t capacity = ac * bc + ac + bc;
-    Job *jobs = allocate(capacity * sizeof(Job)); Edge *edges = allocate(capacity * sizeof(Edge));
+    size_t capacity = af != bf ? (af < bf ? ac : bc) + 1 : ac * bc + ac + bc;
+    Job small_jobs[8]; Edge small_edges[8];
+    int heap = capacity > 8;
+    Job *jobs = heap ? allocate(capacity * sizeof(Job)) : small_jobs;
+    Edge *edges = heap ? allocate(capacity * sizeof(Edge)) : small_edges;
     if (!jobs || !edges) { deallocate(jobs); deallocate(edges); return INVALID_ID; }
     RootFrame jr, er; root_push(&jr, field, jobs, sizeof(Job), 0); root_push(&er, field, edges, sizeof(Edge), 0);
     uint64_t covered[2] = {0, 0}; RootFrame cr; root_push(&cr, field, covered, sizeof(uint64_t), 2);
     size_t jc = 0, ec = 0;
+    if (af != bf) {
+        const Edge *early = af < bf ? ae : be; size_t count = af < bf ? ac : bc;
+        for (size_t i = 0; i < count; ++i) {
+            jobs[jc] = (Job){early[i].label, af < bf ? early[i].target : a,
+                            bf < af ? early[i].target : b, INVALID_ID}; jr.count = ++jc;
+        }
+        if (op == PNDD_OR || (op == PNDD_DIFF && bf < af)) {
+            covered[0] = coverage(field, early, count);
+            covered[1] = labels(field, PNDD_DIFF, G->fields[field].universe, covered[0]);
+            if (covered[1] && covered[1] != PNDD_INVALID) {
+                edges[ec++] = (Edge){covered[1], af < bf ? b : a}; er.count = ec;
+            }
+        }
+    } else {
+#ifdef PNDD_RESIDUAL_APPLY
+    if (op == PNDD_AND) {
+        for (size_t i = 0; i < ac && !atomic_load(&G->failure); ++i) for (size_t j = 0; j < bc; ++j) {
+            uint64_t intersection = labels(field, PNDD_AND, ae[i].label, be[j].label);
+            if (intersection && intersection != PNDD_INVALID) {
+                jobs[jc] = (Job){intersection, ae[i].target, be[j].target, INVALID_ID}; jr.count = ++jc;
+            }
+        }
+    } else {
+        uint64_t small_residual[8]; int residual_heap = op == PNDD_OR && bc > 8;
+        uint64_t *remaining_b = op == PNDD_OR ? (residual_heap ? allocate(bc * sizeof(uint64_t)) : small_residual) : NULL;
+        if (remaining_b) for (size_t j = 0; j < bc; ++j) remaining_b[j] = be[j].label;
+        RootFrame br; root_push(&br, field, remaining_b, sizeof(uint64_t), remaining_b ? bc : 0);
+        for (size_t i = 0; i < ac && !atomic_load(&G->failure); ++i) {
+            covered[0] = ae[i].label;
+            for (size_t j = 0; j < bc && covered[0] && !atomic_load(&G->failure); ++j) {
+                uint64_t other = op == PNDD_OR ? remaining_b[j] : be[j].label;
+                if (!other) continue;
+                if (op == PNDD_DIFF && ae[i].target == be[j].target) {
+                    covered[0] = labels(field, PNDD_DIFF, covered[0], other); continue;
+                }
+                uint64_t intersection = labels(field, PNDD_AND, covered[0], other);
+                if (!intersection || intersection == PNDD_INVALID) continue;
+                jobs[jc] = (Job){intersection, ae[i].target, be[j].target, INVALID_ID}; jr.count = ++jc;
+                covered[0] = intersection == covered[0] ? 0 : labels(field, PNDD_DIFF, covered[0], intersection);
+                if (op == PNDD_OR)
+                    remaining_b[j] = intersection == remaining_b[j] ? 0 : labels(field, PNDD_DIFF, remaining_b[j], intersection);
+            }
+            if (covered[0] && covered[0] != PNDD_INVALID) { edges[ec++] = (Edge){covered[0], ae[i].target}; er.count = ec; }
+        }
+        if (op == PNDD_OR) for (size_t j = 0; j < bc && !atomic_load(&G->failure); ++j)
+            if (remaining_b[j] && remaining_b[j] != PNDD_INVALID) { edges[ec++] = (Edge){remaining_b[j], be[j].target}; er.count = ec; }
+        root_pop(&br); if (residual_heap) deallocate(remaining_b);
+    }
+#else
     for (size_t i = 0; i < ac && !atomic_load(&G->failure); ++i) for (size_t j = 0; j < bc; ++j) {
+        if (op == PNDD_DIFF && ae[i].target == be[j].target) continue;
         uint64_t intersection = labels(field, PNDD_AND, ae[i].label, be[j].label);
         if (intersection && intersection != PNDD_INVALID) {
-            jobs[jc] = (Job){intersection, ae[i].target, be[j].target, 0}; jr.count = ++jc;
+            jobs[jc] = (Job){intersection, ae[i].target, be[j].target, INVALID_ID}; jr.count = ++jc;
         }
     }
     if (op != PNDD_AND && !atomic_load(&G->failure)) {
@@ -450,13 +1079,23 @@ TASK_IMPL_4(uint32_t, apply_rec, uint32_t, op, uint32_t, a, uint32_t, b, uint32_
             }
         }
     }
+#endif
+    }
+#ifdef PNDD_PROFILE
+    Profile *p = &worker_stats()->profile;
+    ++p->misses; p->prepare_ns += now_ns() - prepare_start; p->jobs += jc;
+    ++p->bins[jc == 0 ? 0 : jc == 1 ? 1 : jc < 4 ? 2 : jc < 16 ? 3 : 4];
+    for (size_t i = 0; i < jc; ++i)
+        if (jobs[i].a > 1 && jobs[i].b > 1 && jobs[i].a != jobs[i].b) ++p->costly_jobs;
+#endif
     CALL(process_jobs, jobs, jc, op, depth, __lace_worker->worker);
     uint64_t start = now_ns();
     for (size_t i = 0; i < jc; ++i) { edges[ec++] = (Edge){jobs[i].label, jobs[i].target}; er.count = ec; }
     result = make_node(field, edges, ec);
     worker_stats()->merge_ns += now_ns() - start;
-    root_pop(&cr); root_pop(&er); root_pop(&jr); deallocate(edges); deallocate(jobs);
-    cache_put(op + 1, a, b, result); return (uint32_t)result;
+    root_pop(&cr); root_pop(&er); root_pop(&jr);
+    if (heap) { deallocate(edges); deallocate(jobs); }
+    pndd_cache_put(op + 1, a, b, result); return (uint32_t)result;
 }
 TASK_DECL_5(uint32_t, reduce_rec, uint32_t, const uint32_t *, size_t, uint32_t, uint32_t);
 TASK_IMPL_5(uint32_t, reduce_rec, uint32_t, op, const uint32_t *, values, size_t, count, uint32_t, depth, uint32_t, owner) {
@@ -479,7 +1118,7 @@ TASK_IMPL_3(uint32_t, exist_rec, uint32_t, a, uint32_t, field, uint32_t, depth) 
     YIELD_NEWFRAME();
     if (atomic_load(&G->failure) || a == INVALID_ID) return INVALID_ID;
     if (node_field(a) > field) return a;
-    uint64_t cached; if (cache_get(0x10000 + field, a, 0, &cached)) return (uint32_t)cached;
+    uint64_t cached; if (pndd_cache_get(0x10000 + field, a, 0, &cached)) return (uint32_t)cached;
     Node *n = node(a); uint32_t result;
     if (n->field == field) {
         uint32_t *targets = allocate(n->count * sizeof(uint32_t)); if (!targets) return INVALID_ID;
@@ -488,12 +1127,12 @@ TASK_IMPL_3(uint32_t, exist_rec, uint32_t, a, uint32_t, field, uint32_t, depth) 
     } else {
         Job *jobs = allocate(n->count * sizeof(Job)); Edge *edges = allocate(n->count * sizeof(Edge));
         if (!jobs || !edges) { deallocate(jobs); deallocate(edges); return INVALID_ID; }
-        for (size_t i = 0; i < n->count; ++i) jobs[i] = (Job){n->edges[i].label, n->edges[i].target, 0, 0};
+        for (size_t i = 0; i < n->count; ++i) jobs[i] = (Job){n->edges[i].label, n->edges[i].target, 0, INVALID_ID};
         CALL(process_jobs, jobs, n->count, 16 + field, depth, __lace_worker->worker);
         for (size_t i = 0; i < n->count; ++i) edges[i] = (Edge){jobs[i].label, jobs[i].target};
         result = make_node(n->field, edges, n->count); deallocate(jobs); deallocate(edges);
     }
-    cache_put(0x10000 + field, a, 0, result); return result;
+    pndd_cache_put(0x10000 + field, a, 0, result); return result;
 }
 /* Sylvan may collect during any label allocation. The frame pauses all workers;
  * marking every allocated NDD preserves operation-cache and unpublished-child
@@ -512,7 +1151,7 @@ VOID_TASK_IMPL_0(mark_labels) {
             if (mode == PNDD_ZDD) CALL(zdd_gc_mark_rec, n->edges[i].label);
         }
     }
-    for (unsigned w = 0; w < G->config.workers; ++w) for (RootFrame *r = G->roots[w]; r; r = r->previous) {
+    for (unsigned w = 0; w < G->config.workers; ++w) for (RootFrame *r = G->roots[w].head; r; r = r->previous) {
         pndd_backend mode = G->fields[r->field].spec.backend;
         if (mode != PNDD_BCDD && mode != PNDD_ZDD) continue;
         for (size_t i = 0; i < r->count; ++i) {
@@ -524,7 +1163,7 @@ VOID_TASK_IMPL_0(mark_labels) {
 }
 static void sylvan_pre(WorkerP *worker, Task *task) {
     (void)worker; (void)task;
-    memset(G->cache, 0, G->config.cache_entries * sizeof(Cache));
+    clear_label_caches();
     atomic_fetch_add(&G->label_collections, 1);
 }
 static void mark_node(uint32_t id) {
@@ -546,7 +1185,7 @@ VOID_TASK_IMPL_0(sweep_nodes) {
         atomic_fetch_add(&G->labels_live, w->labels_live); w->labels_live = 0;
         w->node_next = w->node_end = 0;
     }
-    memset(G->cache, 0, G->config.cache_entries * sizeof(Cache));
+    clear_operation_caches();
     for (uint32_t i = 2; i < G->node_high; ++i) { Node *n = node(i); if (n) n->mark = 0; }
     for (uint32_t i = 2; i < G->label_high; ++i) { Label *l = label(i); if (l) l->mark = 0; }
     for (uint32_t i = 2; i < G->node_high; ++i) { Node *n = node(i); if (n && n->refs) mark_node(i); }
@@ -562,7 +1201,7 @@ VOID_TASK_IMPL_0(sweep_nodes) {
     G->free_node_count = G->free_label_count = 0;
     for (uint32_t i = 2; i < G->node_high; ++i) {
         Node *n = node(i);
-        if (n && !n->mark) { deallocate(n); atomic_store((_Atomic(Node *) *)&atomic_load(&G->node_blocks[i / BLOCK])[i % BLOCK], NULL); atomic_fetch_sub(&G->nodes_live, 1); n = NULL; }
+        if (n && !n->mark) { deallocate_node(n); atomic_store((_Atomic(Node *) *)&atomic_load(&G->node_blocks[i / BLOCK])[i % BLOCK], NULL); atomic_fetch_sub(&G->nodes_live, 1); n = NULL; }
         if (!n) { G->free_nodes[G->free_node_count++] = i; continue; }
         Unique *u = &G->node_unique[n->hash % SHARDS]; size_t bucket = (n->hash / SHARDS) & (u->size - 1);
         n->next = u->buckets[bucket]; u->buckets[bucket] = i; ++u->count;
@@ -595,13 +1234,15 @@ static int prepare_collect(void) {
     G->free_nodes = nf; G->free_labels = lf; return 1;
 }
 static int collect_internal(void) {
+    PROFILE_START;
     if (!prepare_collect()) return 0;
-    atomic_fetch_add(&G->runs, 1); RUN(collect_task); return !atomic_load(&G->failure);
+    atomic_fetch_add(&G->runs, 1); RUN(collect_task);
+    PROFILE_END(4); return !atomic_load(&G->failure);
 }
 static int begin_deferred(pndd_engine *engine, int defer_gc) {
     if (!engine || engine != G) { open_error = "Closed or foreign engine"; return 0; }
     G->pending_gc = 0;
-    atomic_store(&G->failure, 0);
+    reset_failure();
     ++G->admissions;
     if ((G->config.gc_interval && G->admissions % G->config.gc_interval == 0) ||
         (atomic_load(&G->bytes) > G->allocation_limit * 3 / 4 && atomic_load(&G->bytes) > G->last_gc_bytes + 65536)) {
@@ -639,36 +1280,49 @@ static double label_count(uint32_t field, uint64_t value, uint32_t start) {
     pndd_backend mode = G->fields[field].spec.backend;
     if (!value) return 0;
     if (mode == PNDD_BITSET) return ldexp((double)(__builtin_popcountll(label(value)->low) + __builtin_popcountll(label(value)->high)), -(int)(G->widths[mode] - G->fields[field].spec.width));
-    uint64_t bits; uint32_t key = 0x200 + mode * 128 + start;
-    if (cache_get(key, value, 0, &bits)) { double d; memcpy(&d, &bits, 8); return d; }
+    uint64_t bits; uint32_t key = 0x200 + mode * 8192 + start;
+    if (pndd_cache_get(key, value, label_end(field), &bits)) { double d; memcpy(&d, &bits, 8); return d; }
     double count;
-    if (value == truth(field)) count = mode == PNDD_ZDD ? 1 : ldexp(1.0, (int)(G->widths[mode] - start));
+    if (value == truth(field)) count = mode == PNDD_ZDD ? 1 : ldexp(1.0, (int)(label_end(field) - start));
     else {
         uint32_t var = label_var(field, value);
         count = label_count(field, branch(field, value, var, 0), var + 1) + label_count(field, branch(field, value, var, 1), var + 1);
         if (mode != PNDD_ZDD) count = ldexp(count, (int)(var - start));
     }
-    memcpy(&bits, &count, 8); cache_put(key, value, 0, bits); return count;
+    memcpy(&bits, &count, 8); pndd_cache_put(key, value, label_end(field), bits); return count;
 }
 static double count_node(uint32_t id, double *memo, unsigned char *seen) {
     if (id < 2) return (double)id;
+#ifdef PNDD_EXPERIMENT_SATCOUNT_CACHE
+    if (node(id)->sat_count_valid) return node(id)->sat_count;
+#else
     if (seen[id]) return memo[id];
+#endif
     Node *n = node(id); double result = 0;
     for (size_t i = 0; i < n->count; ++i) {
         uint32_t child = n->edges[i].target;
         double lc = label_count(n->field, n->edges[i].label, G->fields[n->field].start);
         result += lc * gap(n->field + 1, node_field(child)) * count_node(child, memo, seen);
     }
-    seen[id] = 1; memo[id] = result; return result;
+#ifdef PNDD_EXPERIMENT_SATCOUNT_CACHE
+    n->sat_count = result; n->sat_count_valid = 1;
+#else
+    seen[id] = 1; memo[id] = result;
+#endif
+    return result;
 }
 static double satcount_internal(uint32_t id) {
     if (id == INVALID_ID) return NAN;
     if (id == 0) return 0;
     if (id == 1) return gap(0, (uint32_t)G->field_count);
+#ifdef PNDD_EXPERIMENT_SATCOUNT_CACHE
+    return gap(0, node_field(id)) * count_node(id, NULL, NULL);
+#else
     double *memo = allocate((size_t)G->node_high * sizeof(double)); unsigned char *seen = allocate(G->node_high);
     if (!memo || !seen) { deallocate(memo); deallocate(seen); return NAN; }
     double result = gap(0, node_field(id)) * count_node(id, memo, seen);
     deallocate(memo); deallocate(seen); return result;
+#endif
 }
 static int label_matches(uint32_t field, uint64_t value, uint64_t assignment) {
     pndd_backend mode = G->fields[field].spec.backend; Field *f = &G->fields[field];
@@ -679,12 +1333,14 @@ static int label_matches(uint32_t field, uint64_t value, uint64_t assignment) {
     }
     if (mode == PNDD_ZDD) {
         for (uint32_t var = f->start; var < G->widths[mode]; ++var) {
-            int bit = (int)((assignment >> (G->widths[mode] - 1 - var)) & 1);
+            uint32_t shift = G->widths[mode] - 1 - var;
+            int bit = shift < 64 ? (int)((assignment >> shift) & 1) : 0;
             value = branch(field, value, var, bit); if (!value) return 0;
         }
     } else while (value && value != truth(field)) {
         uint32_t var = label_var(field, value);
-        value = branch(field, value, var, (int)((assignment >> (G->widths[mode] - 1 - var)) & 1));
+        uint32_t shift = reversed(field) ? var : label_end(field) - 1 - var;
+        value = branch(field, value, var, shift < 64 ? (int)((assignment >> shift) & 1) : 0);
     }
     return value == truth(field);
 }
@@ -700,8 +1356,9 @@ TASK_IMPL_4(uint32_t, construct, uint32_t, field, uint32_t, bit, uint64_t, value
                 if (assignment < 64) low |= UINT64_C(1) << assignment; else high |= UINT64_C(1) << (assignment - 64);
             }
         current = plain_make(LABEL_BITS, low, high);
-    } else for (uint32_t v = G->widths[mode]; v > f->start; --v) {
-        int positive = (int)((value >> (G->widths[mode] - v)) & 1);
+    } else for (uint32_t v = label_end(field); v > f->start; --v) {
+        uint32_t shift = reversed(field) ? v - 1 : label_end(field) - v;
+        int positive = shift < 64 ? (int)((value >> shift) & 1) : 0;
         current = make_label(field, v - 1, positive ? 0 : current, positive ? current : 0);
         if (current == PNDD_INVALID) break;
     }
@@ -721,7 +1378,7 @@ VOID_TASK_IMPL_0(initialize_fields) {
         }
         for (uint32_t bit = 0; bit < field->spec.width && !atomic_load(&G->failure); ++bit) for (unsigned positive = 0; positive < 2; ++positive) {
             uint64_t value = truth(f); RootFrame root; root_push(&root, f, &value, sizeof(value), 1);
-            uint32_t variable = field->start + bit;
+            uint32_t variable = reversed(f) ? field->spec.width - 1 - bit : field->start + bit;
             if (mode == PNDD_BITSET) {
                 uint64_t low = 0, high = 0;
                 for (unsigned a = 0; a < (1u << G->widths[mode]); ++a)
@@ -738,18 +1395,30 @@ VOID_TASK_IMPL_0(initialize_fields) {
     }
 }
 pndd_config pndd_default_config(void) {
-    return (pndd_config){1, 4, 2, 4, 1, 0, 1, 512u * 1024 * 1024, 262144, 128};
+    return (pndd_config){1, 4, 2, 4, 1, 0, 1, 512u * 1024 * 1024, 262144, 128, 0};
 }
 static void destroy_engine(void) {
+#ifdef PNDD_PROFILE
+    profile_dump();
+#endif
+#ifdef PNDD_PAR_PROFILE
+    parallel_profile_dump();
+#endif
     if (G->sylvan) sylvan_quit();
     lace_stop();
-    for (uint32_t i = 0; i < G->node_high; ++i) deallocate(node(i));
+    for (uint32_t i = 0; i < G->node_high; ++i) deallocate_node(node(i));
+    NodeSlab *slab = G->node_slabs;
+    while (slab) { NodeSlab *next = slab->next; deallocate(slab); slab = next; }
     for (uint32_t i = 2; i < G->label_high; ++i) deallocate(label(i));
+    for (size_t i = 0; i < G->field_count; ++i) deallocate(G->fields[i].literals);
     for (size_t i = 0; i < BLOCKS; ++i) { deallocate(atomic_load(&G->node_blocks[i])); deallocate(atomic_load(&G->label_blocks[i])); }
     for (size_t i = 0; i < SHARDS; ++i) {
         deallocate(G->node_unique[i].buckets); deallocate(G->label_unique[i].buckets);
 
     }
+#ifdef PNDD_LOCAL_CACHE
+    for (unsigned i = 0; i < G->config.workers; ++i) deallocate(G->worker_stats[i].local_cache);
+#endif
     deallocate(G->cache); deallocate(G->roots); deallocate(G->free_nodes); deallocate(G->free_labels);
     pthread_mutex_destroy(&G->allocation); free(G); G = NULL;
 }
@@ -761,8 +1430,11 @@ pndd_engine *pndd_open(const pndd_config *requested, const pndd_field *fields, s
         !c.cache_entries || c.cache_entries > SIZE_MAX / sizeof(Cache) || (c.cache_entries & (c.cache_entries - 1)) || !c.task_threshold || !c.chunk_size || c.spawn_depth > 32) {
         open_error = "Invalid engine configuration"; pthread_mutex_unlock(&admission); return NULL;
     }
-    for (size_t i = 0; i < count; ++i) if (!fields[i].width || fields[i].width > 64 || fields[i].backend > PNDD_BITSET || fields[i].backend < PNDD_BDD || (fields[i].backend == PNDD_BITSET && fields[i].width > 7)) {
-        open_error = "Field widths must be 1..64 (BITSET: 1..7)"; pthread_mutex_unlock(&admission); return NULL;
+    /* One worker cannot spawn useful parallel work. Normalize once rather
+     * than rechecking this on every recursive label/apply scheduling point. */
+    if (c.workers == 1) c.label_parallel = c.ndd_parallel = c.batch_parallel = 0;
+    for (size_t i = 0; i < count; ++i) if (!fields[i].width || fields[i].width > 4096 || fields[i].backend > PNDD_BITSET || fields[i].backend < PNDD_BDD || (fields[i].backend == PNDD_BITSET && fields[i].width > 7)) {
+        open_error = "Field widths must be 1..4096 (BITSET: 1..7)"; pthread_mutex_unlock(&admission); return NULL;
     }
     /* The shard locks make the engine over-aligned; calloc only guarantees
        fundamental alignment. sizeof(pndd_engine) is a multiple of its alignment. */
@@ -775,25 +1447,46 @@ pndd_engine *pndd_open(const pndd_config *requested, const pndd_field *fields, s
         if (G->widths[fields[i].backend] < fields[i].width) G->widths[fields[i].backend] = fields[i].width;
         if (fields[i].backend == PNDD_BCDD || fields[i].backend == PNDD_ZDD) G->sylvan = 1;
     }
-    for (size_t i = 0; i < count; ++i) G->fields[i].start = G->widths[fields[i].backend] - fields[i].width;
+    for (size_t i = 0; i < count; ++i) G->fields[i].start = reversed((uint32_t)i) ? 0 : G->widths[fields[i].backend] - fields[i].width;
     G->hard_limit = c.memory_bytes - (G->sylvan ? c.memory_bytes / 4 : 0);
     G->allocation_limit = G->hard_limit * 4 / 5;
     /* Include the stable block directory and engine metadata in the budget. */
     atomic_store(&G->bytes, sizeof(*G)); atomic_store(&G->peak, sizeof(*G));
     pthread_mutex_init(&G->allocation, NULL);
+    for (size_t i = 0; i < count; ++i)
+        G->fields[i].literals = allocate(fields[i].width * 2 * sizeof(uint32_t));
     for (size_t i = 0; i < SHARDS; ++i) {
         atomic_flag_clear(&G->node_unique[i].lock.flag); atomic_flag_clear(&G->label_unique[i].lock.flag); atomic_flag_clear(&G->cache_locks[i].flag);
         G->node_unique[i].size = G->label_unique[i].size = 16;
         G->node_unique[i].buckets = allocate(16 * sizeof(uint32_t)); G->label_unique[i].buckets = allocate(16 * sizeof(uint32_t));
     }
-    G->cache = allocate(c.cache_entries * sizeof(Cache)); G->roots = allocate(c.workers * sizeof(RootFrame *));
+    G->cache = allocate(c.cache_entries * sizeof(SharedCache)); G->roots = allocate(c.workers * sizeof(RootSlot));
+#ifdef PNDD_OPTIMISTIC_CACHE
+    if (G->cache) for (size_t i = 0; i < c.cache_entries; ++i) {
+        atomic_init(&G->cache[i].a, 0); atomic_init(&G->cache[i].b, 0);
+        atomic_init(&G->cache[i].result, 0); atomic_init(&G->cache[i].stamp, 0);
+    }
+#endif
+#ifdef PNDD_LOCAL_CACHE
+    size_t local_entries = LOCAL_CACHE_ENTRIES;
+    while (local_entries > 64 && local_entries * sizeof(Cache) * c.workers > c.memory_bytes / 64)
+        local_entries /= 2;
+    for (unsigned i = 0; i < c.workers; ++i) {
+        G->worker_stats[i].local_entries = local_entries;
+        G->worker_stats[i].local_cache = allocate(local_entries * sizeof(Cache));
+    }
+#endif
     lace_start(c.workers, 100000);
     if (G->sylvan) {
-        sylvan_set_limits(c.memory_bytes / 4, 2, 4); sylvan_init_package(); sylvan_init_bdd(); sylvan_init_zdd();
+        int initial_ratio = c.memory_bytes > 128u * 1024 * 1024 ? PNDD_SYLVAN_INITIAL_RATIO : 4;
+        sylvan_set_limits(c.memory_bytes / 4, 2, initial_ratio); sylvan_init_package(); sylvan_init_bdd(); sylvan_init_zdd();
+#ifdef PNDD_EXPERIMENT_SYLVAN_CACHE
+        G->label_cache_opid = cache_next_opid();
+#endif
         sylvan_gc_add_mark(mark_labels_CALL); sylvan_gc_hook_pregc(sylvan_pre);
     }
     for (unsigned i = 0; i < 2 && !atomic_load(&G->failure); ++i) {
-        Node *n = allocate(sizeof(Node)); if (n) { n->field = (uint32_t)count; n->refs = 1; if (publish_node(n) == INVALID_ID) deallocate(n); }
+        Node *n = allocate_node(0); if (n) { n->field = (uint32_t)count; n->refs = 1; if (publish_node(n) == INVALID_ID) deallocate_node(n); }
     }
     if (!atomic_load(&G->failure)) RUN(initialize_fields);
     if (atomic_load(&G->failure)) { open_error = "Native memory budget exhausted during initialization"; destroy_engine(); pthread_mutex_unlock(&admission); return NULL; }
@@ -823,12 +1516,18 @@ pndd_handle pndd_value(pndd_engine *e, uint32_t field, uint64_t value) {
 }
 pndd_handle pndd_apply(pndd_engine *e, pndd_op op, pndd_handle a, pndd_handle b) {
     pthread_mutex_lock(&admission); pndd_handle h = PNDD_INVALID;
+    PROFILE_START;
     if (begin(e)) {
         uint32_t x = resolve(a), y = resolve(b);
         if (op > PNDD_NOR || op < PNDD_AND) fail(3);
-        if (!atomic_load(&G->failure)) { atomic_fetch_add(&G->runs, 1); h = own(RUN(apply_rec, op, x, y, 0)); }
+        if (!atomic_load(&G->failure)) {
+            if ((op == PNDD_AND || op == PNDD_OR) && x > y) { uint32_t t = x; x = y; y = t; }
+            uint64_t cached;
+            if (pndd_cache_get(op + 1, x, y, &cached)) h = own((uint32_t)cached);
+            else { atomic_fetch_add(&G->runs, 1); h = own(RUN(apply_rec, op, x, y, 0)); }
+        }
     }
-    pthread_mutex_unlock(&admission); return h;
+    PROFILE_END(0); pthread_mutex_unlock(&admission); return h;
 }
 pndd_handle pndd_not(pndd_engine *e, pndd_handle a) {
     pthread_mutex_lock(&admission); pndd_handle h = PNDD_INVALID;
@@ -837,24 +1536,26 @@ pndd_handle pndd_not(pndd_engine *e, pndd_handle a) {
 }
 pndd_handle pndd_exist(pndd_engine *e, pndd_handle a, uint32_t field) {
     pthread_mutex_lock(&admission); pndd_handle h = PNDD_INVALID;
+    PROFILE_START;
     if (begin(e)) {
         uint32_t x = resolve(a); if (field >= G->field_count) fail(3);
         if (!atomic_load(&G->failure)) { atomic_fetch_add(&G->runs, 1); h = own(RUN(exist_rec, x, field, 0)); }
     }
-    pthread_mutex_unlock(&admission); return h;
+    PROFILE_END(6); pthread_mutex_unlock(&admission); return h;
 }
 pndd_handle pndd_retain(pndd_engine *e, pndd_handle a) {
     pthread_mutex_lock(&admission); pndd_handle h = begin(e) ? own(resolve(a)) : PNDD_INVALID; pthread_mutex_unlock(&admission); return h;
 }
 int pndd_release(pndd_engine *e, pndd_handle a) {
     pthread_mutex_lock(&admission); int result = 0;
-    if (e && e == G) { atomic_store(&G->failure, 0); uint32_t id = resolve(a); if (id != INVALID_ID) { --node(id)->refs; result = 1; } }
+    if (e && e == G) { reset_failure(); uint32_t id = resolve(a); if (id != INVALID_ID) { --node(id)->refs; result = 1; } }
     pthread_mutex_unlock(&admission); return result;
 }
 double pndd_satcount(pndd_engine *e, pndd_handle a) {
     pthread_mutex_lock(&admission); double result = NAN;
+    PROFILE_START;
     if (begin(e)) result = satcount_internal(resolve(a));
-    pthread_mutex_unlock(&admission); return result;
+    PROFILE_END(1); pthread_mutex_unlock(&admission); return result;
 }
 int pndd_evaluate(pndd_engine *e, pndd_handle a, const uint64_t *values, size_t count) {
     pthread_mutex_lock(&admission); int result = -1;
@@ -873,22 +1574,196 @@ int pndd_evaluate(pndd_engine *e, pndd_handle a, const uint64_t *values, size_t 
     }
     pthread_mutex_unlock(&admission); return result;
 }
-VOID_TASK_DECL_6(batch_rec, uint32_t, const uint32_t *, const uint32_t *, uint32_t *, size_t, uint32_t);
-VOID_TASK_IMPL_6(batch_rec, uint32_t, op, const uint32_t *, a, const uint32_t *, b, uint32_t *, out, size_t, count, uint32_t, depth) {
+VOID_TASK_DECL_7(batch_rec, uint32_t, const uint32_t *, const uint32_t *, uint32_t *, size_t, uint32_t, int);
+VOID_TASK_IMPL_7(batch_rec, uint32_t, op, const uint32_t *, a, const uint32_t *, b, uint32_t *, out, size_t, count, uint32_t, depth, int, coarse) {
     if (G->config.batch_parallel && G->config.workers > 1 && count > G->config.chunk_size && depth < G->config.spawn_depth) {
         size_t half = count / 2; atomic_fetch_add(&G->tasks, 1);
-        SPAWN(batch_rec, op, a, b, out, half, depth + 1);
-        CALL(batch_rec, op, a + half, b + half, out + half, count - half, depth + 1);
+        SPAWN(batch_rec, op, a, b, out, half, depth + 1, coarse);
+        CALL(batch_rec, op, a + half, b + half, out + half, count - half, depth + 1, coarse);
         SYNC(batch_rec);
-    } else for (size_t i = 0; i < count; ++i) out[i] = CALL(apply_rec, op, a[i], b[i], 0);
+    } else {
+        for (size_t i = 0; i < count; ++i) out[i] = CALL(apply_rec, op, a[i], b[i], 0);
+        coarse_leaf_done(coarse);
+    }
 }
 VOID_TASK_DECL_5(batch_top, uint32_t, const pndd_handle *, const pndd_handle *, size_t, pndd_handle *);
+typedef struct { uint32_t arrive, outer, inner, result; } PriorityJob;
+VOID_TASK_DECL_5(priority_jobs, PriorityJob *, size_t, uint32_t, uint32_t, uint32_t);
+VOID_TASK_IMPL_5(priority_jobs, PriorityJob *, jobs, size_t, count, uint32_t, budget, uint32_t, ecmp, uint32_t, depth) {
+    (void)budget;
+    if (G->config.batch_parallel && G->config.workers > 1 && count > G->config.chunk_size && depth < G->config.spawn_depth && inner_parallel_available()) {
+        size_t half = count / 2; atomic_fetch_add(&G->tasks, 1);
+        SPAWN(priority_jobs, jobs, half, budget, ecmp, depth + 1);
+        CALL(priority_jobs, jobs + half, count - half, budget, ecmp, depth + 1);
+        SYNC(priority_jobs);
+    } else for (size_t i = 0; i < count; ++i) {
+        uint32_t value = CALL(apply_rec, PNDD_AND, (ecmp & PNDD_PRIORITY_INTERSECT_FIRST) ? budget : jobs[i].outer, jobs[i].arrive, 0);
+        if (ecmp & PNDD_PRIORITY_INTERSECT_FIRST) value = CALL(apply_rec, PNDD_DIFF, value, jobs[i].outer, 0);
+        if (!(ecmp & PNDD_PRIORITY_MULTIPATH)) value = CALL(apply_rec, PNDD_DIFF, value, jobs[i].inner, 0);
+        jobs[i].result = value;
+    }
+}
+typedef struct {
+    uint32_t budget;
+    const pndd_handle *input;
+    const uint32_t *ends;
+    size_t count, groups, start;
+    int ecmp;
+    pndd_handle *out;
+} PriorityRequest;
+typedef struct {
+    uint32_t budget;
+    PriorityJob *jobs;
+    const uint32_t *ends;
+    size_t count, groups, start;
+    int flags;
+} PriorityWork;
+VOID_TASK_DECL_1(priority_compute, PriorityWork *);
+VOID_TASK_IMPL_1(priority_compute, PriorityWork *, work) {
+#ifdef PNDD_PAR_PROFILE
+    uint64_t profile_start = now_ns();
+#endif
+    uint32_t outer = 0; size_t i = 0;
+    for (size_t group = 0; group < work->groups && !atomic_load(&G->failure); ++group) {
+        uint32_t inner = 0;
+        uint32_t available = work->flags & PNDD_PRIORITY_INTERSECT_FIRST ? outer : CALL(apply_rec, PNDD_DIFF, work->budget, outer, 0);
+        for (; i < work->ends[group]; ++i) {
+            work->jobs[i].outer = available; work->jobs[i].inner = inner;
+            if (group + 1 < work->groups || (!(work->flags & PNDD_PRIORITY_MULTIPATH) && i + 1 < work->ends[group]))
+                inner = CALL(apply_rec, PNDD_OR, inner, work->jobs[i].arrive, 0);
+        }
+        if (group + 1 < work->groups) outer = CALL(apply_rec, PNDD_OR, outer, inner, 0);
+    }
+    if (!atomic_load(&G->failure)) CALL(priority_jobs, work->jobs + work->start, work->count - work->start, work->budget, work->flags, 0);
+#ifdef PNDD_PAR_PROFILE
+    uint64_t elapsed = now_ns() - profile_start;
+    ParallelProfile *p = &worker_stats()->parallel_profile;
+    ++p->lists; p->list_ns += elapsed;
+    if (elapsed > p->list_max_ns) p->list_max_ns = elapsed;
+#endif
+}
+VOID_TASK_DECL_1(priority_top, PriorityRequest *);
+VOID_TASK_IMPL_1(priority_top, PriorityRequest *, request) {
+    if (!collect_deferred()) return;
+    PriorityJob *jobs = allocate(request->count * sizeof(PriorityJob));
+    if (!jobs) return;
+    for (size_t i = 0; i < request->count; ++i) jobs[i].arrive = resolve(request->input[i]);
+    PriorityWork work = {request->budget, jobs, request->ends, request->count, request->groups, request->start, request->ecmp};
+    CALL(priority_compute, &work);
+    size_t owned = 0;
+    if (!atomic_load(&G->failure)) for (; owned < request->count - request->start; ++owned) {
+        request->out[owned] = own(jobs[request->start + owned].result);
+        if (request->out[owned] == PNDD_INVALID) break;
+    }
+    if (atomic_load(&G->failure)) for (size_t j = 0; j < owned; ++j) {
+        --node(jobs[request->start + j].result)->refs; request->out[j] = PNDD_INVALID;
+    }
+    deallocate(jobs);
+}
+int pndd_priority_select(pndd_engine *e, pndd_handle budget, const pndd_handle *input,
+                         size_t count, const uint32_t *ends, size_t groups,
+                         size_t start, int ecmp, pndd_handle *out) {
+    pthread_mutex_lock(&admission); int ok = 0;
+    if (begin_deferred(e, 1)) {
+        uint32_t b = resolve(budget);
+        if (start > count || count > UINT32_MAX || count > SIZE_MAX / sizeof(PriorityJob) ||
+            (count && (!input || !ends || !groups)) || (groups && !ends) || (count > start && !out) ||
+            (ecmp & ~(PNDD_PRIORITY_MULTIPATH | PNDD_PRIORITY_INTERSECT_FIRST))) fail(3);
+        size_t previous = 0;
+        if (!atomic_load(&G->failure)) for (size_t i = 0; i < groups; ++i) {
+            if (ends[i] <= previous || ends[i] > count) { fail(3); break; }
+            previous = ends[i];
+        }
+        if (previous != count) fail(3);
+        if (!atomic_load(&G->failure)) {
+            PriorityRequest request = {b, input, ends, count, groups, start, ecmp, out};
+            atomic_fetch_add(&G->runs, 1); RUN(priority_top, &request);
+            ok = !atomic_load(&G->failure);
+        }
+    }
+    pthread_mutex_unlock(&admission); return ok;
+}
+VOID_TASK_DECL_4(priority_lists, PriorityWork *, size_t, uint32_t, int);
+VOID_TASK_IMPL_4(priority_lists, PriorityWork *, work, size_t, count, uint32_t, depth, int, coarse) {
+    if (atomic_load(&G->failure)) return;
+    if (G->config.batch_parallel && G->config.workers > 1 && count > G->config.chunk_size && depth < G->config.spawn_depth) {
+        size_t half = count / 2; atomic_fetch_add(&G->tasks, 1);
+        SPAWN(priority_lists, work, half, depth + 1, coarse);
+        CALL(priority_lists, work + half, count - half, depth + 1, coarse);
+        SYNC(priority_lists);
+    } else {
+        for (size_t i = 0; i < count && !atomic_load(&G->failure); ++i) CALL(priority_compute, work + i);
+        coarse_leaf_done(coarse);
+    }
+}
+VOID_TASK_DECL_3(priority_batch_top, const pndd_priority_request *, size_t, size_t);
+VOID_TASK_IMPL_3(priority_batch_top, const pndd_priority_request *, requests, size_t, count, size_t, inputs) {
+    if (!collect_deferred()) return;
+    PriorityWork *work = allocate(count * sizeof(PriorityWork));
+    PriorityJob *jobs = allocate(inputs * sizeof(PriorityJob));
+    if (!work || !jobs) { deallocate(work); deallocate(jobs); return; }
+    size_t offset = 0;
+    for (size_t i = 0; i < count; ++i) {
+        const pndd_priority_request *r = requests + i;
+        work[i] = (PriorityWork){resolve(r->budget), jobs + offset, r->ends, r->count, r->groups, r->start, r->flags};
+        for (size_t j = 0; j < r->count; ++j) work[i].jobs[j].arrive = resolve(r->input[j]);
+        offset += r->count;
+    }
+    int coarse = coarse_batch_begin(count);
+    if (!atomic_load(&G->failure)) CALL(priority_lists, work, count, 0, coarse);
+    coarse_batch_end(coarse);
+    /* Refcounts belong to admission, never to concurrent list tasks. */
+    size_t completed = 0, in_current = 0;
+    if (!atomic_load(&G->failure)) for (; completed < count; ++completed) {
+        const pndd_priority_request *r = requests + completed;
+        for (in_current = 0; in_current < r->count - r->start; ++in_current) {
+            r->out[in_current] = own(work[completed].jobs[r->start + in_current].result);
+            if (r->out[in_current] == PNDD_INVALID) break;
+        }
+        if (atomic_load(&G->failure)) break;
+    }
+    if (atomic_load(&G->failure)) for (size_t i = 0; i <= completed && i < count; ++i) {
+        size_t owned = i < completed ? requests[i].count - requests[i].start : in_current;
+        for (size_t j = 0; j < owned; ++j) {
+            --node(work[i].jobs[requests[i].start + j].result)->refs;
+            requests[i].out[j] = PNDD_INVALID;
+        }
+    }
+    deallocate(jobs); deallocate(work);
+}
+int pndd_priority_batch(pndd_engine *e, const pndd_priority_request *requests, size_t count) {
+    pthread_mutex_lock(&admission); int ok = 0; size_t inputs = 0;
+    if (begin_deferred(e, 1)) {
+        if ((count && !requests) || count > SIZE_MAX / sizeof(PriorityWork)) fail(3);
+        for (size_t i = 0; i < count && !atomic_load(&G->failure); ++i) {
+            const pndd_priority_request *r = requests + i;
+            if (r->start > r->count || r->count > UINT32_MAX || r->count > SIZE_MAX / sizeof(PriorityJob) - inputs ||
+                (r->count && (!r->input || !r->ends || !r->groups)) || (r->groups && !r->ends) ||
+                (r->count > r->start && !r->out) || (r->flags & ~(PNDD_PRIORITY_MULTIPATH | PNDD_PRIORITY_INTERSECT_FIRST))) { fail(3); break; }
+            resolve(r->budget); size_t previous = 0;
+            for (size_t j = 0; j < r->groups; ++j) {
+                if (r->ends[j] <= previous || r->ends[j] > r->count) { fail(3); break; }
+                previous = r->ends[j];
+            }
+            if (previous != r->count) fail(3);
+            for (size_t j = 0; j < r->count && !atomic_load(&G->failure); ++j) resolve(r->input[j]);
+            inputs += r->count;
+        }
+        if (!atomic_load(&G->failure)) {
+            atomic_fetch_add(&G->runs, 1); RUN(priority_batch_top, requests, count, inputs);
+            ok = !atomic_load(&G->failure);
+        }
+    }
+    pthread_mutex_unlock(&admission); return ok;
+}
 VOID_TASK_IMPL_5(batch_top, uint32_t, op, const pndd_handle *, a, const pndd_handle *, b, size_t, count, pndd_handle *, out) {
     if (!collect_deferred()) return;
     uint32_t *ids = allocate(count * 3 * sizeof(uint32_t));
     if (!ids) return;
     for (size_t i = 0; i < count; ++i) { ids[i] = resolve(a[i]); ids[count + i] = resolve(b[i]); }
-    if (!atomic_load(&G->failure)) CALL(batch_rec, op, ids, ids + count, ids + 2 * count, count, 0);
+    int coarse = coarse_batch_begin(count);
+    if (!atomic_load(&G->failure)) CALL(batch_rec, op, ids, ids + count, ids + 2 * count, count, 0, coarse);
+    coarse_batch_end(coarse);
     size_t owned = 0;
     if (!atomic_load(&G->failure)) for (; owned < count; ++owned) {
         out[owned] = own(ids[2 * count + owned]);
@@ -936,7 +1811,7 @@ pndd_handle pndd_reduce(pndd_engine *e, pndd_op op, const pndd_handle *values, s
 }
 int pndd_collect(pndd_engine *e) {
     pthread_mutex_lock(&admission); int result = 0;
-    if (e && e == G) { atomic_store(&G->failure, 0); result = collect_internal(); }
+    if (e && e == G) { reset_failure(); result = collect_internal(); }
     pthread_mutex_unlock(&admission); return result;
 }
 pndd_stats pndd_get_stats(pndd_engine *e) {
@@ -957,6 +1832,205 @@ pndd_stats pndd_get_stats(pndd_engine *e) {
 }
 /* Benchmark construction matches NDDSolution.java: row ORs, four independent
  * implication folds per cell, then c&d, b&c, a&b and fixed row/cell left-fold. */
+VOID_TASK_DECL_2(snapshot_task, uint32_t, pndd_handle *);
+VOID_TASK_IMPL_2(snapshot_task, uint32_t, id, pndd_handle *, out) {
+    Node *n = node(id);
+    for (size_t i = 0; i < n->count && !atomic_load(&G->failure); ++i) {
+        out[i * 2] = own(n->edges[i].target);
+        Edge edge = {n->edges[i].label, 1};
+        out[i * 2 + 1] = own(make_node(n->field, &edge, 1));
+    }
+}
+int pndd_snapshot(pndd_engine *e, pndd_handle handle, uint32_t *field,
+                  size_t *count, pndd_handle **pairs) {
+    pthread_mutex_lock(&admission); int ok = 0; *count = 0; *pairs = NULL;
+    PROFILE_START;
+    if (begin(e)) {
+        uint32_t id = resolve(handle);
+        if (id != INVALID_ID) {
+            Node *n = node(id); *field = n->field; size_t size = n->count;
+            pndd_handle *out = malloc(size ? size * 2 * sizeof(*out) : 1);
+            if (!out) fail(1);
+            else {
+                for (size_t i = 0; i < size * 2; ++i) out[i] = PNDD_INVALID;
+                if (size) { atomic_fetch_add(&G->runs, 1); RUN(snapshot_task, id, out); }
+                if (atomic_load(&G->failure)) {
+                    for (size_t i = 0; i < size * 2; ++i)
+                        if (out[i] != PNDD_INVALID) --node((uint32_t)out[i])->refs;
+                    free(out);
+                } else { *count = size; *pairs = out; ok = 1; }
+            }
+        }
+    }
+    PROFILE_END(2); pthread_mutex_unlock(&admission); return ok;
+}
+int pndd_reachable(pndd_engine *e, const pndd_handle *roots, size_t root_count,
+                   const pndd_handle *candidates, size_t count, unsigned char *mask) {
+    pthread_mutex_lock(&admission); int ok = 0;
+    PROFILE_START;
+    if (begin(e)) {
+        for (uint32_t i = 2; i < G->node_high; ++i) { Node *n = node(i); if (n) n->mark = 0; }
+        for (size_t i = 0; i < root_count; ++i) {
+            uint32_t id = resolve(roots[i]); if (id != INVALID_ID) mark_node(id);
+        }
+        for (size_t i = 0; i < count; ++i) {
+            uint32_t id = resolve(candidates[i]);
+            mask[i] = id != INVALID_ID && (id < 2 || node(id)->mark);
+        }
+        ok = !atomic_load(&G->failure);
+    }
+    PROFILE_END(3); pthread_mutex_unlock(&admission); return ok;
+}
+static uint64_t condition_label(uint32_t id, uint32_t field) {
+    if (id < 2) return id ? G->fields[field].universe : 0;
+    Node *n = node(id);
+    if (n->field != field || n->count != 1 || n->edges[0].target != 1) { fail(3); return 0; }
+    return n->edges[0].label;
+}
+static int minimum_label_cost(uint32_t field, uint64_t value, int costly) {
+    const int infinity = INT_MAX / 4;
+    if (!value) return infinity;
+    if (value == truth(field)) return 0;
+    pndd_backend mode = G->fields[field].spec.backend;
+    if (mode == PNDD_BITSET) {
+        Label *l = label(value); int best = infinity;
+        unsigned mask = (1u << G->fields[field].spec.width) - 1;
+        for (unsigned a = 0; a < (1u << G->widths[mode]); ++a) {
+            if ((a < 64 ? l->low >> a : l->high >> (a - 64)) & 1) {
+                int cost = __builtin_popcount(costly ? (a & mask) : ((~a) & mask));
+                if (cost < best) best = cost;
+            }
+        }
+        return best;
+    }
+    uint32_t key = 0x20000 + mode * 2 + !!costly; uint64_t cached;
+    if (pndd_cache_get(key, value, 0, &cached)) return (int)cached;
+    uint32_t var = label_var(field, value);
+    int low = minimum_label_cost(field, branch(field, value, var, 0), costly);
+    int high = minimum_label_cost(field, branch(field, value, var, 1), costly);
+    if (low < infinity && !costly) ++low;
+    if (high < infinity && costly) ++high;
+    int result = low < high ? low : high;
+    pndd_cache_put(key, value, 0, (uint64_t)result); return result;
+}
+int pndd_min_label_cost(pndd_engine *e, pndd_handle handle, uint32_t field, int costly) {
+    pthread_mutex_lock(&admission); int result = -1;
+    PROFILE_START;
+    if (begin(e)) {
+        uint32_t id = resolve(handle);
+        if (field >= G->field_count || (G->fields[field].spec.backend == PNDD_ZDD && !costly)) fail(3);
+        if (!atomic_load(&G->failure)) result = minimum_label_cost(field, condition_label(id, field), costly);
+        if (atomic_load(&G->failure)) result = -1;
+    }
+    PROFILE_END(5); pthread_mutex_unlock(&admission); return result;
+}
+typedef struct {
+    signed char *bits, *data; size_t count, capacity, limit; uint32_t field, width;
+} Cubes;
+static void emit_cube(Cubes *c) {
+    if (c->count >= c->limit) { fail(3); return; }
+    if (c->count == c->capacity) {
+        size_t capacity = c->capacity ? c->capacity * 2 : 16;
+        if (capacity > c->limit) capacity = c->limit;
+        signed char *data = realloc(c->data, capacity * c->width);
+        if (!data) { fail(1); return; }
+        c->data = data; c->capacity = capacity;
+    }
+    memcpy(c->data + c->count++ * c->width, c->bits, c->width);
+}
+static void enumerate_cubes(Cubes *c, uint64_t value) {
+    if (!value || atomic_load(&G->failure)) return;
+    if (value == truth(c->field)) { emit_cube(c); return; }
+    uint32_t var = label_var(c->field, value);
+    uint32_t bit = reversed(c->field) ? c->width - 1 - var : var - G->fields[c->field].start;
+    if (bit >= c->width) { fail(3); return; }
+    for (int high = 0; high <= 1; ++high) {
+        c->bits[bit] = (signed char)high;
+        enumerate_cubes(c, branch(c->field, value, var, high));
+    }
+    c->bits[bit] = G->fields[c->field].spec.backend == PNDD_ZDD ? 0 : -1;
+}
+int pndd_label_cubes(pndd_engine *e, pndd_handle handle, uint32_t field,
+                     size_t limit, size_t *count, signed char **cubes) {
+    pthread_mutex_lock(&admission); int ok = 0; *count = 0; *cubes = NULL;
+    if (begin(e)) {
+        uint32_t id = resolve(handle);
+        if (field >= G->field_count || !limit || limit > 65536) fail(3);
+        if (!atomic_load(&G->failure)) {
+            uint64_t value = condition_label(id, field);
+            Cubes c = {0}; c.field = field; c.width = G->fields[field].spec.width; c.limit = limit;
+            c.bits = malloc(c.width);
+            if (!c.bits) fail(1);
+            else {
+                memset(c.bits, G->fields[field].spec.backend == PNDD_ZDD ? 0 : -1, c.width);
+                if (id == 1) { memset(c.bits, -1, c.width); emit_cube(&c); }
+                else if (G->fields[field].spec.backend == PNDD_BITSET) {
+                    Label *l = value ? label(value) : NULL;
+                    for (unsigned a = 0; l && a < (1u << c.width); ++a) {
+                        if ((a < 64 ? l->low >> a : l->high >> (a - 64)) & 1) {
+                            for (unsigned bit = 0; bit < c.width; ++bit) c.bits[bit] = (a >> (c.width - bit - 1)) & 1;
+                            emit_cube(&c);
+                        }
+                    }
+                } else enumerate_cubes(&c, value);
+                free(c.bits);
+            }
+            if (atomic_load(&G->failure)) free(c.data);
+            else { *count = c.count; *cubes = c.data; ok = 1; }
+        }
+    }
+    pthread_mutex_unlock(&admission); return ok;
+}
+
+static uint64_t rotate(uint64_t value, unsigned n) { return (value << n) | (value >> (64 - n)); }
+static uint64_t fingerprint_label(uint32_t field, uint64_t value) {
+    /* ZDD implementations may order variables in opposite directions. A
+       weighted family sum is independent of that order: empty family = 0,
+       singleton empty set = 1, F(node) = F(low) + weight(var)*F(high).
+       This remains a 64-bit diagnostic digest, not an equality proof. */
+    if (G->fields[field].spec.backend == PNDD_ZDD) {
+        if (value <= 1) return value;
+        uint64_t result;
+        if (pndd_cache_get(0x30000 + PNDD_ZDD, value, 0, &result)) return result;
+        uint32_t var = label_var(field, value);
+        uint64_t low = fingerprint_label(field, branch(field, value, var, 0));
+        uint64_t high = fingerprint_label(field, branch(field, value, var, 1));
+        result = low + (mix(var ^ UINT64_C(0xabcdef1234567890)) | 1) * high;
+        pndd_cache_put(0x30000 + PNDD_ZDD, value, 0, result); return result;
+    }
+    if (!value) return mix(0xf00);
+    if (value == truth(field)) return mix(0xf01);
+    uint32_t key = 0x30000 + G->fields[field].spec.backend; uint64_t result;
+    if (pndd_cache_get(key, value, 0, &result)) return result;
+    uint32_t var = label_var(field, value);
+    if (var == UINT32_MAX) { fail(3); return 0; }
+    uint64_t low = fingerprint_label(field, branch(field, value, var, 0));
+    uint64_t high = fingerprint_label(field, branch(field, value, var, 1));
+    result = mix(var ^ rotate(low, 13) ^ rotate(high, 37) ^ UINT64_C(0xabcdef1234567890));
+    pndd_cache_put(key, value, 0, result); return result;
+}
+static uint64_t fingerprint_node(uint32_t id) {
+    if (id < 2) return mix(0xf00 + id);
+    uint64_t result;
+    if (pndd_cache_get(0x40000, id, 0, &result)) return result;
+    Node *n = node(id); uint64_t sum = 0;
+    for (size_t i = 0; i < n->count; ++i) {
+        uint64_t l = fingerprint_label(n->field, n->edges[i].label);
+        uint64_t t = fingerprint_node(n->edges[i].target);
+        sum += mix(l ^ rotate(t, 7));
+    }
+    result = mix(sum ^ ((uint64_t)n->field << 32) ^ n->count);
+    pndd_cache_put(0x40000, id, 0, result); return result;
+}
+int pndd_fingerprint(pndd_engine *e, pndd_handle handle, uint64_t *digest) {
+    pthread_mutex_lock(&admission); int ok = 0;
+    if (begin(e)) {
+        uint32_t id = resolve(handle);
+        if (!atomic_load(&G->failure)) { *digest = fingerprint_node(id); ok = !atomic_load(&G->failure); }
+    }
+    pthread_mutex_unlock(&admission); return ok;
+}
+
 static uint32_t queen_lit(uint32_t field, uint32_t bit, int positive) { return G->fields[field].literals[bit * 2 + !!positive]; }
 TASK_DECL_3(uint32_t, queen_cell, uint32_t, uint32_t, uint32_t);
 TASK_IMPL_3(uint32_t, queen_cell, uint32_t, row, uint32_t, col, uint32_t, n) {

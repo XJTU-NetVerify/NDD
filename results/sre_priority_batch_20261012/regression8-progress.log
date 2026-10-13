@@ -1,0 +1,4 @@
+01 fattree08-mf1-native6-r1: ok total=1.331542333s wall=1.456s RSS=446.3MiB
+02 fattree08-mf2-native6-r1: ok total=2.457468411s wall=2.665s RSS=506.9MiB
+03 fattree08-mf1-native6-r2: ok total=1.292733723s wall=1.408s RSS=446.7MiB
+04 fattree08-mf2-native6-r2: ok total=2.542950609s wall=2.763s RSS=500.8MiB

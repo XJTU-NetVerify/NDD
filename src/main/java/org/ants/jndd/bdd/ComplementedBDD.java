@@ -7,7 +7,8 @@ import java.util.Arrays;
  *
  * <p>Handles reserve bit zero as a complement flag. Internal node {@code n} has regular handle
  * {@code n << 1}; terminals remain the conventional handles 0 and 1. The unique-table invariant
- * requires every internal high child to be regular. Consequently negation is constant time and a
+ * requires every low child (including terminals) to be regular, as in Sylvan.
+ * Consequently negation is constant time and a
  * function and its complement share every internal node.
  *
  * <p>The manager is deliberately self-contained for use as an NDD label backend: nodes are stored
@@ -366,7 +367,9 @@ public final class ComplementedBDD {
     private int uniqueMk(int var, int low, int high) {
         if (low == high) return low;
 
-        boolean complementResult = isInternalComplemented(high);
+        // Include the complemented TRUE terminal in normalization. Keeping low
+        // edges regular also leaves positive variable literals uncomplemented.
+        boolean complementResult = (low & 1) != 0;
         if (complementResult) {
             low ^= 1;
             high ^= 1;

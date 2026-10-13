@@ -1,0 +1,18 @@
+-- 
+-- Lace 1.6.2 configuration summary:
+--   Build type        : Release
+--   Shared libraries  : OFF
+--   Top-level project : OFF
+--   Use HWLOC         : OFF
+--   Use -march=native : ON
+--   Use -fPIC         : ON
+--   Backoff when idle : ON
+--   Count tasks       : OFF
+--   Count steals      : OFF
+--   Count splits      : OFF
+--   Record PIE times  : OFF
+-- 
+-- Found JNI: /home/cheney/.cache/ndd-bench-tools/sysroot/usr/lib/jvm/java-17-openjdk-amd64/include  found components: JVM 
+-- Configuring done (0.2s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/cheney/NDD/native/build-deep

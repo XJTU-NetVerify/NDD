@@ -1,0 +1,173 @@
+{
+  "arguments": {
+    "ndd": "/home/cheney/NDD",
+    "java": "/home/cheney/.cache/ndd-bench-tools/sysroot/usr/lib/jvm/java-17-openjdk-amd64/bin/java",
+    "java_classes": "/home/cheney/NDD/results/sre_mixed_parallel_20261013/final/java-classes",
+    "java_jar": "/home/cheney/NDD/results/sre_mixed_parallel_20261013/final/java-ndd.jar",
+    "native_classes": "/home/cheney/NDD/results/sre_mixed_parallel_20261013/final/native-classes",
+    "native_jar": "/home/cheney/NDD/results/sre_mixed_parallel_20261013/final/native-ndd.jar",
+    "library": "/home/cheney/NDD/results/sre_mixed_parallel_20261013/final/libpnddjni.so",
+    "output": "/home/cheney/NDD/results/sre_mixed_parallel_20261013/matrix/d-ft04",
+    "cpus": "0,2,4,6,8,10",
+    "repeats": 2,
+    "repeat_start": 1,
+    "timeout": 900.0,
+    "rss_limit_mib": 12288,
+    "seed": 20261011,
+    "sizes": "4",
+    "mfs": "1,2,3",
+    "engines": "java,native1,native6",
+    "profile": "d",
+    "cache": 262144,
+    "collect_every": 0,
+    "gc_high_water_mib": 1228,
+    "batch": "true",
+    "select_first": "false",
+    "priority_batch": "true",
+    "priority_lists": "true",
+    "priority_list_block": 64,
+    "canonical_compare": "true",
+    "budget_difference": "true",
+    "reach_batch": "true",
+    "clip_forwarding": "true",
+    "forward_batch": "true",
+    "labels": "false",
+    "ndd_parallel": "true",
+    "threshold": 4,
+    "chunk": 2,
+    "depth": 4
+  },
+  "timestamp": "2026-10-13T00:28:50+0800",
+  "java": "openjdk version \"17.0.11\" 2024-04-16\nOpenJDK Runtime Environment (build 17.0.11+9-Ubuntu-1)\nOpenJDK 64-Bit Server VM (build 17.0.11+9-Ubuntu-1, mixed mode, sharing)",
+  "cpu": "Architecture:                            x86_64\nCPU op-mode(s):                          32-bit, 64-bit\nAddress sizes:                           39 bits physical, 48 bits virtual\nByte Order:                              Little Endian\nCPU(s):                                  28\nOn-line CPU(s) list:                     0-27\nVendor ID:                               GenuineIntel\nModel name:                              Intel(R) Core(TM) i7-14700KF\nCPU family:                              6\nModel:                                   183\nThread(s) per core:                      2\nCore(s) per socket:                      14\nSocket(s):                               1\nStepping:                                1\nBogoMIPS:                                6835.20\nFlags:                                   fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ss ht syscall nx pdpe1gb rdtscp lm constant_tsc rep_good nopl xtopology tsc_reliable nonstop_tsc cpuid tsc_known_freq pni pclmulqdq vmx ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm abm 3dnowprefetch ssbd ibrs ibpb stibp ibrs_enhanced tpr_shadow ept vpid ept_ad fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid rdseed adx smap clflushopt clwb sha_ni xsaveopt xsavec xgetbv1 xsaves avx_vnni vnmi umip waitpkg gfni vaes vpclmulqdq rdpid movdiri movdir64b fsrm md_clear serialize ibt flush_l1d arch_capabilities\nVirtualization:                          VT-x\nHypervisor vendor:                       Microsoft\nVirtualization type:                     full\nL1d cache:                               672 KiB (14 instances)\nL1i cache:                               448 KiB (14 instances)\nL2 cache:                                28 MiB (14 instances)\nL3 cache:                                33 MiB (1 instance)\nNUMA node(s):                            1\nNUMA node0 CPU(s):                       0-27\nVulnerability Gather data sampling:      Not affected\nVulnerability Ghostwrite:                Not affected\nVulnerability Indirect target selection: Not affected\nVulnerability Itlb multihit:             Not affected\nVulnerability L1tf:                      Not affected\nVulnerability Mds:                       Not affected\nVulnerability Meltdown:                  Not affected\nVulnerability Mmio stale data:           Not affected\nVulnerability Old microcode:             Not affected\nVulnerability Reg file data sampling:    Mitigation; Clear Register File\nVulnerability Retbleed:                  Mitigation; Enhanced IBRS\nVulnerability Spec rstack overflow:      Not affected\nVulnerability Spec store bypass:         Mitigation; Speculative Store Bypass disabled via prctl\nVulnerability Spectre v1:                Mitigation; usercopy/swapgs barriers and __user pointer sanitization\nVulnerability Spectre v2:                Mitigation; Enhanced / Automatic IBRS; IBPB conditional; PBRSB-eIBRS SW sequence; BHI BHI_DIS_S\nVulnerability Srbds:                     Not affected\nVulnerability Tsa:                       Not affected\nVulnerability Tsx async abort:           Not affected\nVulnerability Vmscape:                   Not affected",
+  "compiler": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+  "native_library_sha256": "6a7ae43f000f4467c3624af219dcf6d72ca65a15bfccaae5a8df41757d87f5df",
+  "ndd_jar_sha256": "1da0d181b85f10367be21b89b41ffa029bdf9d7cbcab4d24a7ba8d956bfd1978",
+  "configuration": {
+    "profile": "D",
+    "order": "header-link",
+    "plan": 1,
+    "trim": true,
+    "java_heap": "8 GiB",
+    "native_diagram_budget_mib": 3072,
+    "cache_entries": 262144,
+    "threshold": 4,
+    "chunk": 2,
+    "depth": 4,
+    "label_parallel": false,
+    "ndd_parallel": true,
+    "propagation_batch": true,
+    "priority_batch": true,
+    "priority_lists": true,
+    "priority_list_block": 64,
+    "route_select_first": false,
+    "canonical_compare": true,
+    "forwarding_budget_difference": true,
+    "reachability_batch": true,
+    "clipped_forwarding": true,
+    "forwarding_batch": true,
+    "adapter_collect_every": 0,
+    "adapter_gc_high_water_mib": 1228,
+    "native_gc_interval": 0,
+    "label_order": "legacy LSB-first",
+    "rss_limit_mib": 12288,
+    "clock": "time.monotonic",
+    "sampling_seconds": 0.05,
+    "total_excludes": "JVM startup, post-timing checksum and native close",
+    "wall_includes": "startup, checksum and close"
+  },
+  "java_control_jar_sha256": "d49bb937709bd06907cc626e57f58307746e0836ea44f75ff24a5847efeeef52",
+  "native_control_jar_sha256": "1da0d181b85f10367be21b89b41ffa029bdf9d7cbcab4d24a7ba8d956bfd1978",
+  "native_control_classes": "/home/cheney/NDD/results/sre_mixed_parallel_20261013/final/native-classes",
+  "native_control_adapter_sha256": "06ede3199adff1f617f7d87c8d93af07cc9028e1ffa4403e9ea68f9709057108",
+  "java_control_classes": "/home/cheney/NDD/results/sre_mixed_parallel_20261013/final/java-classes",
+  "java_control_adapter_sha256": "961e813fcc19175a79fc7b70e72b59272bf15691d433e1ddcc3bc14174108b3a",
+  "ndd_commit": "6f70a73fb6f86732ad741cea8ec75076254fe449",
+  "sre_commit": "4a11efcb07b075629448a44f0168ee4a0bcd0b1b",
+  "inputs": [
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree04/configs/aggregation-12.json",
+      "sha256": "68c38c7841e4f2762e05c8c819b716b5538a1f0570bb70bccd0b3293e8a8a215"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree04/configs/aggregation-13.json",
+      "sha256": "87b3eabb640ae3bf48c69aeda8319f02d2a7b5560cb2492109dc5aca0cae9293"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree04/configs/aggregation-16.json",
+      "sha256": "59408d076ab28fe035c3379407a255357fc18886770b5e3d35a8c512f5e09de8"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree04/configs/aggregation-17.json",
+      "sha256": "5bf96b5639276625cf0b265d12b8a6a1ec7282f6dd241cee6249e7d07618302f"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree04/configs/aggregation-4.json",
+      "sha256": "3fe33857d443896ad51d2f61e27e9bdbeaac4e7d49f123aada73307933d6e2ba"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree04/configs/aggregation-5.json",
+      "sha256": "347ee6f557083ffc03f00aeb119f68984ed3c8b72099eafe0981137161ff74a2"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree04/configs/aggregation-8.json",
+      "sha256": "489868c7ea45952c0e016a6c7d83917b0adfb35a154477240f5c996b72fc5bd0"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree04/configs/aggregation-9.json",
+      "sha256": "1e0339632696a213ca5b8b5b766ced74a5f430ab8bd968bfaacbfce1beda4a3b"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree04/configs/core-0.json",
+      "sha256": "5717c8908d9a77c727f089e191c36162a309b0a72eed485be12fc5e1ec2ff405"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree04/configs/core-1.json",
+      "sha256": "0dd6705a06296f1be4cb9362f574cf361e301c46f879bf4a3ae6344f158e75ca"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree04/configs/core-2.json",
+      "sha256": "4018621b795b109a4444f50ca6ae534a7adaa811e739098ef9181c84e99941b0"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree04/configs/core-3.json",
+      "sha256": "2a901cad61a8d43c448e0239f17f7f3bbf3ea2d8b899cdcd0202963cfafcf2b1"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree04/configs/edge-10.json",
+      "sha256": "00058c9a66306b907fe638b0d2f24371ac9b5f28cee4b22fbf643a21dba377ba"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree04/configs/edge-11.json",
+      "sha256": "43c3441db231823b66c57bddcaa6359c93aa0a86ff8f266f1763acbb2cf3a920"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree04/configs/edge-14.json",
+      "sha256": "b09377ca9b1aaf9084ec3849c35bce110c157c0ef305c6a0bd6a16c0f581cc5e"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree04/configs/edge-15.json",
+      "sha256": "9a596bbbfa540aa2308bbd3430808f3a73033cf03c9c7dbea2d14387023ada16"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree04/configs/edge-18.json",
+      "sha256": "0369f9e528cc3d7dce1236cfce49cfb8a373fa982bc7fe0c5eaf677892e775b6"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree04/configs/edge-19.json",
+      "sha256": "8147b4972ea7134ca7f818b8769813ef8dda465ba9c0d03e399e107b821df9db"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree04/configs/edge-6.json",
+      "sha256": "c87ca3d3951f182ada2aec28eb8e2f2dce31df8252be57d5a25a4cc222ce0968"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree04/configs/edge-7.json",
+      "sha256": "5e09f20503d4e8010eb49626693cc71225e3cb2f17001448b894e7a8de5d4dfb"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree04/topology.txt",
+      "sha256": "b9c6ca3a2fc0bd36666bd36e4d84bc0429263dea4240085a86b02590d231d637"
+    }
+  ]
+}

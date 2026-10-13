@@ -1,0 +1,163 @@
+{
+  "date": "2026-10-12",
+  "repos": {
+    "ndd": {
+      "commit": "6f70a73fb6f86732ad741cea8ec75076254fe449",
+      "branch": "parallel",
+      "archive": "sources/ndd-final-source.tar.gz",
+      "dirty": true
+    },
+    "sre": {
+      "commit": "4a11efcb07b075629448a44f0168ee4a0bcd0b1b",
+      "branch": "parallel-ndd",
+      "archive": "sources/sre-final-source.tar.gz",
+      "dirty": true
+    }
+  },
+  "system": "Linux-6.18.40.1-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+  "baseline_jar": {
+    "path": "baseline-ndd.jar",
+    "sha256": "a6300e3c70723a6701f840feea28feef983b6e854a637688bf7744dafa6bb344",
+    "note": "Original JAR retained before Maven install. Recorded historical m2 paths now resolve to the updated JAR; use this archive for controls."
+  },
+  "fixed_jar": {
+    "path": "fixed-ndd.jar",
+    "sha256": "d49bb937709bd06907cc626e57f58307746e0836ea44f75ff24a5847efeeef52"
+  },
+  "hash_override": {
+    "path": "hash-classes/org/ants/jndd/parallel/NDDNode.class",
+    "sha256": "952d28477c4fde064de8fd9fb828a907f2bf410d07cd4a00d505b923fc789f3b"
+  },
+  "libraries": {
+    "and": {
+      "path": "libs/and.so",
+      "sha256": "39792ca1bc7dddce77756d8ca970a442f3f9e8903d6aa1f57a9891401b532238",
+      "core_source": "pndd-prototypes-v1.c",
+      "compile_definitions": [
+        "PNDD_EXPERIMENT_BCDD_AND=1"
+      ]
+    },
+    "baseline": {
+      "path": "libs/baseline.so",
+      "sha256": "fe1826a22bebef7a499a2af049c39a69ee5f80a2fe128c1d9a8a0adba7c02bb7",
+      "core_source": "pndd-before.c",
+      "compile_definitions": []
+    },
+    "count-node-profile": {
+      "path": "libs/count-node-profile.so",
+      "sha256": "1902fb0f6a7ada364df6691d3892e2e7ee54d2ba2fb1296812760b0c9c5f291c",
+      "core_source": "pndd-prototypes-v3.c",
+      "compile_definitions": [
+        "PNDD_EXPERIMENT_SATCOUNT_CACHE=1",
+        "PNDD_PROFILE=1"
+      ]
+    },
+    "count-node": {
+      "path": "libs/count-node.so",
+      "sha256": "e6a741a414399926bdbb9192b6d5ce461bfff09109ac594788f17dc92fa469eb",
+      "core_source": "pndd-prototypes-v2.c",
+      "compile_definitions": [
+        "PNDD_EXPERIMENT_SATCOUNT_CACHE=1"
+      ]
+    },
+    "count": {
+      "path": "libs/count.so",
+      "sha256": "fc8320fe3c753b3a4e80f75972903058c966971249856835d091fb68d4a92879",
+      "core_source": "pndd-prototypes-v1.c",
+      "compile_definitions": [
+        "PNDD_EXPERIMENT_SATCOUNT_CACHE=1"
+      ]
+    },
+    "opt-profile": {
+      "path": "libs/opt-profile.so",
+      "sha256": "b275a8c5079dccfc5b23540f810dee2a44d10e782002788836339f1141702b40",
+      "core_source": "pndd-prototypes-v1.c",
+      "compile_definitions": [
+        "PNDD_PROFILE=1",
+        "PNDD_EXPERIMENT_SATCOUNT_CACHE=1",
+        "PNDD_EXPERIMENT_BCDD_AND=1",
+        "PNDD_EXPERIMENT_SYLVAN_CACHE=1"
+      ]
+    },
+    "opt": {
+      "path": "libs/opt.so",
+      "sha256": "c8ea7185981c6384720509b3584c00190509b5a879e3439f2aece9fa225dc9f8",
+      "core_source": "pndd-prototypes-v1.c",
+      "compile_definitions": [
+        "PNDD_EXPERIMENT_SATCOUNT_CACHE=1",
+        "PNDD_EXPERIMENT_BCDD_AND=1",
+        "PNDD_EXPERIMENT_SYLVAN_CACHE=1"
+      ]
+    },
+    "profile": {
+      "path": "libs/profile.so",
+      "sha256": "588b3fb4b6259afa9a29f427221af60a27fd04a1a4581f4eb01e46e0bf1220ff",
+      "core_source": "pndd-prototypes-v1.c",
+      "compile_definitions": [
+        "PNDD_PROFILE=1"
+      ]
+    },
+    "sycache": {
+      "path": "libs/sycache.so",
+      "sha256": "b41addfb0e469d3ee2796a0d8ebdb41495bc98d13d5b355045fdc33baabbd0a6",
+      "core_source": "pndd-prototypes-v1.c",
+      "compile_definitions": [
+        "PNDD_EXPERIMENT_SYLVAN_CACHE=1"
+      ]
+    }
+  },
+  "metadata_binary_hashes_verified": [
+    "hash/metadata.json",
+    "larger/metadata.json",
+    "confirm/metadata.json",
+    "postparallel/metadata.json",
+    "gc/metadata.json",
+    "largeprofile/metadata.json",
+    "profile/metadata.json",
+    "countnode/metadata.json",
+    "matrix/metadata.json"
+  ],
+  "metadata_original_jar_hashes_verified": [
+    "larger/metadata.json",
+    "confirm/metadata.json",
+    "postparallel/metadata.json",
+    "gc/metadata.json",
+    "largeprofile/metadata.json",
+    "countnode/metadata.json"
+  ],
+  "source_versions": {
+    "pndd-before.c": "Original formal54 core, before this investigation.",
+    "pndd-prototypes-v1.c": "Bounded shared count cache, profile counters, optional BCDD AND and Sylvan-cache trials. See CMakeLists-v1.txt and analyze_sre-v1.py.",
+    "pndd-prototypes-v2.c": "Persistent per-node cardinality, measured by countnode/confirm/larger/gc/postparallel.",
+    "pndd-prototypes-v3.c": "v2 plus separate label hit/miss counters, measured by largeprofile.",
+    "pndd-prototypes-v4.c": "Final source, v3 plus 64-byte WorkerStats alignment to isolate diagnostic counters. No performance run claims for this newly aligned profile layout."
+  },
+  "validation": {
+    "ndd_junit": 34,
+    "sre_junit": 35,
+    "ctest_workers": [
+      1,
+      2,
+      4,
+      6
+    ],
+    "asan_ubsan_workers": [
+      1,
+      6
+    ],
+    "logs": "validation/",
+    "final_profile_ctest": "validation/ctest-final-profile.log",
+    "build_configs": [
+      "validation/asan-final-CMakeCache.txt",
+      "validation/profile-final-CMakeCache.txt"
+    ]
+  },
+  "benchmark_runs": 89,
+  "additional_jfr_diagnostics": 1,
+  "reproduction_notes": [
+    "Use the archived adapter/final sources and old JAR with hash class overlay. Do not rebuild during a measured run.",
+    "The hash phase originally used v1 bounded-count binaries for hashcount; consult analyze_sre-v1.py for that phase. Current runner uses final per-node count for new phases.",
+    "The baseline binary and old classes are preserved separately from updated source.",
+    "Source archives intentionally exclude build/output directories. Dataset/input and dependency provenance are recorded in the original formal54 experiment."
+  ]
+}

@@ -1,0 +1,222 @@
+[
+  {
+    "workload": "nqueens",
+    "n": 12,
+    "workers": 1,
+    "samples": 2,
+    "compute_s": 2.85731598,
+    "range": [
+      2.829236576,
+      2.885395384
+    ],
+    "tasks": 0,
+    "gc": 0
+  },
+  {
+    "workload": "nqueens",
+    "n": 12,
+    "workers": 6,
+    "samples": 2,
+    "compute_s": 0.9123316035,
+    "range": [
+      0.890251784,
+      0.934411423
+    ],
+    "tasks": 4716,
+    "gc": 0
+  },
+  {
+    "workload": "nqueens",
+    "n": 13,
+    "workers": 1,
+    "samples": 2,
+    "compute_s": 21.555078018,
+    "range": [
+      21.54618901,
+      21.563967026
+    ],
+    "tasks": 0,
+    "gc": 0
+  },
+  {
+    "workload": "nqueens",
+    "n": 13,
+    "workers": 6,
+    "samples": 2,
+    "compute_s": 6.723441353,
+    "range": [
+      6.632884751,
+      6.813997955
+    ],
+    "tasks": 5057,
+    "gc": 0
+  },
+  {
+    "workload": "sre",
+    "experiment": "labels-off",
+    "size": 8,
+    "mf": 3,
+    "engine": "native1",
+    "samples": 2,
+    "total": 7.434600852,
+    "src_compute": 4.4600432985000005,
+    "spf_fwd": 0.499957832,
+    "spf_reachability": 1.784399401,
+    "native_tasks": 0,
+    "native_stolen_tasks": 0,
+    "native_external_runs": 207167,
+    "adapter_collections": 0,
+    "native_label_collections": 0,
+    "peak_rss_mib": 739.865234375,
+    "native_peak_bytes": 311790357,
+    "native_cache_misses": 21588574,
+    "total_range": [
+      7.353291609,
+      7.515910095
+    ]
+  },
+  {
+    "workload": "sre",
+    "experiment": "labels-off",
+    "size": 8,
+    "mf": 3,
+    "engine": "native6",
+    "samples": 2,
+    "total": 7.157973505,
+    "src_compute": 4.765588565,
+    "spf_fwd": 0.6027415190000001,
+    "spf_reachability": 1.1340897884999999,
+    "native_tasks": 429212,
+    "native_stolen_tasks": 29582,
+    "native_external_runs": 207219,
+    "adapter_collections": 0,
+    "native_label_collections": 0,
+    "peak_rss_mib": 692.51953125,
+    "native_peak_bytes": 314717521,
+    "native_cache_misses": 23137039.5,
+    "total_range": [
+      7.134977817,
+      7.180969193
+    ]
+  },
+  {
+    "workload": "sre",
+    "experiment": "labels-on",
+    "size": 8,
+    "mf": 3,
+    "engine": "native1",
+    "samples": 2,
+    "total": 7.3391340745,
+    "src_compute": 4.4281211385,
+    "spf_fwd": 0.49831263299999995,
+    "spf_reachability": 1.7853416095,
+    "native_tasks": 0,
+    "native_stolen_tasks": 0,
+    "native_external_runs": 207167,
+    "adapter_collections": 0,
+    "native_label_collections": 0,
+    "peak_rss_mib": 738.47265625,
+    "native_peak_bytes": 311790357,
+    "native_cache_misses": 21588574,
+    "total_range": [
+      7.227430533,
+      7.450837616
+    ]
+  },
+  {
+    "workload": "sre",
+    "experiment": "labels-on",
+    "size": 8,
+    "mf": 3,
+    "engine": "native6",
+    "samples": 2,
+    "total": 7.194090609,
+    "src_compute": 4.776551034,
+    "spf_fwd": 0.620405619,
+    "spf_reachability": 1.1489837975000001,
+    "native_tasks": 3253019,
+    "native_stolen_tasks": 59977.5,
+    "native_external_runs": 207231,
+    "adapter_collections": 0,
+    "native_label_collections": 0,
+    "peak_rss_mib": 715.04296875,
+    "native_peak_bytes": 314706884,
+    "native_cache_misses": 23169228.5,
+    "total_range": [
+      7.178144443,
+      7.210036775
+    ]
+  },
+  {
+    "workload": "sre",
+    "experiment": "gc40",
+    "size": 12,
+    "mf": 3,
+    "engine": "native1",
+    "samples": 2,
+    "total": 116.90604872349999,
+    "src_compute": 88.218060158,
+    "spf_fwd": 5.9101552855,
+    "spf_reachability": 20.753872324,
+    "native_tasks": 0,
+    "native_stolen_tasks": 0,
+    "native_external_runs": 1619264,
+    "adapter_collections": 4,
+    "native_label_collections": 8,
+    "peak_rss_mib": 3532.015625,
+    "native_peak_bytes": 1340159991,
+    "native_cache_misses": 437676401,
+    "total_range": [
+      116.524402977,
+      117.28769447
+    ]
+  },
+  {
+    "workload": "sre",
+    "experiment": "gc40",
+    "size": 12,
+    "mf": 3,
+    "engine": "native6",
+    "samples": 2,
+    "total": 115.64416351450001,
+    "src_compute": 92.685739936,
+    "spf_fwd": 6.9436127325,
+    "spf_reachability": 13.881462438,
+    "native_tasks": 3015517,
+    "native_stolen_tasks": 80250.5,
+    "native_external_runs": 1619138.5,
+    "adapter_collections": 4,
+    "native_label_collections": 8,
+    "peak_rss_mib": 3199.34765625,
+    "native_peak_bytes": 1342910815,
+    "native_cache_misses": 455082487.5,
+    "total_range": [
+      114.417777236,
+      116.870549793
+    ]
+  },
+  {
+    "workload": "sre",
+    "experiment": "gc40-labels-on",
+    "size": 12,
+    "mf": 3,
+    "engine": "native6",
+    "samples": 2,
+    "total": 115.35432004399999,
+    "src_compute": 93.44976877650001,
+    "spf_fwd": 6.914769134,
+    "spf_reachability": 12.9370093735,
+    "native_tasks": 37738794,
+    "native_stolen_tasks": 264115,
+    "native_external_runs": 1619605.5,
+    "adapter_collections": 4,
+    "native_label_collections": 8,
+    "peak_rss_mib": 3122.73828125,
+    "native_peak_bytes": 1342917522.5,
+    "native_cache_misses": 455361996,
+    "total_range": [
+      114.570130501,
+      116.138509587
+    ]
+  }
+]

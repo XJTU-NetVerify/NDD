@@ -1,0 +1,2155 @@
+diff --git a/README.md b/README.md
+index a427d6b..ae5983c 100644
+--- a/README.md
++++ b/README.md
+@@ -13,6 +13,79 @@ results for this workload and configuration, rather than guarantees for other ap
+ - [Implementation report and complete experiment index (中文)](doc/parallel-implementation.md)
+ - [Final five-round C/JNI/Java benchmark](results/parallel_ndd_20261011_aligned_final/README.md)
+ - [Correctness and sanitizer validation](results/parallel_ndd_20261011_aligned_validation/README.md)
++- [SRE migration and full BCDD benchmark](results/sre_parallel_20261011_final/README.md)
++- [SRE profiling, fixes and parallelism analysis (中文)](results/sre_parallel_analysis_20261012/README.md)
++- [SRE deep optimization, batch integration and frozen Java controls (中文)](results/sre_deep_optimization_20261012/README.md)
++
++The N-Queens figures above use their archived sources, before the SRE migration
++and the Java BCDD terminal-normalization correction. The SRE report records its
++own updated sources, variable order and capacities; historical measurements
++are kept separately.
++
++## SRE application benchmark
++
++The SRE Config2Spec F profile has been migrated to the current Java library and
++native engine, preserving its Header-Link encoding, trimming, LSB-first label
++order and borrowed integer-handle API. The native API now supports its 108-bit
++link fields. Nine fattree/MF cases were run twice per engine in fresh processes
++(54 runs); route counts, layout, ordering and RIB/FIB condition checks matched.
++
++The deep optimization now exceeds the frozen original Java control on the
++heavier cases. Two runs per configuration, F all BCDD, same input/encoding and
++12 GiB process RSS ceiling:
++
++| Case | Original Java s | Native 2 workers s | Native 6 workers s | Java/native2 |
++|---|---:|---:|---:|---:|
++| fattree08 / MF3 | 7.730 | 7.108 | 7.516 | 1.087× |
++| fattree12 / MF2 | 24.068 | 23.275 | 25.391 | 1.034× |
++| fattree12 / MF3 | 320.645 | 172.431 | 179.131 | 1.860× |
++
++The largest case uses 60.6% of Java's mean peak RSS with two workers, and its
++native1/native2 scaling is 1.120×. Small inputs remain slower; six workers do
++not consistently beat two. These results include algorithm and capacity tuning,
++not only adding threads. Set `sre.ndd.workers=2` and explicit cache capacities
++(04:262144, 08:4194304, 12:16777216); compatibility defaults remain 6/262144.
++All 72 fresh-process runs passed output audits, with additional four-backend,
++JNI, GC and sanitizer checks. See the [complete nine-case matrix, memory table,
++phase timings and reproduction](results/sre_deep_optimization_20261012/README.md).
++
++The following table records the initial scalar integration, before these changes.
++
++The initial scalar JNI integration **did not achieve a speedup**: six workers were
++slower than one worker in all nine cases. Native memory usage was lower on the
++larger inputs. That measured version did not use native batches, and label task
++spawning was disabled. Java and native cache capacities also differ, as recorded
++in the report; these results describe this integration and configuration.
++
++| fattree12 MF | Java seconds | native1 seconds | native6 seconds | Java RSS MiB | native6 RSS MiB |
++|---|---:|---:|---:|---:|---:|
++| 1 | 6.306 | 31.485 | 40.723 | 2371.1 | 1008.6 |
++| 2 | 22.936 | 160.989 | 170.593 | 3054.3 | 1268.6 |
++| 3 | 320.625 | 575.458 | 608.544 | 6137.0 | 2233.1 |
++
++Times and RSS are arithmetic means of two independent runs. Validation for this
++migration passed native CTest at 1/2/4/6 workers, 33 NDD JUnit tests, 35 SRE JUnit
++tests, and ASan/UBSan at 1/6 workers. The Java BCDD canonicalization fix and exact
++sources are archived with the results. See the [full nine-case report and reproduction scripts](results/sre_parallel_20261011_final/README.md).
++
++Follow-up profiling found correlated native-handle hash collisions in Java and
++whole-table scratch allocation on every `satCount`. The hash is fixed; persistent
++per-node counts were tested with `PNDD_EXPERIMENT_SATCOUNT_CACHE=ON` (now default
++ON, 16 additional bytes per node on the measured platform). In the initial paired fattree08/MF3
++runs, these changes reduced native1/native6 time from 37.398/40.341 to
++23.379/24.828 seconds. Six workers still lag one worker and the 7.629-second Java
++baseline. Finer NDD tasks and label spawning did not reverse that result. See the
++[follow-up report, larger-input checks and GC experiments](results/sre_parallel_analysis_20261012/README.md).
++
++The subsequent deep optimization integrates propagation, priority-selection,
++forwarding and reachability batches into SRE. It reduces OR/DIFF residual work,
++adds a checked BCDD cofactor fast path, stack/slab storage, split and worker-local
++caches, and memory-pressure adapter collection. The original Java control is
++frozen independently of the evolving adapter. Two workers are a useful starting
++point for this workload; increasing workers does not guarantee better scaling.
++Use explicit cache capacities and consult the
++[deep optimization report and reproducible matrix](results/sre_deep_optimization_20261012/README.md)
++for gains, slower cases, memory costs and controls.
+ 
+ ## What is parallelized?
+ 
+@@ -39,7 +112,9 @@ flowchart TD
+   them in a deterministic order. Small problems run directly.
+ - **Batch operations:** `applyBatch` submits independent applications together;
+   AND/OR reductions support a fixed left-fold or balanced tree. Each batch enters
+-  one top-level Lace `RUN`, using `CALL`/`SPAWN` internally.
++  one top-level Lace `RUN`, using `CALL`/`SPAWN` internally. `prioritySelect`
++  prepares ordered group coverage and selects independent conditions together,
++  preserving group priority and optional multipath semantics.
+ - **Label operations:** BDD, BCDD and ZDD have optional recursive task splitting.
+   BITSET uses direct word operations. Label spawning is disabled by default:
+   N-Queens benefited chiefly from the NDD layer.
+@@ -57,9 +132,9 @@ are confined to a build-local copy; versions and licenses are in [NOTICE](native
+ 
+ | Backend | Label representation | Field width |
+ |---|---|---:|
+-| BDD | Plain C BDD, without complemented edges | 1–64 bits |
+-| BCDD | Sylvan complemented-edge BDD | 1–64 bits |
+-| ZDD | Ordinary set-family ZDD with explicit powerset universe | 1–64 bits |
++| BDD | Plain C BDD, without complemented edges | 1–4096 bits |
++| BCDD | Sylvan complemented-edge BDD | 1–4096 bits |
++| ZDD | Ordinary set-family ZDD with explicit powerset universe | 1–4096 bits |
+ | BITSET | Two 64-bit words | 1–7 bits |
+ 
+ Each width-`w` field has a Boolean domain of `2^w` values. Fields can mix backends;
+diff --git a/native/CMakeLists.txt b/native/CMakeLists.txt
+index 03d51d8..a638f8a 100644
+--- a/native/CMakeLists.txt
++++ b/native/CMakeLists.txt
+@@ -3,9 +3,35 @@ project(parallel_ndd VERSION 0.1.0 LANGUAGES C CXX)
+ set(CMAKE_C_STANDARD 11)
+ set(CMAKE_C_STANDARD_REQUIRED ON)
+ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
++option(PNDD_LTO "Interprocedural optimization for Release builds" ON)
++if(PNDD_LTO)
++  include(CheckIPOSupported)
++  check_ipo_supported(RESULT pndd_ipo_available OUTPUT pndd_ipo_error)
++  if(NOT pndd_ipo_available)
++    message(FATAL_ERROR "PNDD_LTO is unavailable: ${pndd_ipo_error}. Use -DPNDD_LTO=OFF.")
++  endif()
++  set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
++endif()
+ include(CTest)
+ option(PNDD_BUILD_JNI "Build the Java binding" ON)
+ option(PNDD_SANITIZE "Enable address and undefined-behavior sanitizers" OFF)
++option(PNDD_PROFILE "Diagnostic timers and task histograms (perturbs timings)" OFF)
++option(PNDD_FAST_BCDD "Specialized checked BCDD AND kernel" ON)
++option(PNDD_SPLIT_CACHE "Separate NDD and label regions within the configured cache budget" ON)
++option(PNDD_PAD_ROOTS "Isolate worker root registries on separate cache lines" ON)
++option(PNDD_LOCAL_CACHE "Worker-local front cache for recursive operations" ON)
++option(PNDD_LEAF_APPLY "Apply labels directly when single-edge nodes share a child" ON)
++option(PNDD_RESIDUAL_APPLY "Prune ordered OR/DIFF edge residuals without coverage unions" ON)
++option(PNDD_LABEL_GC_KEEP_NDD "Preserve NDD memo entries during label-only GC" ON)
++option(PNDD_NODE_SLABS "Cache-line aligned slab storage for terminal and single-edge nodes" ON)
++option(PNDD_COST_GRAIN "Resolve trivial/cached children before deciding to spawn" ON)
++set(PNDD_SYLVAN_INITIAL_RATIO 2 CACHE STRING "Initial Sylvan capacity divisor exponent for budgets above 128 MiB")
++if(NOT PNDD_SYLVAN_INITIAL_RATIO MATCHES "^[0-8]$")
++  message(FATAL_ERROR "PNDD_SYLVAN_INITIAL_RATIO must be 0..8")
++endif()
++option(PNDD_EXPERIMENT_SATCOUNT_CACHE "Persistent per-node NDD count cache (legacy option name)" ON)
++option(PNDD_EXPERIMENT_BCDD_AND "Experimental shared AND-only BCDD label kernel" OFF)
++option(PNDD_EXPERIMENT_SYLVAN_CACHE "Experimental Sylvan lock-free BCDD apply cache" OFF)
+ set(PNDD_SYLVAN_SOURCE "" CACHE PATH "Local checkout of the pinned Sylvan commit (optional)")
+ set(PNDD_SYLVAN_COMMIT c8bf561ee64036375f4693eb389e57ec8ef4aa6d)
+ if(PNDD_SANITIZE)
+@@ -65,6 +91,12 @@ target_compile_definitions(sylvan PUBLIC ZDD_COMPLEMENT_EDGES=0)
+ target_compile_options(sylvan PRIVATE -Wno-pedantic)
+ find_package(Threads REQUIRED)
+ add_library(pndd STATIC src/pndd.c)
++target_compile_definitions(pndd PRIVATE PNDD_SYLVAN_INITIAL_RATIO=${PNDD_SYLVAN_INITIAL_RATIO})
++foreach(feature PROFILE FAST_BCDD SPLIT_CACHE PAD_ROOTS LOCAL_CACHE LEAF_APPLY RESIDUAL_APPLY LABEL_GC_KEEP_NDD NODE_SLABS COST_GRAIN EXPERIMENT_SATCOUNT_CACHE EXPERIMENT_BCDD_AND EXPERIMENT_SYLVAN_CACHE)
++  if(PNDD_${feature})
++    target_compile_definitions(pndd PRIVATE PNDD_${feature}=1)
++  endif()
++endforeach()
+ target_include_directories(pndd PUBLIC include)
+ target_link_libraries(pndd PUBLIC sylvan Threads::Threads m)
+ target_compile_options(pndd PRIVATE -Wall -Wextra)
+diff --git a/native/README.md b/native/README.md
+index a316f56..8a1d281 100644
+--- a/native/README.md
++++ b/native/README.md
+@@ -70,8 +70,10 @@ try (ParallelNDD e = new ParallelNDD(new ParallelNDDConfig(6),
+ }
+ ```
+ 
+-Fields and bits are zero-based; bit 0 is most significant. `value` uses unsigned
+-long values (all bit patterns allowed at width 64). Label variables are shared
++Fields and bits are zero-based; bit 0 is most significant. BDD/BCDD/ZDD fields
++support widths 1–4096; BITSET remains limited to 1–7. `value` and `evaluate` use
++unsigned long values, zero-extended when a field is wider than 64 bits. Construct
++arbitrary wide constraints with `literal`. Label variables are shared
+ and right-aligned within each backend. ZDD universe is an explicit powerset,
+ not its TRUE leaf. BITSET covers up to 128 assignments and divides out unused
+ prefix bits when narrower fields share its variable pool.
+@@ -97,6 +99,24 @@ chunk 2, spawn depth 4, combined cache 262,144 entries, GC interval 128, and a
+ cache comparison selected the larger cache for the default. At N=12, 65,536
+ entries can save about 6 MiB with similar time. These are N-Queens defaults,
+ not universal optima.
++
++For migration from legacy Java BDD/BCDD, the full configuration constructor has
++an additional `reverseLabelOrder` boolean. Set it to `true` to use legacy
++LSB-first label order and its shared creation-number variable pool. Public bit
++indices remain MSB-first. The default remains `false`; historical N-Queens
++results use that default. Variable order changes diagram size and performance,
++so comparisons must record it. Cached scalar `apply` calls now return from the
++native admission path without another top-level Lace RUN; cache misses still
++enter Lace. A miss can therefore be counted both by admission and recursion.
++
++Adapters can use `snapshot` (owned targets and opaque field-condition roots),
++`reachable` (a mask over candidate roots), bounded `labelCubes`, and
++`minLabelCost`. Close every owned snapshot handle after use. BDD/BCDD cubes
++contain MSB-first bytes with `-1` for don't-care; ZDD/BITSET enumeration can
++produce many cubes and fails explicitly at the requested bound. ZDD cost
++supports counting present elements only. `fingerprint` provides a structural
++64-bit checksum for BDD/BCDD diagrams; matching it is a regression check, not
++a proof of semantic equivalence.
+ `new ParallelNDDConfig(workers, memoryBytes)` changes the budget; the full
+ constructor exposes independent NDD/label/batch switches and tuning settings.
+ Use a larger budget for large diagrams. Cache sizes must be powers of two.
+@@ -123,8 +143,10 @@ can lose precision; large domains can overflow to positive infinity.
+ - Cache entries are protected by short shard locks and include operation and
+   backend/counting context. Worker statistics and allocation credits avoid a
+   shared atomic update on every cache access. Locks are isolated on 64-byte cache
+-  lines; the containing engine uses C11 aligned allocation. Cache entries are cleared before
+-  any node reuse and before Sylvan collection.
++  lines; the containing engine uses C11 aligned allocation. NDD collection clears
++  all caches before any node reuse. Label-only Sylvan collection clears label
++  caches; NDD memo entries remain valid because all allocated NDD labels are
++  marked and NDD IDs are not recycled by a label collection.
+ - NDD mark/sweep runs in a stopped Lace frame **between admitted operations**.
+   Owned roots and cached literals are traced. Sylvan can collect **inside** a
+   label operation: all allocated NDD labels, scoped temporary vectors and pending
+@@ -231,3 +253,64 @@ N-Queens exercises Boolean NDD; it does not validate MT algebra or establish
+ network-verification performance.
+ 
+ Implementation status, measured tradeoffs and result links: [Chinese report](../doc/parallel-implementation.md).
++
++## SRE optimizations and diagnostics
++
++The SRE follow-up found repeated whole-table scratch allocation in `satCount`.
++Relative cardinality is cached in immutable NDD nodes by default
++(`PNDD_EXPERIMENT_SATCOUNT_CACHE=ON`, retaining the legacy option name). It adds
++16 bytes per node on the measured 64-bit layout. Surviving nodes keep their count
++across collection; newly allocated or reused nodes start with an invalid count.
++The admitted count path writes the cache after worker computations finish, so
++this is not a concurrently writable query cache. Missing-field factors and the
++public `double` count semantics are preserved.
++
++The current Release build also enables `PNDD_LTO`, `PNDD_FAST_BCDD`,
++`PNDD_SPLIT_CACHE`, `PNDD_PAD_ROOTS`, `PNDD_LOCAL_CACHE`, `PNDD_LEAF_APPLY`,
++`PNDD_RESIDUAL_APPLY`, `PNDD_LABEL_GC_KEEP_NDD`, `PNDD_NODE_SLABS`, and
++`PNDD_COST_GRAIN`. Each can be disabled independently for ablation:
++
++- Small apply buffers use stack storage. Single-edge diagrams with a shared
++  child apply their labels directly. Different-field operations avoid redundant
++  universe intersections. OR/DIFF maintain ordered residuals and prune empty
++  work before child recursion.
++- The checked BCDD AND path reads cofactors directly, prunes terminal children,
++  normalizes complement edges and retains allocation-error propagation. Plain
++  BDD, ZDD and BITSET retain their own semantics and implementations.
++- Half of the configured shared cache belongs to NDD operations and half to
++  labels. Each worker has an additional front cache, up to 512 KiB; all front
++  caches together are sized toward at most 1/64 of the diagram memory budget,
++  with a floor of 64 entries per worker. All reservations are charged to the
++  memory budget, including that floor in very small, highly oversubscribed engines.
++- Terminal and single-edge nodes use 64-byte aligned slab cells. Cells are
++  reused after NDD GC; slab reservations are charged to the memory budget and
++  retained until close. Larger nodes use variable-sized allocations.
++- NDD child tasks resolve trivial cases and existing memo entries before
++  deciding whether enough uncached work remains to spawn.
++
++`prioritySelect(budget, conditions, groupEnds, start, multipath)` computes
++ordered selection in one Lace admission: prefix coverage is prepared in order,
++then independent selections run in parallel. Exclusive group ends cover the
++whole input. Earlier groups are excluded; `multipath=false` also excludes earlier
++members of the same group. Only the suffix beginning at `start` is returned.
++The overload with `intersectFirst=true` intersects each condition with budget
++before subtracting coverage, useful for small forwarding header regions.
++Both evaluation orders have the same Boolean result. Every returned root is
++owned; inputs remain borrowed. SRE uses this API, propagation AND batches and
++reachability AND batches while applying routing/DFS updates in their original
++order. Its memory-pressure collection policy is in the SRE adapter, separate
++from `ParallelNDDConfig.gcInterval`.
++
++Fresh large-budget engines start Sylvan at 1/4 of its maximum table capacity
++(`PNDD_SYLVAN_INITIAL_RATIO=2`); budgets at most 128 MiB retain a smaller 1/16
++start so allocation/GC pressure is exercised. This capacity tradeoff affects
++startup and label GC; include it in benchmark provenance.
++
++`-DPNDD_PROFILE=ON` adds API timers, worker phase sums, label-cache counters and
++child-job histograms, printed at close. It perturbs execution and must be OFF for
++performance comparisons. API timers are inclusive; worker phase sums can overlap
++and label time is included in preparation/merge work. Do not add these values or
++interpret parallel worker wall sums as elapsed-time fractions. The additional
++BCDD AND and Sylvan-cache experiments also default to OFF and did not improve
++the initial SRE case. See the [initial SRE analysis](../results/sre_parallel_analysis_20261012/README.md)
++and [deep optimization experiments](../results/sre_deep_optimization_20261012/README.md).
+diff --git a/native/include/pndd.h b/native/include/pndd.h
+index d570cc4..b5e6001 100644
+--- a/native/include/pndd.h
++++ b/native/include/pndd.h
+@@ -17,6 +17,7 @@ typedef struct {
+     int ndd_parallel, label_parallel, batch_parallel;
+     size_t memory_bytes, cache_entries;
+     uint32_t gc_interval;
++    int reverse_labels; /* BDD/BCDD LSB-first compatibility with legacy Java. */
+ } pndd_config;
+ typedef struct {
+     uint64_t nodes_live, nodes_created, labels_live, labels_created;
+@@ -42,9 +43,30 @@ double pndd_satcount(pndd_engine *, pndd_handle);
+ int pndd_evaluate(pndd_engine *, pndd_handle, const uint64_t *, size_t);
+ int pndd_apply_batch(pndd_engine *, pndd_op, const pndd_handle *,
+                      const pndd_handle *, size_t, pndd_handle *);
++/* Ordered priority groups, exclusive ends. Results correspond to [start,count).
++ * Each result is budget & input[i], excluding all earlier groups; without
++ * PNDD_PRIORITY_MULTIPATH, earlier inputs in the same group are excluded too.
++ * PNDD_PRIORITY_INTERSECT_FIRST changes evaluation order, preserving semantics.
++ * Inputs are borrowed, outputs are owned; one top-level Lace RUN per batch. */
++enum { PNDD_PRIORITY_MULTIPATH = 1, PNDD_PRIORITY_INTERSECT_FIRST = 2 };
++int pndd_priority_select(pndd_engine *, pndd_handle budget, const pndd_handle *,
++                         size_t count, const uint32_t *ends, size_t groups,
++                         size_t start, int flags, pndd_handle *out);
+ pndd_handle pndd_reduce(pndd_engine *, pndd_op, const pndd_handle *, size_t, int tree);
+ int pndd_collect(pndd_engine *);
+ pndd_stats pndd_get_stats(pndd_engine *);
++/* Inspection returns owned (target, field-condition) pairs; free the array and
++ * release each handle. Conditions keep backend-specific labels opaque. */
++int pndd_snapshot(pndd_engine *, pndd_handle, uint32_t *field,
++                  size_t *count, pndd_handle **pairs);
++int pndd_reachable(pndd_engine *, const pndd_handle *roots, size_t root_count,
++                   const pndd_handle *candidates, size_t count, unsigned char *mask);
++int pndd_min_label_cost(pndd_engine *, pndd_handle condition, uint32_t field, int costly_value);
++/* Header cubes use -1 for don't-care, 0/1 for a fixed bit, MSB first.
++ * Caller frees cubes; enumeration is bounded by limit. */
++int pndd_label_cubes(pndd_engine *, pndd_handle condition, uint32_t field,
++                     size_t limit, size_t *count, signed char **cubes);
++int pndd_fingerprint(pndd_engine *, pndd_handle, uint64_t *digest);
+ /* Benchmark-only entry: identical solver without per-operation external RUN. */
+ double pndd_nqueens(pndd_engine *, uint32_t n, int compact, int tree);
+ #ifdef __cplusplus
+diff --git a/native/src/jni.c b/native/src/jni.c
+index 16a91c2..7425672 100644
+--- a/native/src/jni.c
++++ b/native/src/jni.c
+@@ -19,7 +19,7 @@ JNIEXPORT jlong JNICALL FN(openNative)(JNIEnv *env, jclass cls, jintArray widths
+     (*env)->GetIntArrayRegion(env, widths, 0, count, w); (*env)->GetIntArrayRegion(env, backends, 0, count, b);
+     if ((*env)->ExceptionCheck(env)) return 0;
+     for (jsize i = 0; i < count; ++i) fields[i] = (pndd_field){(uint32_t)w[i], (pndd_backend)b[i]};
+-    pndd_config c = {(uint32_t)workers, (uint32_t)threshold, (uint32_t)chunk, (uint32_t)depth, flags & 1, flags & 2, flags & 4, (size_t)memory, (size_t)cache, (uint32_t)gc};
++    pndd_config c = {(uint32_t)workers, (uint32_t)threshold, (uint32_t)chunk, (uint32_t)depth, flags & 1, flags & 2, flags & 4, (size_t)memory, (size_t)cache, (uint32_t)gc, flags & 8};
+     pndd_engine *e = pndd_open(&c, fields, (size_t)count); if (!e) error(env, NULL); return (jlong)(uintptr_t)e;
+ }
+ JNIEXPORT void JNICALL FN(closeNative)(JNIEnv *env, jclass cls, jlong e) { (void)env; (void)cls; pndd_close(engine(e)); }
+@@ -61,9 +61,74 @@ JNIEXPORT jlong JNICALL FN(reduceNative)(JNIEnv *env, jclass cls, jlong e, jint
+     (void)cls; jsize count; uint64_t *values = copy(env, array, &count); if (!values) return -1;
+     pndd_handle result = pndd_reduce(engine(e), op, values, count, tree); free(values); return checked(env, engine(e), result);
+ }
++JNIEXPORT jlongArray JNICALL FN(prioritySelectNative)(JNIEnv *env, jclass cls, jlong ep, jlong budget,
++        jlongArray input, jintArray groupEnds, jint start, jint ecmp) {
++    (void)cls; jsize count; uint64_t *values = copy(env, input, &count); if (!values) return NULL;
++    jsize groups = (*env)->GetArrayLength(env, groupEnds);
++    if (start < 0 || start > count) { free(values); error(env, engine(ep)); return NULL; }
++    uint32_t *ends = malloc(groups ? (size_t)groups * sizeof(uint32_t) : 1);
++    size_t results = (size_t)(count - start);
++    pndd_handle *handles = malloc(results ? results * sizeof(pndd_handle) : 1);
++    if (!ends || !handles) { free(values); free(ends); free(handles); oom(env); return NULL; }
++    (*env)->GetIntArrayRegion(env, groupEnds, 0, groups, (jint *)ends);
++    if ((*env)->ExceptionCheck(env)) { free(values); free(ends); free(handles); return NULL; }
++    int ok = pndd_priority_select(engine(ep), (pndd_handle)budget, values, count, ends, groups, start, ecmp, handles);
++    free(values); free(ends);
++    if (!ok) { free(handles); error(env, engine(ep)); return NULL; }
++    jlongArray out = (*env)->NewLongArray(env, (jsize)results);
++    if (out) (*env)->SetLongArrayRegion(env, out, 0, (jsize)results, (jlong *)handles);
++    if ((*env)->ExceptionCheck(env)) for (size_t i = 0; i < results; ++i) pndd_release(engine(ep), handles[i]);
++    free(handles); return out;
++}
+ JNIEXPORT void JNICALL FN(collectNative)(JNIEnv *env, jclass cls, jlong e) { (void)cls; if (!pndd_collect(engine(e))) error(env, engine(e)); }
+ JNIEXPORT jlongArray JNICALL FN(statsNative)(JNIEnv *env, jclass cls, jlong e) {
+     (void)cls; pndd_stats s = pndd_get_stats(engine(e));
+     jlong values[] = {(jlong)s.nodes_live, (jlong)s.nodes_created, (jlong)s.labels_live, (jlong)s.labels_created, (jlong)s.tasks, (jlong)s.stolen_tasks, (jlong)s.cache_hits, (jlong)s.cache_misses, (jlong)s.collections, (jlong)s.external_runs, (jlong)s.merge_ns, (jlong)s.native_bytes, (jlong)s.peak_native_bytes, (jlong)s.label_collections, (jlong)s.build_ns, (jlong)s.reduce_ns, (jlong)s.count_ns};
+     jlongArray array = (*env)->NewLongArray(env, 17); if (array) (*env)->SetLongArrayRegion(env, array, 0, 17, values); return array;
+ }
++JNIEXPORT jlongArray JNICALL FN(snapshotNative)(JNIEnv *env, jclass cls, jlong ep, jlong a) {
++    (void)cls; pndd_engine *e = engine(ep); uint32_t field; size_t count; pndd_handle *pairs;
++    if (!pndd_snapshot(e, (uint64_t)a, &field, &count, &pairs)) { error(env, e); return NULL; }
++    jlongArray out = (*env)->NewLongArray(env, (jsize)(count * 2 + 1));
++    if (out) {
++        jlong f = field; (*env)->SetLongArrayRegion(env, out, 0, 1, &f);
++        if (count) (*env)->SetLongArrayRegion(env, out, 1, (jsize)(count * 2), (jlong *)pairs);
++    }
++    if ((*env)->ExceptionCheck(env)) for (size_t i = 0; i < count * 2; ++i) pndd_release(e, pairs[i]);
++    free(pairs); return out;
++}
++JNIEXPORT jbooleanArray JNICALL FN(reachableNative)(JNIEnv *env, jclass cls, jlong ep, jlongArray rr, jlongArray cc) {
++    (void)cls; jsize rn, cn; uint64_t *roots = copy(env, rr, &rn); if (!roots) return NULL;
++    uint64_t *candidates = copy(env, cc, &cn); if (!candidates) { free(roots); return NULL; }
++    unsigned char *mask = malloc(cn ? (size_t)cn : 1);
++    if (!mask) { free(roots); free(candidates); oom(env); return NULL; }
++    int ok = pndd_reachable(engine(ep), roots, rn, candidates, cn, mask);
++    free(roots); free(candidates);
++    jbooleanArray out = NULL;
++    if (!ok) error(env, engine(ep));
++    else { out = (*env)->NewBooleanArray(env, cn); if (out) (*env)->SetBooleanArrayRegion(env, out, 0, cn, (jboolean *)mask); }
++    free(mask); return out;
++}
++JNIEXPORT jint JNICALL FN(minLabelCostNative)(JNIEnv *env, jclass cls, jlong ep, jlong a, jint field, jboolean costly) {
++    (void)cls; int result = pndd_min_label_cost(engine(ep), (uint64_t)a, (uint32_t)field, costly);
++    if (result < 0) error(env, engine(ep)); return result;
++}
++JNIEXPORT jobjectArray JNICALL FN(labelCubesNative)(JNIEnv *env, jclass cls, jlong ep, jlong a, jint field, jint width, jint limit) {
++    (void)cls; size_t count; signed char *data;
++    if (!pndd_label_cubes(engine(ep), (uint64_t)a, (uint32_t)field, (size_t)limit, &count, &data)) { error(env, engine(ep)); return NULL; }
++    jclass bytes = (*env)->FindClass(env, "[B");
++    jobjectArray out = bytes ? (*env)->NewObjectArray(env, (jsize)count, bytes, NULL) : NULL;
++    if (out) for (size_t i = 0; i < count && !(*env)->ExceptionCheck(env); ++i) {
++        jbyteArray cube = (*env)->NewByteArray(env, width);
++        if (!cube) break;
++        (*env)->SetByteArrayRegion(env, cube, 0, width, (jbyte *)(data + i * (size_t)width));
++        if (!(*env)->ExceptionCheck(env)) (*env)->SetObjectArrayElement(env, out, (jsize)i, cube);
++        (*env)->DeleteLocalRef(env, cube);
++    }
++    free(data); return out;
++}
++JNIEXPORT jlong JNICALL FN(fingerprintNative)(JNIEnv *env, jclass cls, jlong ep, jlong a) {
++    (void)cls; uint64_t digest = 0;
++    if (!pndd_fingerprint(engine(ep), (uint64_t)a, &digest)) error(env, engine(ep));
++    return (jlong)digest;
++}
+diff --git a/native/src/pndd.c b/native/src/pndd.c
+index 61139b8..4b597ca 100644
+--- a/native/src/pndd.c
++++ b/native/src/pndd.c
+@@ -3,6 +3,9 @@
+  * Sylvan/Lace remain separate Apache-2.0 dependencies. See native/NOTICE. */
+ #include "pndd.h"
+ #include <sylvan.h>
++#if defined(PNDD_EXPERIMENT_SYLVAN_CACHE) || defined(PNDD_FAST_BCDD)
++#include <sylvan_int.h>
++#endif
+ #include <pthread.h>
+ #include <stdatomic.h>
+ #include <stdlib.h>
+@@ -10,6 +13,12 @@
+ #include <math.h>
+ #include <time.h>
+ #include <limits.h>
++#ifdef PNDD_PROFILE
++#include <stdio.h>
++typedef struct {
++    uint64_t labels_calls, labels_ns, label_hits, label_misses, prepare_ns, misses, jobs, costly_jobs, bins[5];
++} Profile;
++#endif
+ 
+ #define SHARDS 64
+ #define BLOCK 1024
+@@ -17,14 +26,22 @@
+ #define INVALID_ID UINT32_MAX
+ #define MAX_FIELDS 256
+ #define LABEL_BITS UINT32_MAX
++#define LOCAL_CACHE_ENTRIES 16384
+ 
+ typedef struct { uint64_t label; uint32_t target; } Edge;
+ typedef struct Node {
+     uint64_t hash;
+     uint32_t field, count, next, cookie, refs;
+     unsigned char mark;
++#ifdef PNDD_EXPERIMENT_SATCOUNT_CACHE
++    /* Relative cardinality is immutable with this node. The admitted count
++       path alone writes it; a newly allocated/reused node starts invalid. */
++    double sat_count;
++    unsigned char sat_count_valid;
++#endif
+     Edge edges[];
+ } Node;
++typedef struct NodeSlab { struct NodeSlab *next; unsigned char storage[]; } NodeSlab;
+ typedef struct { uint64_t low, high, hash; uint32_t var, next; unsigned char mark; } Label;
+ /* Independent shards must not invalidate each other's lock cache line. */
+ typedef struct { _Alignas(64) atomic_flag flag; } SpinLock;
+@@ -46,14 +63,33 @@ typedef struct RootFrame {
+     size_t count, stride;
+     uint32_t field;
+ } RootFrame;
++typedef struct {
++    RootFrame *head;
++#ifdef PNDD_PAD_ROOTS
++    /* The allocation header permits pointer alignment, not over-alignment.
++       A 64-byte stride isolates the only written member without aligned_alloc. */
++    unsigned char padding[64 - sizeof(RootFrame *)];
++#endif
++} RootSlot;
+ typedef struct {
+     pndd_field spec;
+     uint32_t start;
+     uint64_t universe;
+-    uint32_t literals[128];
++    uint32_t *literals;
+ } Field;
+ typedef struct { uint64_t label; uint32_t a, b, target; } Job;
+-typedef struct { uint64_t hits, misses, nodes_live, nodes_created, labels_live, labels_created, merge_ns; size_t credit; uint32_t node_next, node_end, cookie_next; char padding[180]; } WorkerStats;
++typedef struct { _Alignas(64) uint64_t hits, misses, nodes_live, nodes_created, labels_live, labels_created, merge_ns; size_t credit; uint32_t node_next, node_end, cookie_next; char padding[180];
++#ifdef PNDD_NODE_SLABS
++    Node *node_cells;
++#endif
++#ifdef PNDD_LOCAL_CACHE
++    Cache *local_cache;
++    size_t local_entries;
++#endif
++#ifdef PNDD_PROFILE
++    Profile profile;
++#endif
++} WorkerStats;
+ struct pndd_engine {
+     pndd_config config;
+     size_t field_count;
+@@ -65,11 +101,13 @@ struct pndd_engine {
+     uint32_t node_high, label_high;
+     uint32_t *free_nodes, *free_labels;
+     size_t free_node_count, free_label_count;
++    NodeSlab *node_slabs;
++    Node *free_node_cells;
+     Unique node_unique[SHARDS], label_unique[SHARDS];
+     pthread_mutex_t allocation;
+     SpinLock cache_locks[SHARDS];
+     Cache *cache;
+-    RootFrame **roots;
++    RootSlot *roots;
+     _Atomic int failure;
+     _Atomic uint64_t bytes, peak, nodes_live, nodes_created, labels_live, labels_created;
+     _Atomic uint64_t tasks, stolen, hits, misses, collections, runs, merge_ns, label_collections;
+@@ -77,9 +115,21 @@ struct pndd_engine {
+     size_t allocation_limit, hard_limit;
+     WorkerStats worker_stats[256];
+     uint64_t admissions, last_gc_bytes;
++#ifdef PNDD_EXPERIMENT_SYLVAN_CACHE
++    uint64_t label_cache_opid;
++#endif
++#ifdef PNDD_PROFILE
++    uint64_t profile_calls[8], profile_ns[8];
++#endif
+ };
+ static pndd_engine *G;
+-void pndd_sylvan_node_created(void) { if (G) atomic_fetch_add(&G->labels_created, 1); }
++static WorkerStats *worker_stats(void);
++void pndd_sylvan_node_created(void) {
++    if (G) {
++        WorkerStats *w = worker_stats();
++        if (w) ++w->labels_created; else atomic_fetch_add(&G->labels_created, 1);
++    }
++}
+ static pthread_mutex_t admission = PTHREAD_MUTEX_INITIALIZER;
+ static _Atomic uint64_t cookies = 1;
+ static const char *open_error = "No active native engine";
+@@ -88,12 +138,44 @@ static uint64_t now_ns(void) {
+     struct timespec t; clock_gettime(CLOCK_MONOTONIC, &t);
+     return (uint64_t)t.tv_sec * 1000000000 + (uint64_t)t.tv_nsec;
+ }
++#ifdef PNDD_PROFILE
++/* API times are inclusive; label/prepare sums are worker wall-time, not additive
++   wall-time shares in parallel runs. They exclude close but include checks. */
++#define PROFILE_START uint64_t profile_start = now_ns()
++#define PROFILE_END(kind) do { if (G) { ++G->profile_calls[kind]; G->profile_ns[kind] += now_ns() - profile_start; } } while (0)
++static void profile_dump(void) {
++    Profile p = {0};
++    for (unsigned i = 0; i < G->config.workers; ++i) {
++        Profile *w = &G->worker_stats[i].profile;
++        p.labels_calls += w->labels_calls; p.labels_ns += w->labels_ns;
++        p.label_hits += w->label_hits; p.label_misses += w->label_misses;
++        p.prepare_ns += w->prepare_ns; p.misses += w->misses;
++        p.jobs += w->jobs; p.costly_jobs += w->costly_jobs;
++        for (int j = 0; j < 5; ++j) p.bins[j] += w->bins[j];
++    }
++    const char *names[] = {"apply", "count", "snapshot", "reachable", "gc", "mincost", "exist", "evaluate"};
++    for (int i = 0; i < 8; ++i)
++        fprintf(stderr, "profile_%s_calls:%llu\nprofile_%s_seconds:%.9f\n", names[i], (unsigned long long)G->profile_calls[i], names[i], G->profile_ns[i] / 1e9);
++    fprintf(stderr, "profile_label_calls:%llu\nprofile_label_worker_seconds:%.9f\nprofile_prepare_worker_seconds:%.9f\nprofile_ndd_misses:%llu\nprofile_jobs:%llu\nprofile_costly_jobs:%llu\n", (unsigned long long)p.labels_calls, p.labels_ns / 1e9, p.prepare_ns / 1e9, (unsigned long long)p.misses, (unsigned long long)p.jobs, (unsigned long long)p.costly_jobs);
++    for (int i = 0; i < 5; ++i) fprintf(stderr, "profile_job_bin_%d:%llu\n", i, (unsigned long long)p.bins[i]);
++    fprintf(stderr, "profile_label_cache_hits:%llu\nprofile_label_cache_misses:%llu\n", (unsigned long long)p.label_hits, (unsigned long long)p.label_misses);
++}
++#else
++#define PROFILE_START ((void)0)
++#define PROFILE_END(kind) ((void)0)
++#endif
+ static uint64_t mix(uint64_t x) {
+     x ^= x >> 30; x *= UINT64_C(0xbf58476d1ce4e5b9);
+     x ^= x >> 27; x *= UINT64_C(0x94d049bb133111eb);
+     return x ^ (x >> 31);
+ }
+ static void fail(int code) { int zero = 0; atomic_compare_exchange_strong(&G->failure, &zero, code); }
++static void reset_failure(void) {
++    /* Admission excludes active operations. Keep the common success flag
++       read-only rather than invalidating every worker's copy on every JNI call. */
++    if (atomic_load_explicit(&G->failure, memory_order_relaxed))
++        atomic_store_explicit(&G->failure, 0, memory_order_relaxed);
++}
+ static WorkerStats *worker_stats(void);
+ static void *allocate(size_t n) {
+     if (!n) n = 1;
+@@ -124,6 +206,52 @@ static void deallocate(void *p) {
+     } else atomic_fetch_sub(&G->bytes, *q);
+     free(q);
+ }
++static Node *allocate_node(size_t edges) {
++#ifdef PNDD_NODE_SLABS
++    _Static_assert(sizeof(Node) + sizeof(Edge) <= 64, "Single-edge nodes must fit a cache line");
++    if (edges <= 1) {
++        WorkerStats *w = worker_stats(); if (!w) w = &G->worker_stats[0];
++        if (!w->node_cells) {
++            pthread_mutex_lock(&G->allocation);
++            if (G->free_node_cells) {
++                for (unsigned i = 0; i < 64 && G->free_node_cells; ++i) {
++                    Node *cell = G->free_node_cells;
++                    memcpy(&G->free_node_cells, cell, sizeof(Node *));
++                    memcpy(cell, &w->node_cells, sizeof(Node *)); w->node_cells = cell;
++                }
++            } else {
++                NodeSlab *slab = allocate(sizeof(NodeSlab) + 63 + 256 * 64);
++                if (slab) {
++                    slab->next = G->node_slabs; G->node_slabs = slab;
++                    uintptr_t base = ((uintptr_t)slab->storage + 63) & ~(uintptr_t)63;
++                    for (unsigned i = 0; i < 256; ++i) {
++                        Node *cell = (Node *)(base + i * 64);
++                        memcpy(cell, &w->node_cells, sizeof(Node *)); w->node_cells = cell;
++                    }
++                }
++            }
++            pthread_mutex_unlock(&G->allocation);
++        }
++        Node *cell = w->node_cells;
++        if (!cell) return NULL;
++        memcpy(&w->node_cells, cell, sizeof(Node *));
++        memset(cell, 0, sizeof(Node)); return cell;
++    }
++#endif
++    return allocate(sizeof(Node) + edges * sizeof(Edge));
++}
++static void deallocate_node(Node *n) {
++    if (!n) return;
++#ifdef PNDD_NODE_SLABS
++    if (n->count <= 1) {
++        /* Failure cleanup may run on multiple workers as well as during GC. */
++        pthread_mutex_lock(&G->allocation);
++        memcpy(n, &G->free_node_cells, sizeof(Node *)); G->free_node_cells = n;
++        pthread_mutex_unlock(&G->allocation); return;
++    }
++#endif
++    deallocate(n);
++}
+ 
+ static Node *node(uint32_t id) {
+     Node **b = atomic_load_explicit(&G->node_blocks[id / BLOCK], memory_order_acquire);
+@@ -134,34 +262,131 @@ static Label *label(uint64_t id) {
+     return b ? b[id % BLOCK] : NULL;
+ }
+ static uint32_t node_field(uint32_t id) { return id < 2 ? (uint32_t)G->field_count : node(id)->field; }
++static int reversed(uint32_t field) {
++    return G->config.reverse_labels && G->fields[field].spec.backend <= PNDD_BCDD;
++}
++static uint32_t label_end(uint32_t field) {
++    return reversed(field) ? G->fields[field].spec.width : G->widths[G->fields[field].spec.backend];
++}
+ static void root_push(RootFrame *r, uint32_t field, void *values, size_t stride, size_t count) {
+     unsigned worker = lace_get_worker()->worker;
+-    r->previous = G->roots[worker]; r->values = values;
++    r->previous = G->roots[worker].head; r->values = values;
+     r->stride = stride; r->count = count; r->field = field;
+-    G->roots[worker] = r;
++    G->roots[worker].head = r;
+ }
+-static void root_pop(RootFrame *r) { G->roots[lace_get_worker()->worker] = r->previous; }
++static void root_pop(RootFrame *r) { G->roots[lace_get_worker()->worker].head = r->previous; }
+ static WorkerStats *worker_stats(void) {
+     WorkerP *worker = lace_get_worker();
+     return worker ? &G->worker_stats[worker->worker] : NULL;
+ }
+ static uint64_t cache_hash(uint32_t key, uint64_t a, uint64_t b) { return mix(a ^ mix(b) ^ ((uint64_t)key << 32)); }
+-static int cache_get(uint32_t key, uint64_t a, uint64_t b, uint64_t *result) {
+-    uint64_t h = cache_hash(key, a, b); size_t index = h & (G->config.cache_entries - 1);
+-    SpinLock *lock = &G->cache_locks[index % SHARDS];
++static int cache_is_ndd(uint32_t key) {
++    return (key >= 1 && key <= PNDD_NOR + 1) ||
++           (key >= 0x10000 && key < 0x10000 + MAX_FIELDS) || key == 0x40000;
++}
++static void clear_operation_caches(void) {
++    /* Both GC callers have stopped all workers before recycling handles. */
++    memset(G->cache, 0, G->config.cache_entries * sizeof(Cache));
++#ifdef PNDD_LOCAL_CACHE
++    for (unsigned i = 0; i < G->config.workers; ++i)
++        if (G->worker_stats[i].local_cache) memset(G->worker_stats[i].local_cache, 0, G->worker_stats[i].local_entries * sizeof(Cache));
++#endif
++}
++static void clear_label_caches(void) {
++#ifndef PNDD_LABEL_GC_KEEP_NDD
++    clear_operation_caches();
++#else
++    /* Label GC never recycles NDD IDs and marks every allocated NDD's labels.
++       NDD apply/exist/fingerprint entries therefore remain valid. */
++#ifdef PNDD_SPLIT_CACHE
++    if (G->config.cache_entries > 1)
++        memset(G->cache + G->config.cache_entries / 2, 0, G->config.cache_entries / 2 * sizeof(Cache));
++    else
++#endif
++        for (size_t i = 0; i < G->config.cache_entries; ++i)
++            if (!cache_is_ndd(G->cache[i].key)) G->cache[i].key = 0;
++#ifdef PNDD_LOCAL_CACHE
++    for (unsigned i = 0; i < G->config.workers; ++i) {
++        WorkerStats *w = &G->worker_stats[i];
++        if (w->local_cache) memset(w->local_cache + w->local_entries / 2, 0, w->local_entries / 2 * sizeof(Cache));
++    }
++#endif
++#endif
++}
++static Cache *local_cache_slot(WorkerStats *worker, uint32_t key, uint64_t hash) {
++#ifdef PNDD_LOCAL_CACHE
++    if (worker && worker->local_cache) {
++        size_t half = worker->local_entries / 2;
++        return &worker->local_cache[(hash & (half - 1)) + (cache_is_ndd(key) ? 0 : half)];
++    }
++#else
++    (void)worker; (void)key; (void)hash;
++#endif
++    return NULL;
++}
++static size_t cache_index(uint32_t key, uint64_t hash) {
++#ifdef PNDD_SPLIT_CACHE
++    if (G->config.cache_entries > 1) {
++        size_t half = G->config.cache_entries / 2;
++        return (hash & (half - 1)) + (cache_is_ndd(key) ? 0 : half);
++    }
++#endif
++    return hash & (G->config.cache_entries - 1);
++}
++static SpinLock *cache_lock(uint32_t key, size_t index) {
++#ifdef PNDD_SPLIT_CACHE
++    return &G->cache_locks[(index % (SHARDS / 2)) + (cache_is_ndd(key) ? 0 : SHARDS / 2)];
++#else
++    (void)key; return &G->cache_locks[index % SHARDS];
++#endif
++}
++static int pndd_cache_get(uint32_t key, uint64_t a, uint64_t b, uint64_t *result) {
++    uint64_t h = cache_hash(key, a, b); size_t index = cache_index(key, h);
++    WorkerStats *stats = worker_stats(); Cache *local = local_cache_slot(stats, key, h);
++    if (local && local->key == key && local->a == a && local->b == b) {
++        *result = local->result; ++stats->hits; return 1;
++    }
++    SpinLock *lock = cache_lock(key, index);
+     spin_lock(lock); Cache entry = G->cache[index]; spin_unlock(lock);
+     int found = entry.key == key && entry.a == a && entry.b == b;
+-    WorkerStats *stats = worker_stats();
++    if (found && local) *local = entry;
+     if (found) { *result = entry.result; if (stats) ++stats->hits; else atomic_fetch_add(&G->hits, 1); }
+     else { if (stats) ++stats->misses; else atomic_fetch_add(&G->misses, 1); }
+     return found;
+ }
+-static void cache_put(uint32_t key, uint64_t a, uint64_t b, uint64_t result) {
++static void pndd_cache_put(uint32_t key, uint64_t a, uint64_t b, uint64_t result) {
+     if (atomic_load(&G->failure) || result == PNDD_INVALID) return;
+-    uint64_t h = cache_hash(key, a, b); size_t index = h & (G->config.cache_entries - 1);
+-    SpinLock *lock = &G->cache_locks[index % SHARDS];
++    uint64_t h = cache_hash(key, a, b); size_t index = cache_index(key, h);
++    Cache *local = local_cache_slot(worker_stats(), key, h);
++    if (local) *local = (Cache){a, b, result, key};
++    SpinLock *lock = cache_lock(key, index);
+     spin_lock(lock); G->cache[index] = (Cache){a, b, result, key}; spin_unlock(lock);
+ }
++static int label_cache_get(uint32_t mode, uint32_t op, uint64_t a, uint64_t b, uint64_t *result) {
++    int found;
++#ifdef PNDD_EXPERIMENT_SYLVAN_CACHE
++    if (mode == PNDD_BCDD) {
++        found = cache_get3(G->label_cache_opid, a, b, op, result);
++        WorkerStats *stats = worker_stats();
++        if (found) ++stats->hits; else ++stats->misses;
++    } else
++#endif
++    found = pndd_cache_get(0x100 + mode * 16 + op, a, b, result);
++#ifdef PNDD_PROFILE
++    if (found) ++worker_stats()->profile.label_hits; else ++worker_stats()->profile.label_misses;
++#endif
++    return found;
++}
++static void label_cache_put(uint32_t mode, uint32_t op, uint64_t a, uint64_t b, uint64_t result) {
++#ifdef PNDD_EXPERIMENT_SYLVAN_CACHE
++    if (mode == PNDD_BCDD) {
++        if (!atomic_load(&G->failure) && result != PNDD_INVALID)
++            cache_put3(G->label_cache_opid, a, b, op, result);
++        return;
++    }
++#endif
++    pndd_cache_put(0x100 + mode * 16 + op, a, b, result);
++}
+ /* Table growth is performed under its shard lock; published objects never move. */
+ static int grow_unique(Unique *u, int labels) {
+     if (u->count < u->size * 2) return 1;
+@@ -222,7 +447,7 @@ static uint64_t plain_make(uint32_t var, uint64_t low, uint64_t high) {
+     size_t bucket = (h / SHARDS) & (u->size - 1);
+     for (uint32_t id = u->buckets[bucket]; id; id = label(id)->next) {
+         Label *l = label(id);
+-        if (l->var == var && l->low == low && l->high == high) { spin_unlock(&u->lock); return id; }
++        if (l->hash == h && l->var == var && l->low == low && l->high == high) { spin_unlock(&u->lock); return id; }
+     }
+     if (!grow_unique(u, 1)) { spin_unlock(&u->lock); return PNDD_INVALID; }
+     bucket = (h / SHARDS) & (u->size - 1);
+@@ -289,6 +514,10 @@ TASK_IMPL_6(uint64_t, label_apply, uint32_t, field, uint32_t, op, uint64_t, a, u
+     if (op == PNDD_DIFF && (!a || a == b)) return 0;
+     if (op == PNDD_DIFF && !b) return a;
+     if (a == b) return a;
++#ifdef PNDD_EXPERIMENT_BCDD_AND
++    if (mode == PNDD_BCDD && a == (b ^ sylvan_complement))
++        return op == PNDD_AND ? 0 : op == PNDD_OR ? truth(field) : a;
++#endif
+     if (mode == PNDD_BITSET) {
+         uint64_t al = a ? label(a)->low : 0, ah = a ? label(a)->high : 0;
+         uint64_t bl = b ? label(b)->low : 0, bh = b ? label(b)->high : 0;
+@@ -303,9 +532,8 @@ TASK_IMPL_6(uint64_t, label_apply, uint32_t, field, uint32_t, op, uint64_t, a, u
+         if (op == PNDD_DIFF && b == one) return 0;
+         if (mode == PNDD_BCDD && op == PNDD_DIFF && a == one) return b ^ sylvan_complement;
+     }
+-    uint32_t key = 0x100 + mode * 16 + op;
+     uint64_t cached;
+-    if (cache_get(key, a, b, &cached)) return cached;
++    if (label_cache_get(mode, op, a, b, &cached)) return cached;
+     uint32_t av = label_var(field, a), bv = label_var(field, b), var = av < bv ? av : bv;
+     if (var == UINT32_MAX) return op == PNDD_AND ? (a && b ? one : 0) : op == PNDD_OR ? (a || b ? one : 0) : (a && !b ? one : 0);
+     uint64_t temporary[4] = {a, b, 0, 0}; RootFrame roots;
+@@ -326,10 +554,90 @@ TASK_IMPL_6(uint64_t, label_apply, uint32_t, field, uint32_t, op, uint64_t, a, u
+         temporary[3] = CALL(label_apply, field, op, ah, bh, depth + 1, __lace_worker->worker);
+     }
+     uint64_t result = make_label(field, var, temporary[2], temporary[3]);
+-    root_pop(&roots); cache_put(key, a, b, result); return result == PNDD_INVALID ? 0 : result;
++    root_pop(&roots); label_cache_put(mode, op, a, b, result); return result == PNDD_INVALID ? 0 : result;
++}
++#ifdef PNDD_FAST_BCDD
++/* Checked specialization of the Sylvan AND recursion (Apache-2.0, see NOTICE).
++ * Read each node once, prune terminal cofactors before CALL/SPAWN, and use
++ * Sylvan's worker-local result roots instead of a generic label RootFrame at
++ * every recursive step. Failures return false with G->failure set, so a failed
++ * stolen result remains a valid GC handle until its parent observes the error. */
++static inline int bcdd_and_terminal(uint64_t a, uint64_t b, uint64_t *out) {
++    if (a == sylvan_true) { *out = b; return 1; }
++    if (b == sylvan_true || a == b) { *out = a; return 1; }
++    if (!a || !b || a == (b ^ sylvan_complement)) { *out = 0; return 1; }
++    return 0;
++}
++TASK_DECL_4(uint64_t, bcdd_and, uint64_t, uint64_t, uint32_t, uint32_t);
++TASK_IMPL_4(uint64_t, bcdd_and, uint64_t, a, uint64_t, b, uint32_t, depth, uint32_t, owner) {
++    uint64_t result;
++    if (bcdd_and_terminal(a, b, &result)) return result;
++    YIELD_NEWFRAME();
++    if (atomic_load(&G->failure)) return 0;
++    if (__lace_worker->worker != owner) atomic_fetch_add(&G->stolen, 1);
++    if (BDD_STRIPMARK(a) > BDD_STRIPMARK(b)) { uint64_t t = a; a = b; b = t; }
++    if (label_cache_get(PNDD_BCDD, PNDD_AND, a, b, &result)) return result;
++    bddnode_t an = MTBDD_GETNODE(a), bn = MTBDD_GETNODE(b);
++    uint32_t av = bddnode_getvariable(an), bv = bddnode_getvariable(bn), var = av < bv ? av : bv;
++    uint64_t al = av == var ? node_low(a, an) : a, ah = av == var ? node_high(a, an) : a;
++    uint64_t bl = bv == var ? node_low(b, bn) : b, bh = bv == var ? node_high(b, bn) : b;
++    uint64_t low, high;
++    int high_done = bcdd_and_terminal(ah, bh, &high);
++    int spawn = !high_done && G->config.label_parallel && G->config.workers > 1 && depth < G->config.spawn_depth;
++    if (spawn) {
++        atomic_fetch_add(&G->tasks, 1);
++        bdd_refs_spawn(SPAWN(bcdd_and, ah, bh, depth + 1, __lace_worker->worker));
++    }
++    if (!bcdd_and_terminal(al, bl, &low)) low = CALL(bcdd_and, al, bl, depth + 1, __lace_worker->worker);
++    if (spawn) {
++        bdd_refs_push(low); high = bdd_refs_sync(SYNC(bcdd_and)); bdd_refs_pop(1);
++    } else if (!high_done) {
++        bdd_refs_push(low); high = CALL(bcdd_and, ah, bh, depth + 1, __lace_worker->worker); bdd_refs_pop(1);
++    }
++    if (atomic_load(&G->failure)) return 0;
++    result = low == high ? low : sylvan_makenode(var, low, high);
++    if (result == PNDD_INVALID) { fail(1); return 0; }
++    label_cache_put(PNDD_BCDD, PNDD_AND, a, b, result);
++    return result;
+ }
++#endif
+ static uint64_t labels(uint32_t field, uint32_t op, uint64_t a, uint64_t b) {
+-    LACE_VARS; return CALL(label_apply, field, op, a, b, 0, __lace_worker->worker);
++    LACE_VARS;
++#ifdef PNDD_PROFILE
++    uint64_t start = now_ns();
++#endif
++    uint64_t result;
++    if (a == b) result = op == PNDD_DIFF ? 0 : a;
++    else if (op == PNDD_AND && (!a || !b)) result = 0;
++    else if (op == PNDD_OR && !a) result = b;
++    else if (op == PNDD_OR && !b) result = a;
++    else if (op == PNDD_DIFF && !a) result = 0;
++    else if (op == PNDD_DIFF && !b) result = a;
++    else
++#ifdef PNDD_FAST_BCDD
++    if (G->fields[field].spec.backend == PNDD_BCDD) {
++        uint64_t negate = op == PNDD_OR ? sylvan_complement : 0;
++        if (op == PNDD_OR) { a ^= sylvan_complement; b ^= sylvan_complement; }
++        else if (op == PNDD_DIFF) b ^= sylvan_complement;
++        result = CALL(bcdd_and, a, b, 0, __lace_worker->worker) ^ negate;
++        if (atomic_load(&G->failure)) result = PNDD_INVALID;
++    } else
++#endif
++#ifdef PNDD_EXPERIMENT_BCDD_AND
++    if (G->fields[field].spec.backend == PNDD_BCDD) {
++        uint64_t negate = op == PNDD_OR ? sylvan_complement : 0;
++        if (op == PNDD_OR) { a ^= sylvan_complement; b ^= sylvan_complement; }
++        else if (op == PNDD_DIFF) b ^= sylvan_complement;
++        result = CALL(label_apply, field, PNDD_AND, a, b, 0, __lace_worker->worker) ^ negate;
++        if (atomic_load(&G->failure)) result = PNDD_INVALID;
++    } else
++#endif
++    result = CALL(label_apply, field, op, a, b, 0, __lace_worker->worker);
++#ifdef PNDD_PROFILE
++    ++worker_stats()->profile.labels_calls;
++    worker_stats()->profile.labels_ns += now_ns() - start;
++#endif
++    return result;
+ }
+ static int compare_edges(const void *a, const void *b) {
+     uint32_t x = ((const Edge *)a)->target, y = ((const Edge *)b)->target;
+@@ -344,7 +652,13 @@ static uint32_t make_node(uint32_t field, Edge *edges, size_t count) {
+     }
+     if (!kept) return 0;
+     RootFrame roots; root_push(&roots, field, edges, sizeof(Edge), kept);
+-    qsort(edges, kept, sizeof(Edge), compare_edges);
++    if (kept <= 16) {
++        for (size_t i = 1; i < kept; ++i) {
++            Edge item = edges[i]; size_t j = i;
++            while (j && edges[j - 1].target > item.target) { edges[j] = edges[j - 1]; --j; }
++            edges[j] = item;
++        }
++    } else qsort(edges, kept, sizeof(Edge), compare_edges);
+     size_t out = 0;
+     for (size_t i = 0; i < kept; ++i) {
+         if (out && edges[out - 1].target == edges[i].target)
+@@ -361,18 +675,18 @@ static uint32_t make_node(uint32_t field, Edge *edges, size_t count) {
+     size_t bucket = (h / SHARDS) & (u->size - 1);
+     for (uint32_t id = u->buckets[bucket]; id; id = node(id)->next) {
+         Node *n = node(id);
+-        if (n->field != field || n->count != out) continue;
++        if (n->hash != h || n->field != field || n->count != out) continue;
+         size_t i = 0; for (; i < out && n->edges[i].target == edges[i].target && n->edges[i].label == edges[i].label; ++i) {}
+         if (i == out) { spin_unlock(&u->lock); root_pop(&roots); return id; }
+     }
+     if (!grow_unique(u, 0)) { spin_unlock(&u->lock); root_pop(&roots); return INVALID_ID; }
+     bucket = (h / SHARDS) & (u->size - 1);
+-    Node *n = allocate(sizeof(Node) + out * sizeof(Edge));
++    Node *n = allocate_node(out);
+     uint32_t id = INVALID_ID;
+     if (n) {
+         n->hash = h; n->field = field; n->count = (uint32_t)out; n->next = u->buckets[bucket];
+         memcpy(n->edges, edges, out * sizeof(Edge)); id = publish_node(n);
+-        if (id != INVALID_ID) { u->buckets[bucket] = id; ++u->count; } else deallocate(n);
++        if (id != INVALID_ID) { u->buckets[bucket] = id; ++u->count; } else deallocate_node(n);
+     }
+     spin_unlock(&u->lock); root_pop(&roots); return id;
+ }
+@@ -380,14 +694,42 @@ TASK_DECL_4(uint32_t, apply_rec, uint32_t, uint32_t, uint32_t, uint32_t);
+ TASK_DECL_3(uint32_t, exist_rec, uint32_t, uint32_t, uint32_t);
+ VOID_TASK_DECL_5(process_jobs, Job *, size_t, uint32_t, uint32_t, uint32_t);
+ VOID_TASK_IMPL_5(process_jobs, Job *, jobs, size_t, count, uint32_t, op, uint32_t, depth, uint32_t, owner) {
++    if (atomic_load(&G->failure)) return;
+     if (__lace_worker->worker != owner) atomic_fetch_add(&G->stolen, 1);
+-    if (G->config.ndd_parallel && G->config.workers > 1 && depth < G->config.spawn_depth && count >= G->config.task_threshold && count > G->config.chunk_size) {
++    size_t pending = count;
++#ifdef PNDD_COST_GRAIN
++    pending = 0;
++    for (size_t i = 0; i < count; ++i) if (jobs[i].target == INVALID_ID) {
++        uint32_t a = jobs[i].a, b = jobs[i].b, result = INVALID_ID; uint64_t cached;
++        if (op >= 16) {
++            if (node_field(a) > op - 16) result = a;
++            else if (pndd_cache_get(0x10000 + op - 16, a, 0, &cached)) result = (uint32_t)cached;
++        } else {
++            if ((op == PNDD_AND || op == PNDD_OR) && a > b) { uint32_t t = a; a = b; b = t; }
++            if (op == PNDD_AND) {
++                if (!a || !b) result = 0; else if (a == 1) result = b; else if (b == 1 || a == b) result = a;
++            } else if (op == PNDD_OR) {
++                if (a == 1 || b == 1) result = 1; else if (!a) result = b; else if (!b || a == b) result = a;
++            } else if (op == PNDD_DIFF) {
++                if (!a || b == 1 || a == b) result = 0; else if (!b) result = a;
++            }
++            if (result == INVALID_ID && pndd_cache_get(op + 1, a, b, &cached)) result = (uint32_t)cached;
++        }
++        jobs[i].target = result; pending += result == INVALID_ID;
++    }
++    if (!pending) return;
++#endif
++    if (G->config.ndd_parallel && G->config.workers > 1 && depth < G->config.spawn_depth && pending >= G->config.task_threshold && count > G->config.chunk_size) {
+         size_t half = count / 2; atomic_fetch_add(&G->tasks, 1);
+         SPAWN(process_jobs, jobs, half, op, depth + 1, __lace_worker->worker);
+         CALL(process_jobs, jobs + half, count - half, op, depth + 1, __lace_worker->worker);
+         SYNC(process_jobs);
+-    } else for (size_t i = 0; i < count; ++i)
++    } else for (size_t i = 0; i < count; ++i) {
++#ifdef PNDD_COST_GRAIN
++        if (jobs[i].target != INVALID_ID) continue;
++#endif
+         jobs[i].target = op >= 16 ? CALL(exist_rec, jobs[i].a, op - 16, depth) : CALL(apply_rec, op, jobs[i].a, jobs[i].b, depth);
++    }
+ }
+ static uint64_t coverage(uint32_t field, const Edge *edges, size_t count) {
+     uint64_t value = 0; RootFrame r; root_push(&r, field, &value, sizeof(value), 1);
+@@ -402,7 +744,7 @@ TASK_IMPL_4(uint32_t, apply_rec, uint32_t, op, uint32_t, a, uint32_t, b, uint32_
+     if (op == PNDD_OR) { if (a == 1 || b == 1) return 1; if (!a) return b; if (!b || a == b) return a; }
+     if (op == PNDD_DIFF) { if (!a || b == 1 || a == b) return 0; if (!b) return a; }
+     uint64_t result;
+-    if (cache_get(op + 1, a, b, &result)) return (uint32_t)result;
++    if (pndd_cache_get(op + 1, a, b, &result)) return (uint32_t)result;
+     if (op > PNDD_DIFF) {
+         uint32_t x, y;
+         switch (op) {
+@@ -417,23 +759,89 @@ TASK_IMPL_4(uint32_t, apply_rec, uint32_t, op, uint32_t, a, uint32_t, b, uint32_
+             x = CALL(apply_rec, op == PNDD_NAND ? PNDD_AND : PNDD_OR, a, b, depth);
+             result = CALL(apply_rec, PNDD_DIFF, 1, x, depth); break;
+         }
+-        cache_put(op + 1, a, b, result); return (uint32_t)result;
++        pndd_cache_put(op + 1, a, b, result); return (uint32_t)result;
+     }
+     uint32_t af = node_field(a), bf = node_field(b), field = af < bf ? af : bf;
++#ifdef PNDD_LEAF_APPLY
++    if (af == bf) {
++        Node *an = node(a), *bn = node(b);
++        if (an->count == 1 && bn->count == 1 && an->edges[0].target == bn->edges[0].target) {
++            Edge edge = {labels(field, op, an->edges[0].label, bn->edges[0].label), an->edges[0].target};
++            result = make_node(field, &edge, 1);
++            pndd_cache_put(op + 1, a, b, result); return (uint32_t)result;
++        }
++    }
++#endif
++#ifdef PNDD_PROFILE
++    uint64_t prepare_start = now_ns();
++#endif
+     Edge av = {G->fields[field].universe, a}, bv = {G->fields[field].universe, b};
+     const Edge *ae = af == field ? node(a)->edges : &av, *be = bf == field ? node(b)->edges : &bv;
+     size_t ac = af == field ? node(a)->count : 1, bc = bf == field ? node(b)->count : 1;
+     if (ac > (SIZE_MAX - ac - bc) / bc) { fail(1); return INVALID_ID; }
+-    size_t capacity = ac * bc + ac + bc;
+-    Job *jobs = allocate(capacity * sizeof(Job)); Edge *edges = allocate(capacity * sizeof(Edge));
++    size_t capacity = af != bf ? (af < bf ? ac : bc) + 1 : ac * bc + ac + bc;
++    Job small_jobs[8]; Edge small_edges[8];
++    int heap = capacity > 8;
++    Job *jobs = heap ? allocate(capacity * sizeof(Job)) : small_jobs;
++    Edge *edges = heap ? allocate(capacity * sizeof(Edge)) : small_edges;
+     if (!jobs || !edges) { deallocate(jobs); deallocate(edges); return INVALID_ID; }
+     RootFrame jr, er; root_push(&jr, field, jobs, sizeof(Job), 0); root_push(&er, field, edges, sizeof(Edge), 0);
+     uint64_t covered[2] = {0, 0}; RootFrame cr; root_push(&cr, field, covered, sizeof(uint64_t), 2);
+     size_t jc = 0, ec = 0;
++    if (af != bf) {
++        const Edge *early = af < bf ? ae : be; size_t count = af < bf ? ac : bc;
++        for (size_t i = 0; i < count; ++i) {
++            jobs[jc] = (Job){early[i].label, af < bf ? early[i].target : a,
++                            bf < af ? early[i].target : b, INVALID_ID}; jr.count = ++jc;
++        }
++        if (op == PNDD_OR || (op == PNDD_DIFF && bf < af)) {
++            covered[0] = coverage(field, early, count);
++            covered[1] = labels(field, PNDD_DIFF, G->fields[field].universe, covered[0]);
++            if (covered[1] && covered[1] != PNDD_INVALID) {
++                edges[ec++] = (Edge){covered[1], af < bf ? b : a}; er.count = ec;
++            }
++        }
++    } else {
++#ifdef PNDD_RESIDUAL_APPLY
++    if (op == PNDD_AND) {
++        for (size_t i = 0; i < ac && !atomic_load(&G->failure); ++i) for (size_t j = 0; j < bc; ++j) {
++            uint64_t intersection = labels(field, PNDD_AND, ae[i].label, be[j].label);
++            if (intersection && intersection != PNDD_INVALID) {
++                jobs[jc] = (Job){intersection, ae[i].target, be[j].target, INVALID_ID}; jr.count = ++jc;
++            }
++        }
++    } else {
++        uint64_t small_residual[8]; int residual_heap = op == PNDD_OR && bc > 8;
++        uint64_t *remaining_b = op == PNDD_OR ? (residual_heap ? allocate(bc * sizeof(uint64_t)) : small_residual) : NULL;
++        if (remaining_b) for (size_t j = 0; j < bc; ++j) remaining_b[j] = be[j].label;
++        RootFrame br; root_push(&br, field, remaining_b, sizeof(uint64_t), remaining_b ? bc : 0);
++        for (size_t i = 0; i < ac && !atomic_load(&G->failure); ++i) {
++            covered[0] = ae[i].label;
++            for (size_t j = 0; j < bc && covered[0] && !atomic_load(&G->failure); ++j) {
++                uint64_t other = op == PNDD_OR ? remaining_b[j] : be[j].label;
++                if (!other) continue;
++                if (op == PNDD_DIFF && ae[i].target == be[j].target) {
++                    covered[0] = labels(field, PNDD_DIFF, covered[0], other); continue;
++                }
++                uint64_t intersection = labels(field, PNDD_AND, covered[0], other);
++                if (!intersection || intersection == PNDD_INVALID) continue;
++                jobs[jc] = (Job){intersection, ae[i].target, be[j].target, INVALID_ID}; jr.count = ++jc;
++                covered[0] = intersection == covered[0] ? 0 : labels(field, PNDD_DIFF, covered[0], intersection);
++                if (op == PNDD_OR)
++                    remaining_b[j] = intersection == remaining_b[j] ? 0 : labels(field, PNDD_DIFF, remaining_b[j], intersection);
++            }
++            if (covered[0] && covered[0] != PNDD_INVALID) { edges[ec++] = (Edge){covered[0], ae[i].target}; er.count = ec; }
++        }
++        if (op == PNDD_OR) for (size_t j = 0; j < bc && !atomic_load(&G->failure); ++j)
++            if (remaining_b[j] && remaining_b[j] != PNDD_INVALID) { edges[ec++] = (Edge){remaining_b[j], be[j].target}; er.count = ec; }
++        root_pop(&br); if (residual_heap) deallocate(remaining_b);
++    }
++#else
+     for (size_t i = 0; i < ac && !atomic_load(&G->failure); ++i) for (size_t j = 0; j < bc; ++j) {
++        if (op == PNDD_DIFF && ae[i].target == be[j].target) continue;
+         uint64_t intersection = labels(field, PNDD_AND, ae[i].label, be[j].label);
+         if (intersection && intersection != PNDD_INVALID) {
+-            jobs[jc] = (Job){intersection, ae[i].target, be[j].target, 0}; jr.count = ++jc;
++            jobs[jc] = (Job){intersection, ae[i].target, be[j].target, INVALID_ID}; jr.count = ++jc;
+         }
+     }
+     if (op != PNDD_AND && !atomic_load(&G->failure)) {
+@@ -450,13 +858,23 @@ TASK_IMPL_4(uint32_t, apply_rec, uint32_t, op, uint32_t, a, uint32_t, b, uint32_
+             }
+         }
+     }
++#endif
++    }
++#ifdef PNDD_PROFILE
++    Profile *p = &worker_stats()->profile;
++    ++p->misses; p->prepare_ns += now_ns() - prepare_start; p->jobs += jc;
++    ++p->bins[jc == 0 ? 0 : jc == 1 ? 1 : jc < 4 ? 2 : jc < 16 ? 3 : 4];
++    for (size_t i = 0; i < jc; ++i)
++        if (jobs[i].a > 1 && jobs[i].b > 1 && jobs[i].a != jobs[i].b) ++p->costly_jobs;
++#endif
+     CALL(process_jobs, jobs, jc, op, depth, __lace_worker->worker);
+     uint64_t start = now_ns();
+     for (size_t i = 0; i < jc; ++i) { edges[ec++] = (Edge){jobs[i].label, jobs[i].target}; er.count = ec; }
+     result = make_node(field, edges, ec);
+     worker_stats()->merge_ns += now_ns() - start;
+-    root_pop(&cr); root_pop(&er); root_pop(&jr); deallocate(edges); deallocate(jobs);
+-    cache_put(op + 1, a, b, result); return (uint32_t)result;
++    root_pop(&cr); root_pop(&er); root_pop(&jr);
++    if (heap) { deallocate(edges); deallocate(jobs); }
++    pndd_cache_put(op + 1, a, b, result); return (uint32_t)result;
+ }
+ TASK_DECL_5(uint32_t, reduce_rec, uint32_t, const uint32_t *, size_t, uint32_t, uint32_t);
+ TASK_IMPL_5(uint32_t, reduce_rec, uint32_t, op, const uint32_t *, values, size_t, count, uint32_t, depth, uint32_t, owner) {
+@@ -479,7 +897,7 @@ TASK_IMPL_3(uint32_t, exist_rec, uint32_t, a, uint32_t, field, uint32_t, depth)
+     YIELD_NEWFRAME();
+     if (atomic_load(&G->failure) || a == INVALID_ID) return INVALID_ID;
+     if (node_field(a) > field) return a;
+-    uint64_t cached; if (cache_get(0x10000 + field, a, 0, &cached)) return (uint32_t)cached;
++    uint64_t cached; if (pndd_cache_get(0x10000 + field, a, 0, &cached)) return (uint32_t)cached;
+     Node *n = node(a); uint32_t result;
+     if (n->field == field) {
+         uint32_t *targets = allocate(n->count * sizeof(uint32_t)); if (!targets) return INVALID_ID;
+@@ -488,12 +906,12 @@ TASK_IMPL_3(uint32_t, exist_rec, uint32_t, a, uint32_t, field, uint32_t, depth)
+     } else {
+         Job *jobs = allocate(n->count * sizeof(Job)); Edge *edges = allocate(n->count * sizeof(Edge));
+         if (!jobs || !edges) { deallocate(jobs); deallocate(edges); return INVALID_ID; }
+-        for (size_t i = 0; i < n->count; ++i) jobs[i] = (Job){n->edges[i].label, n->edges[i].target, 0, 0};
++        for (size_t i = 0; i < n->count; ++i) jobs[i] = (Job){n->edges[i].label, n->edges[i].target, 0, INVALID_ID};
+         CALL(process_jobs, jobs, n->count, 16 + field, depth, __lace_worker->worker);
+         for (size_t i = 0; i < n->count; ++i) edges[i] = (Edge){jobs[i].label, jobs[i].target};
+         result = make_node(n->field, edges, n->count); deallocate(jobs); deallocate(edges);
+     }
+-    cache_put(0x10000 + field, a, 0, result); return result;
++    pndd_cache_put(0x10000 + field, a, 0, result); return result;
+ }
+ /* Sylvan may collect during any label allocation. The frame pauses all workers;
+  * marking every allocated NDD preserves operation-cache and unpublished-child
+@@ -512,7 +930,7 @@ VOID_TASK_IMPL_0(mark_labels) {
+             if (mode == PNDD_ZDD) CALL(zdd_gc_mark_rec, n->edges[i].label);
+         }
+     }
+-    for (unsigned w = 0; w < G->config.workers; ++w) for (RootFrame *r = G->roots[w]; r; r = r->previous) {
++    for (unsigned w = 0; w < G->config.workers; ++w) for (RootFrame *r = G->roots[w].head; r; r = r->previous) {
+         pndd_backend mode = G->fields[r->field].spec.backend;
+         if (mode != PNDD_BCDD && mode != PNDD_ZDD) continue;
+         for (size_t i = 0; i < r->count; ++i) {
+@@ -524,7 +942,7 @@ VOID_TASK_IMPL_0(mark_labels) {
+ }
+ static void sylvan_pre(WorkerP *worker, Task *task) {
+     (void)worker; (void)task;
+-    memset(G->cache, 0, G->config.cache_entries * sizeof(Cache));
++    clear_label_caches();
+     atomic_fetch_add(&G->label_collections, 1);
+ }
+ static void mark_node(uint32_t id) {
+@@ -546,7 +964,7 @@ VOID_TASK_IMPL_0(sweep_nodes) {
+         atomic_fetch_add(&G->labels_live, w->labels_live); w->labels_live = 0;
+         w->node_next = w->node_end = 0;
+     }
+-    memset(G->cache, 0, G->config.cache_entries * sizeof(Cache));
++    clear_operation_caches();
+     for (uint32_t i = 2; i < G->node_high; ++i) { Node *n = node(i); if (n) n->mark = 0; }
+     for (uint32_t i = 2; i < G->label_high; ++i) { Label *l = label(i); if (l) l->mark = 0; }
+     for (uint32_t i = 2; i < G->node_high; ++i) { Node *n = node(i); if (n && n->refs) mark_node(i); }
+@@ -562,7 +980,7 @@ VOID_TASK_IMPL_0(sweep_nodes) {
+     G->free_node_count = G->free_label_count = 0;
+     for (uint32_t i = 2; i < G->node_high; ++i) {
+         Node *n = node(i);
+-        if (n && !n->mark) { deallocate(n); atomic_store((_Atomic(Node *) *)&atomic_load(&G->node_blocks[i / BLOCK])[i % BLOCK], NULL); atomic_fetch_sub(&G->nodes_live, 1); n = NULL; }
++        if (n && !n->mark) { deallocate_node(n); atomic_store((_Atomic(Node *) *)&atomic_load(&G->node_blocks[i / BLOCK])[i % BLOCK], NULL); atomic_fetch_sub(&G->nodes_live, 1); n = NULL; }
+         if (!n) { G->free_nodes[G->free_node_count++] = i; continue; }
+         Unique *u = &G->node_unique[n->hash % SHARDS]; size_t bucket = (n->hash / SHARDS) & (u->size - 1);
+         n->next = u->buckets[bucket]; u->buckets[bucket] = i; ++u->count;
+@@ -595,13 +1013,15 @@ static int prepare_collect(void) {
+     G->free_nodes = nf; G->free_labels = lf; return 1;
+ }
+ static int collect_internal(void) {
++    PROFILE_START;
+     if (!prepare_collect()) return 0;
+-    atomic_fetch_add(&G->runs, 1); RUN(collect_task); return !atomic_load(&G->failure);
++    atomic_fetch_add(&G->runs, 1); RUN(collect_task);
++    PROFILE_END(4); return !atomic_load(&G->failure);
+ }
+ static int begin_deferred(pndd_engine *engine, int defer_gc) {
+     if (!engine || engine != G) { open_error = "Closed or foreign engine"; return 0; }
+     G->pending_gc = 0;
+-    atomic_store(&G->failure, 0);
++    reset_failure();
+     ++G->admissions;
+     if ((G->config.gc_interval && G->admissions % G->config.gc_interval == 0) ||
+         (atomic_load(&G->bytes) > G->allocation_limit * 3 / 4 && atomic_load(&G->bytes) > G->last_gc_bytes + 65536)) {
+@@ -639,36 +1059,49 @@ static double label_count(uint32_t field, uint64_t value, uint32_t start) {
+     pndd_backend mode = G->fields[field].spec.backend;
+     if (!value) return 0;
+     if (mode == PNDD_BITSET) return ldexp((double)(__builtin_popcountll(label(value)->low) + __builtin_popcountll(label(value)->high)), -(int)(G->widths[mode] - G->fields[field].spec.width));
+-    uint64_t bits; uint32_t key = 0x200 + mode * 128 + start;
+-    if (cache_get(key, value, 0, &bits)) { double d; memcpy(&d, &bits, 8); return d; }
++    uint64_t bits; uint32_t key = 0x200 + mode * 8192 + start;
++    if (pndd_cache_get(key, value, label_end(field), &bits)) { double d; memcpy(&d, &bits, 8); return d; }
+     double count;
+-    if (value == truth(field)) count = mode == PNDD_ZDD ? 1 : ldexp(1.0, (int)(G->widths[mode] - start));
++    if (value == truth(field)) count = mode == PNDD_ZDD ? 1 : ldexp(1.0, (int)(label_end(field) - start));
+     else {
+         uint32_t var = label_var(field, value);
+         count = label_count(field, branch(field, value, var, 0), var + 1) + label_count(field, branch(field, value, var, 1), var + 1);
+         if (mode != PNDD_ZDD) count = ldexp(count, (int)(var - start));
+     }
+-    memcpy(&bits, &count, 8); cache_put(key, value, 0, bits); return count;
++    memcpy(&bits, &count, 8); pndd_cache_put(key, value, label_end(field), bits); return count;
+ }
+ static double count_node(uint32_t id, double *memo, unsigned char *seen) {
+     if (id < 2) return (double)id;
++#ifdef PNDD_EXPERIMENT_SATCOUNT_CACHE
++    if (node(id)->sat_count_valid) return node(id)->sat_count;
++#else
+     if (seen[id]) return memo[id];
++#endif
+     Node *n = node(id); double result = 0;
+     for (size_t i = 0; i < n->count; ++i) {
+         uint32_t child = n->edges[i].target;
+         double lc = label_count(n->field, n->edges[i].label, G->fields[n->field].start);
+         result += lc * gap(n->field + 1, node_field(child)) * count_node(child, memo, seen);
+     }
+-    seen[id] = 1; memo[id] = result; return result;
++#ifdef PNDD_EXPERIMENT_SATCOUNT_CACHE
++    n->sat_count = result; n->sat_count_valid = 1;
++#else
++    seen[id] = 1; memo[id] = result;
++#endif
++    return result;
+ }
+ static double satcount_internal(uint32_t id) {
+     if (id == INVALID_ID) return NAN;
+     if (id == 0) return 0;
+     if (id == 1) return gap(0, (uint32_t)G->field_count);
++#ifdef PNDD_EXPERIMENT_SATCOUNT_CACHE
++    return gap(0, node_field(id)) * count_node(id, NULL, NULL);
++#else
+     double *memo = allocate((size_t)G->node_high * sizeof(double)); unsigned char *seen = allocate(G->node_high);
+     if (!memo || !seen) { deallocate(memo); deallocate(seen); return NAN; }
+     double result = gap(0, node_field(id)) * count_node(id, memo, seen);
+     deallocate(memo); deallocate(seen); return result;
++#endif
+ }
+ static int label_matches(uint32_t field, uint64_t value, uint64_t assignment) {
+     pndd_backend mode = G->fields[field].spec.backend; Field *f = &G->fields[field];
+@@ -679,12 +1112,14 @@ static int label_matches(uint32_t field, uint64_t value, uint64_t assignment) {
+     }
+     if (mode == PNDD_ZDD) {
+         for (uint32_t var = f->start; var < G->widths[mode]; ++var) {
+-            int bit = (int)((assignment >> (G->widths[mode] - 1 - var)) & 1);
++            uint32_t shift = G->widths[mode] - 1 - var;
++            int bit = shift < 64 ? (int)((assignment >> shift) & 1) : 0;
+             value = branch(field, value, var, bit); if (!value) return 0;
+         }
+     } else while (value && value != truth(field)) {
+         uint32_t var = label_var(field, value);
+-        value = branch(field, value, var, (int)((assignment >> (G->widths[mode] - 1 - var)) & 1));
++        uint32_t shift = reversed(field) ? var : label_end(field) - 1 - var;
++        value = branch(field, value, var, shift < 64 ? (int)((assignment >> shift) & 1) : 0);
+     }
+     return value == truth(field);
+ }
+@@ -700,8 +1135,9 @@ TASK_IMPL_4(uint32_t, construct, uint32_t, field, uint32_t, bit, uint64_t, value
+                 if (assignment < 64) low |= UINT64_C(1) << assignment; else high |= UINT64_C(1) << (assignment - 64);
+             }
+         current = plain_make(LABEL_BITS, low, high);
+-    } else for (uint32_t v = G->widths[mode]; v > f->start; --v) {
+-        int positive = (int)((value >> (G->widths[mode] - v)) & 1);
++    } else for (uint32_t v = label_end(field); v > f->start; --v) {
++        uint32_t shift = reversed(field) ? v - 1 : label_end(field) - v;
++        int positive = shift < 64 ? (int)((value >> shift) & 1) : 0;
+         current = make_label(field, v - 1, positive ? 0 : current, positive ? current : 0);
+         if (current == PNDD_INVALID) break;
+     }
+@@ -721,7 +1157,7 @@ VOID_TASK_IMPL_0(initialize_fields) {
+         }
+         for (uint32_t bit = 0; bit < field->spec.width && !atomic_load(&G->failure); ++bit) for (unsigned positive = 0; positive < 2; ++positive) {
+             uint64_t value = truth(f); RootFrame root; root_push(&root, f, &value, sizeof(value), 1);
+-            uint32_t variable = field->start + bit;
++            uint32_t variable = reversed(f) ? field->spec.width - 1 - bit : field->start + bit;
+             if (mode == PNDD_BITSET) {
+                 uint64_t low = 0, high = 0;
+                 for (unsigned a = 0; a < (1u << G->widths[mode]); ++a)
+@@ -738,18 +1174,27 @@ VOID_TASK_IMPL_0(initialize_fields) {
+     }
+ }
+ pndd_config pndd_default_config(void) {
+-    return (pndd_config){1, 4, 2, 4, 1, 0, 1, 512u * 1024 * 1024, 262144, 128};
++    return (pndd_config){1, 4, 2, 4, 1, 0, 1, 512u * 1024 * 1024, 262144, 128, 0};
+ }
+ static void destroy_engine(void) {
++#ifdef PNDD_PROFILE
++    profile_dump();
++#endif
+     if (G->sylvan) sylvan_quit();
+     lace_stop();
+-    for (uint32_t i = 0; i < G->node_high; ++i) deallocate(node(i));
++    for (uint32_t i = 0; i < G->node_high; ++i) deallocate_node(node(i));
++    NodeSlab *slab = G->node_slabs;
++    while (slab) { NodeSlab *next = slab->next; deallocate(slab); slab = next; }
+     for (uint32_t i = 2; i < G->label_high; ++i) deallocate(label(i));
++    for (size_t i = 0; i < G->field_count; ++i) deallocate(G->fields[i].literals);
+     for (size_t i = 0; i < BLOCKS; ++i) { deallocate(atomic_load(&G->node_blocks[i])); deallocate(atomic_load(&G->label_blocks[i])); }
+     for (size_t i = 0; i < SHARDS; ++i) {
+         deallocate(G->node_unique[i].buckets); deallocate(G->label_unique[i].buckets);
+ 
+     }
++#ifdef PNDD_LOCAL_CACHE
++    for (unsigned i = 0; i < G->config.workers; ++i) deallocate(G->worker_stats[i].local_cache);
++#endif
+     deallocate(G->cache); deallocate(G->roots); deallocate(G->free_nodes); deallocate(G->free_labels);
+     pthread_mutex_destroy(&G->allocation); free(G); G = NULL;
+ }
+@@ -761,8 +1206,8 @@ pndd_engine *pndd_open(const pndd_config *requested, const pndd_field *fields, s
+         !c.cache_entries || c.cache_entries > SIZE_MAX / sizeof(Cache) || (c.cache_entries & (c.cache_entries - 1)) || !c.task_threshold || !c.chunk_size || c.spawn_depth > 32) {
+         open_error = "Invalid engine configuration"; pthread_mutex_unlock(&admission); return NULL;
+     }
+-    for (size_t i = 0; i < count; ++i) if (!fields[i].width || fields[i].width > 64 || fields[i].backend > PNDD_BITSET || fields[i].backend < PNDD_BDD || (fields[i].backend == PNDD_BITSET && fields[i].width > 7)) {
+-        open_error = "Field widths must be 1..64 (BITSET: 1..7)"; pthread_mutex_unlock(&admission); return NULL;
++    for (size_t i = 0; i < count; ++i) if (!fields[i].width || fields[i].width > 4096 || fields[i].backend > PNDD_BITSET || fields[i].backend < PNDD_BDD || (fields[i].backend == PNDD_BITSET && fields[i].width > 7)) {
++        open_error = "Field widths must be 1..4096 (BITSET: 1..7)"; pthread_mutex_unlock(&admission); return NULL;
+     }
+     /* The shard locks make the engine over-aligned; calloc only guarantees
+        fundamental alignment. sizeof(pndd_engine) is a multiple of its alignment. */
+@@ -775,25 +1220,40 @@ pndd_engine *pndd_open(const pndd_config *requested, const pndd_field *fields, s
+         if (G->widths[fields[i].backend] < fields[i].width) G->widths[fields[i].backend] = fields[i].width;
+         if (fields[i].backend == PNDD_BCDD || fields[i].backend == PNDD_ZDD) G->sylvan = 1;
+     }
+-    for (size_t i = 0; i < count; ++i) G->fields[i].start = G->widths[fields[i].backend] - fields[i].width;
++    for (size_t i = 0; i < count; ++i) G->fields[i].start = reversed((uint32_t)i) ? 0 : G->widths[fields[i].backend] - fields[i].width;
+     G->hard_limit = c.memory_bytes - (G->sylvan ? c.memory_bytes / 4 : 0);
+     G->allocation_limit = G->hard_limit * 4 / 5;
+     /* Include the stable block directory and engine metadata in the budget. */
+     atomic_store(&G->bytes, sizeof(*G)); atomic_store(&G->peak, sizeof(*G));
+     pthread_mutex_init(&G->allocation, NULL);
++    for (size_t i = 0; i < count; ++i)
++        G->fields[i].literals = allocate(fields[i].width * 2 * sizeof(uint32_t));
+     for (size_t i = 0; i < SHARDS; ++i) {
+         atomic_flag_clear(&G->node_unique[i].lock.flag); atomic_flag_clear(&G->label_unique[i].lock.flag); atomic_flag_clear(&G->cache_locks[i].flag);
+         G->node_unique[i].size = G->label_unique[i].size = 16;
+         G->node_unique[i].buckets = allocate(16 * sizeof(uint32_t)); G->label_unique[i].buckets = allocate(16 * sizeof(uint32_t));
+     }
+-    G->cache = allocate(c.cache_entries * sizeof(Cache)); G->roots = allocate(c.workers * sizeof(RootFrame *));
++    G->cache = allocate(c.cache_entries * sizeof(Cache)); G->roots = allocate(c.workers * sizeof(RootSlot));
++#ifdef PNDD_LOCAL_CACHE
++    size_t local_entries = LOCAL_CACHE_ENTRIES;
++    while (local_entries > 64 && local_entries * sizeof(Cache) * c.workers > c.memory_bytes / 64)
++        local_entries /= 2;
++    for (unsigned i = 0; i < c.workers; ++i) {
++        G->worker_stats[i].local_entries = local_entries;
++        G->worker_stats[i].local_cache = allocate(local_entries * sizeof(Cache));
++    }
++#endif
+     lace_start(c.workers, 100000);
+     if (G->sylvan) {
+-        sylvan_set_limits(c.memory_bytes / 4, 2, 4); sylvan_init_package(); sylvan_init_bdd(); sylvan_init_zdd();
++        int initial_ratio = c.memory_bytes > 128u * 1024 * 1024 ? PNDD_SYLVAN_INITIAL_RATIO : 4;
++        sylvan_set_limits(c.memory_bytes / 4, 2, initial_ratio); sylvan_init_package(); sylvan_init_bdd(); sylvan_init_zdd();
++#ifdef PNDD_EXPERIMENT_SYLVAN_CACHE
++        G->label_cache_opid = cache_next_opid();
++#endif
+         sylvan_gc_add_mark(mark_labels_CALL); sylvan_gc_hook_pregc(sylvan_pre);
+     }
+     for (unsigned i = 0; i < 2 && !atomic_load(&G->failure); ++i) {
+-        Node *n = allocate(sizeof(Node)); if (n) { n->field = (uint32_t)count; n->refs = 1; if (publish_node(n) == INVALID_ID) deallocate(n); }
++        Node *n = allocate_node(0); if (n) { n->field = (uint32_t)count; n->refs = 1; if (publish_node(n) == INVALID_ID) deallocate_node(n); }
+     }
+     if (!atomic_load(&G->failure)) RUN(initialize_fields);
+     if (atomic_load(&G->failure)) { open_error = "Native memory budget exhausted during initialization"; destroy_engine(); pthread_mutex_unlock(&admission); return NULL; }
+@@ -823,12 +1283,18 @@ pndd_handle pndd_value(pndd_engine *e, uint32_t field, uint64_t value) {
+ }
+ pndd_handle pndd_apply(pndd_engine *e, pndd_op op, pndd_handle a, pndd_handle b) {
+     pthread_mutex_lock(&admission); pndd_handle h = PNDD_INVALID;
++    PROFILE_START;
+     if (begin(e)) {
+         uint32_t x = resolve(a), y = resolve(b);
+         if (op > PNDD_NOR || op < PNDD_AND) fail(3);
+-        if (!atomic_load(&G->failure)) { atomic_fetch_add(&G->runs, 1); h = own(RUN(apply_rec, op, x, y, 0)); }
++        if (!atomic_load(&G->failure)) {
++            if ((op == PNDD_AND || op == PNDD_OR) && x > y) { uint32_t t = x; x = y; y = t; }
++            uint64_t cached;
++            if (pndd_cache_get(op + 1, x, y, &cached)) h = own((uint32_t)cached);
++            else { atomic_fetch_add(&G->runs, 1); h = own(RUN(apply_rec, op, x, y, 0)); }
++        }
+     }
+-    pthread_mutex_unlock(&admission); return h;
++    PROFILE_END(0); pthread_mutex_unlock(&admission); return h;
+ }
+ pndd_handle pndd_not(pndd_engine *e, pndd_handle a) {
+     pthread_mutex_lock(&admission); pndd_handle h = PNDD_INVALID;
+@@ -837,24 +1303,26 @@ pndd_handle pndd_not(pndd_engine *e, pndd_handle a) {
+ }
+ pndd_handle pndd_exist(pndd_engine *e, pndd_handle a, uint32_t field) {
+     pthread_mutex_lock(&admission); pndd_handle h = PNDD_INVALID;
++    PROFILE_START;
+     if (begin(e)) {
+         uint32_t x = resolve(a); if (field >= G->field_count) fail(3);
+         if (!atomic_load(&G->failure)) { atomic_fetch_add(&G->runs, 1); h = own(RUN(exist_rec, x, field, 0)); }
+     }
+-    pthread_mutex_unlock(&admission); return h;
++    PROFILE_END(6); pthread_mutex_unlock(&admission); return h;
+ }
+ pndd_handle pndd_retain(pndd_engine *e, pndd_handle a) {
+     pthread_mutex_lock(&admission); pndd_handle h = begin(e) ? own(resolve(a)) : PNDD_INVALID; pthread_mutex_unlock(&admission); return h;
+ }
+ int pndd_release(pndd_engine *e, pndd_handle a) {
+     pthread_mutex_lock(&admission); int result = 0;
+-    if (e && e == G) { atomic_store(&G->failure, 0); uint32_t id = resolve(a); if (id != INVALID_ID) { --node(id)->refs; result = 1; } }
++    if (e && e == G) { reset_failure(); uint32_t id = resolve(a); if (id != INVALID_ID) { --node(id)->refs; result = 1; } }
+     pthread_mutex_unlock(&admission); return result;
+ }
+ double pndd_satcount(pndd_engine *e, pndd_handle a) {
+     pthread_mutex_lock(&admission); double result = NAN;
++    PROFILE_START;
+     if (begin(e)) result = satcount_internal(resolve(a));
+-    pthread_mutex_unlock(&admission); return result;
++    PROFILE_END(1); pthread_mutex_unlock(&admission); return result;
+ }
+ int pndd_evaluate(pndd_engine *e, pndd_handle a, const uint64_t *values, size_t count) {
+     pthread_mutex_lock(&admission); int result = -1;
+@@ -883,6 +1351,81 @@ VOID_TASK_IMPL_6(batch_rec, uint32_t, op, const uint32_t *, a, const uint32_t *,
+     } else for (size_t i = 0; i < count; ++i) out[i] = CALL(apply_rec, op, a[i], b[i], 0);
+ }
+ VOID_TASK_DECL_5(batch_top, uint32_t, const pndd_handle *, const pndd_handle *, size_t, pndd_handle *);
++typedef struct { uint32_t arrive, outer, inner, result; } PriorityJob;
++VOID_TASK_DECL_5(priority_jobs, PriorityJob *, size_t, uint32_t, uint32_t, uint32_t);
++VOID_TASK_IMPL_5(priority_jobs, PriorityJob *, jobs, size_t, count, uint32_t, budget, uint32_t, ecmp, uint32_t, depth) {
++    (void)budget;
++    if (G->config.batch_parallel && G->config.workers > 1 && count > G->config.chunk_size && depth < G->config.spawn_depth) {
++        size_t half = count / 2; atomic_fetch_add(&G->tasks, 1);
++        SPAWN(priority_jobs, jobs, half, budget, ecmp, depth + 1);
++        CALL(priority_jobs, jobs + half, count - half, budget, ecmp, depth + 1);
++        SYNC(priority_jobs);
++    } else for (size_t i = 0; i < count; ++i) {
++        uint32_t value = CALL(apply_rec, PNDD_AND, (ecmp & PNDD_PRIORITY_INTERSECT_FIRST) ? budget : jobs[i].outer, jobs[i].arrive, 0);
++        if (ecmp & PNDD_PRIORITY_INTERSECT_FIRST) value = CALL(apply_rec, PNDD_DIFF, value, jobs[i].outer, 0);
++        if (!(ecmp & PNDD_PRIORITY_MULTIPATH)) value = CALL(apply_rec, PNDD_DIFF, value, jobs[i].inner, 0);
++        jobs[i].result = value;
++    }
++}
++typedef struct {
++    uint32_t budget;
++    const pndd_handle *input;
++    const uint32_t *ends;
++    size_t count, groups, start;
++    int ecmp;
++    pndd_handle *out;
++} PriorityRequest;
++VOID_TASK_DECL_1(priority_top, PriorityRequest *);
++VOID_TASK_IMPL_1(priority_top, PriorityRequest *, request) {
++    if (!collect_deferred()) return;
++    PriorityJob *jobs = allocate(request->count * sizeof(PriorityJob));
++    if (!jobs) return;
++    for (size_t i = 0; i < request->count; ++i) jobs[i].arrive = resolve(request->input[i]);
++    uint32_t outer = 0; size_t i = 0;
++    for (size_t group = 0; group < request->groups && !atomic_load(&G->failure); ++group) {
++        uint32_t inner = 0;
++        uint32_t available = request->ecmp & PNDD_PRIORITY_INTERSECT_FIRST ? outer : CALL(apply_rec, PNDD_DIFF, request->budget, outer, 0);
++        for (; i < request->ends[group]; ++i) {
++            jobs[i].outer = available; jobs[i].inner = inner;
++            if (group + 1 < request->groups || (!(request->ecmp & PNDD_PRIORITY_MULTIPATH) && i + 1 < request->ends[group]))
++                inner = CALL(apply_rec, PNDD_OR, inner, jobs[i].arrive, 0);
++        }
++        if (group + 1 < request->groups) outer = CALL(apply_rec, PNDD_OR, outer, inner, 0);
++    }
++    if (!atomic_load(&G->failure)) CALL(priority_jobs, jobs + request->start, request->count - request->start, request->budget, request->ecmp, 0);
++    size_t owned = 0;
++    if (!atomic_load(&G->failure)) for (; owned < request->count - request->start; ++owned) {
++        request->out[owned] = own(jobs[request->start + owned].result);
++        if (request->out[owned] == PNDD_INVALID) break;
++    }
++    if (atomic_load(&G->failure)) for (size_t j = 0; j < owned; ++j) {
++        --node(jobs[request->start + j].result)->refs; request->out[j] = PNDD_INVALID;
++    }
++    deallocate(jobs);
++}
++int pndd_priority_select(pndd_engine *e, pndd_handle budget, const pndd_handle *input,
++                         size_t count, const uint32_t *ends, size_t groups,
++                         size_t start, int ecmp, pndd_handle *out) {
++    pthread_mutex_lock(&admission); int ok = 0;
++    if (begin_deferred(e, 1)) {
++        uint32_t b = resolve(budget);
++        if (start > count || count > UINT32_MAX || count > SIZE_MAX / sizeof(PriorityJob) ||
++            (count && (!input || !ends || !groups)) || (groups && !ends) || (count > start && !out) ||
++            (ecmp & ~(PNDD_PRIORITY_MULTIPATH | PNDD_PRIORITY_INTERSECT_FIRST))) fail(3);
++        size_t previous = 0;
++        if (!atomic_load(&G->failure)) for (size_t i = 0; i < groups; ++i) {
++            if (ends[i] <= previous || ends[i] > count) { fail(3); break; }
++            previous = ends[i];
++        }
++        if (previous != count) fail(3);
++        if (!atomic_load(&G->failure)) {
++            PriorityRequest request = {b, input, ends, count, groups, start, ecmp, out};
++            atomic_fetch_add(&G->runs, 1); RUN(priority_top, &request);
++            ok = !atomic_load(&G->failure);
++        }
++    }
++    pthread_mutex_unlock(&admission); return ok;
++}
+ VOID_TASK_IMPL_5(batch_top, uint32_t, op, const pndd_handle *, a, const pndd_handle *, b, size_t, count, pndd_handle *, out) {
+     if (!collect_deferred()) return;
+     uint32_t *ids = allocate(count * 3 * sizeof(uint32_t));
+@@ -936,7 +1479,7 @@ pndd_handle pndd_reduce(pndd_engine *e, pndd_op op, const pndd_handle *values, s
+ }
+ int pndd_collect(pndd_engine *e) {
+     pthread_mutex_lock(&admission); int result = 0;
+-    if (e && e == G) { atomic_store(&G->failure, 0); result = collect_internal(); }
++    if (e && e == G) { reset_failure(); result = collect_internal(); }
+     pthread_mutex_unlock(&admission); return result;
+ }
+ pndd_stats pndd_get_stats(pndd_engine *e) {
+@@ -957,6 +1500,191 @@ pndd_stats pndd_get_stats(pndd_engine *e) {
+ }
+ /* Benchmark construction matches NDDSolution.java: row ORs, four independent
+  * implication folds per cell, then c&d, b&c, a&b and fixed row/cell left-fold. */
++VOID_TASK_DECL_2(snapshot_task, uint32_t, pndd_handle *);
++VOID_TASK_IMPL_2(snapshot_task, uint32_t, id, pndd_handle *, out) {
++    Node *n = node(id);
++    for (size_t i = 0; i < n->count && !atomic_load(&G->failure); ++i) {
++        out[i * 2] = own(n->edges[i].target);
++        Edge edge = {n->edges[i].label, 1};
++        out[i * 2 + 1] = own(make_node(n->field, &edge, 1));
++    }
++}
++int pndd_snapshot(pndd_engine *e, pndd_handle handle, uint32_t *field,
++                  size_t *count, pndd_handle **pairs) {
++    pthread_mutex_lock(&admission); int ok = 0; *count = 0; *pairs = NULL;
++    PROFILE_START;
++    if (begin(e)) {
++        uint32_t id = resolve(handle);
++        if (id != INVALID_ID) {
++            Node *n = node(id); *field = n->field; size_t size = n->count;
++            pndd_handle *out = malloc(size ? size * 2 * sizeof(*out) : 1);
++            if (!out) fail(1);
++            else {
++                for (size_t i = 0; i < size * 2; ++i) out[i] = PNDD_INVALID;
++                if (size) { atomic_fetch_add(&G->runs, 1); RUN(snapshot_task, id, out); }
++                if (atomic_load(&G->failure)) {
++                    for (size_t i = 0; i < size * 2; ++i)
++                        if (out[i] != PNDD_INVALID) --node((uint32_t)out[i])->refs;
++                    free(out);
++                } else { *count = size; *pairs = out; ok = 1; }
++            }
++        }
++    }
++    PROFILE_END(2); pthread_mutex_unlock(&admission); return ok;
++}
++int pndd_reachable(pndd_engine *e, const pndd_handle *roots, size_t root_count,
++                   const pndd_handle *candidates, size_t count, unsigned char *mask) {
++    pthread_mutex_lock(&admission); int ok = 0;
++    PROFILE_START;
++    if (begin(e)) {
++        for (uint32_t i = 2; i < G->node_high; ++i) { Node *n = node(i); if (n) n->mark = 0; }
++        for (size_t i = 0; i < root_count; ++i) {
++            uint32_t id = resolve(roots[i]); if (id != INVALID_ID) mark_node(id);
++        }
++        for (size_t i = 0; i < count; ++i) {
++            uint32_t id = resolve(candidates[i]);
++            mask[i] = id != INVALID_ID && (id < 2 || node(id)->mark);
++        }
++        ok = !atomic_load(&G->failure);
++    }
++    PROFILE_END(3); pthread_mutex_unlock(&admission); return ok;
++}
++static uint64_t condition_label(uint32_t id, uint32_t field) {
++    if (id < 2) return id ? G->fields[field].universe : 0;
++    Node *n = node(id);
++    if (n->field != field || n->count != 1 || n->edges[0].target != 1) { fail(3); return 0; }
++    return n->edges[0].label;
++}
++static int minimum_label_cost(uint32_t field, uint64_t value, int costly) {
++    const int infinity = INT_MAX / 4;
++    if (!value) return infinity;
++    if (value == truth(field)) return 0;
++    pndd_backend mode = G->fields[field].spec.backend;
++    if (mode == PNDD_BITSET) {
++        Label *l = label(value); int best = infinity;
++        unsigned mask = (1u << G->fields[field].spec.width) - 1;
++        for (unsigned a = 0; a < (1u << G->widths[mode]); ++a) {
++            if ((a < 64 ? l->low >> a : l->high >> (a - 64)) & 1) {
++                int cost = __builtin_popcount(costly ? (a & mask) : ((~a) & mask));
++                if (cost < best) best = cost;
++            }
++        }
++        return best;
++    }
++    uint32_t key = 0x20000 + mode * 2 + !!costly; uint64_t cached;
++    if (pndd_cache_get(key, value, 0, &cached)) return (int)cached;
++    uint32_t var = label_var(field, value);
++    int low = minimum_label_cost(field, branch(field, value, var, 0), costly);
++    int high = minimum_label_cost(field, branch(field, value, var, 1), costly);
++    if (low < infinity && !costly) ++low;
++    if (high < infinity && costly) ++high;
++    int result = low < high ? low : high;
++    pndd_cache_put(key, value, 0, (uint64_t)result); return result;
++}
++int pndd_min_label_cost(pndd_engine *e, pndd_handle handle, uint32_t field, int costly) {
++    pthread_mutex_lock(&admission); int result = -1;
++    PROFILE_START;
++    if (begin(e)) {
++        uint32_t id = resolve(handle);
++        if (field >= G->field_count || (G->fields[field].spec.backend == PNDD_ZDD && !costly)) fail(3);
++        if (!atomic_load(&G->failure)) result = minimum_label_cost(field, condition_label(id, field), costly);
++        if (atomic_load(&G->failure)) result = -1;
++    }
++    PROFILE_END(5); pthread_mutex_unlock(&admission); return result;
++}
++typedef struct {
++    signed char *bits, *data; size_t count, capacity, limit; uint32_t field, width;
++} Cubes;
++static void emit_cube(Cubes *c) {
++    if (c->count >= c->limit) { fail(3); return; }
++    if (c->count == c->capacity) {
++        size_t capacity = c->capacity ? c->capacity * 2 : 16;
++        if (capacity > c->limit) capacity = c->limit;
++        signed char *data = realloc(c->data, capacity * c->width);
++        if (!data) { fail(1); return; }
++        c->data = data; c->capacity = capacity;
++    }
++    memcpy(c->data + c->count++ * c->width, c->bits, c->width);
++}
++static void enumerate_cubes(Cubes *c, uint64_t value) {
++    if (!value || atomic_load(&G->failure)) return;
++    if (value == truth(c->field)) { emit_cube(c); return; }
++    uint32_t var = label_var(c->field, value);
++    uint32_t bit = reversed(c->field) ? c->width - 1 - var : var - G->fields[c->field].start;
++    if (bit >= c->width) { fail(3); return; }
++    for (int high = 0; high <= 1; ++high) {
++        c->bits[bit] = (signed char)high;
++        enumerate_cubes(c, branch(c->field, value, var, high));
++    }
++    c->bits[bit] = G->fields[c->field].spec.backend == PNDD_ZDD ? 0 : -1;
++}
++int pndd_label_cubes(pndd_engine *e, pndd_handle handle, uint32_t field,
++                     size_t limit, size_t *count, signed char **cubes) {
++    pthread_mutex_lock(&admission); int ok = 0; *count = 0; *cubes = NULL;
++    if (begin(e)) {
++        uint32_t id = resolve(handle);
++        if (field >= G->field_count || !limit || limit > 65536) fail(3);
++        if (!atomic_load(&G->failure)) {
++            uint64_t value = condition_label(id, field);
++            Cubes c = {0}; c.field = field; c.width = G->fields[field].spec.width; c.limit = limit;
++            c.bits = malloc(c.width);
++            if (!c.bits) fail(1);
++            else {
++                memset(c.bits, G->fields[field].spec.backend == PNDD_ZDD ? 0 : -1, c.width);
++                if (id == 1) { memset(c.bits, -1, c.width); emit_cube(&c); }
++                else if (G->fields[field].spec.backend == PNDD_BITSET) {
++                    Label *l = value ? label(value) : NULL;
++                    for (unsigned a = 0; l && a < (1u << c.width); ++a) {
++                        if ((a < 64 ? l->low >> a : l->high >> (a - 64)) & 1) {
++                            for (unsigned bit = 0; bit < c.width; ++bit) c.bits[bit] = (a >> (c.width - bit - 1)) & 1;
++                            emit_cube(&c);
++                        }
++                    }
++                } else enumerate_cubes(&c, value);
++                free(c.bits);
++            }
++            if (atomic_load(&G->failure)) free(c.data);
++            else { *count = c.count; *cubes = c.data; ok = 1; }
++        }
++    }
++    pthread_mutex_unlock(&admission); return ok;
++}
++
++static uint64_t rotate(uint64_t value, unsigned n) { return (value << n) | (value >> (64 - n)); }
++static uint64_t fingerprint_label(uint32_t field, uint64_t value) {
++    if (!value) return mix(0xf00);
++    if (value == truth(field)) return mix(0xf01);
++    uint32_t key = 0x30000 + G->fields[field].spec.backend; uint64_t result;
++    if (pndd_cache_get(key, value, 0, &result)) return result;
++    uint32_t var = label_var(field, value);
++    if (var == UINT32_MAX) { fail(3); return 0; }
++    uint64_t low = fingerprint_label(field, branch(field, value, var, 0));
++    uint64_t high = fingerprint_label(field, branch(field, value, var, 1));
++    result = mix(var ^ rotate(low, 13) ^ rotate(high, 37) ^ UINT64_C(0xabcdef1234567890));
++    pndd_cache_put(key, value, 0, result); return result;
++}
++static uint64_t fingerprint_node(uint32_t id) {
++    if (id < 2) return mix(0xf00 + id);
++    uint64_t result;
++    if (pndd_cache_get(0x40000, id, 0, &result)) return result;
++    Node *n = node(id); uint64_t sum = 0;
++    for (size_t i = 0; i < n->count; ++i) {
++        uint64_t l = fingerprint_label(n->field, n->edges[i].label);
++        uint64_t t = fingerprint_node(n->edges[i].target);
++        sum += mix(l ^ rotate(t, 7));
++    }
++    result = mix(sum ^ ((uint64_t)n->field << 32) ^ n->count);
++    pndd_cache_put(0x40000, id, 0, result); return result;
++}
++int pndd_fingerprint(pndd_engine *e, pndd_handle handle, uint64_t *digest) {
++    pthread_mutex_lock(&admission); int ok = 0;
++    if (begin(e)) {
++        uint32_t id = resolve(handle);
++        if (!atomic_load(&G->failure)) { *digest = fingerprint_node(id); ok = !atomic_load(&G->failure); }
++    }
++    pthread_mutex_unlock(&admission); return ok;
++}
++
+ static uint32_t queen_lit(uint32_t field, uint32_t bit, int positive) { return G->fields[field].literals[bit * 2 + !!positive]; }
+ TASK_DECL_3(uint32_t, queen_cell, uint32_t, uint32_t, uint32_t);
+ TASK_IMPL_3(uint32_t, queen_cell, uint32_t, row, uint32_t, col, uint32_t, n) {
+diff --git a/native/tests/test_pndd.c b/native/tests/test_pndd.c
+index 3451ece..c369eb8 100644
+--- a/native/tests/test_pndd.c
++++ b/native/tests/test_pndd.c
+@@ -30,7 +30,13 @@ static void exercise(unsigned workers, int mixed, pndd_backend backend) {
+             truth[size][v] = bool_op(op, truth[a][v], truth[b][v]); count += truth[size][v];
+             assert(pndd_evaluate(e, roots[size], values, 4) == truth[size][v]);
+         }
+-        assert(pndd_satcount(e, roots[size]) == count); ++size;
++        assert(pndd_satcount(e, roots[size]) == count);
++        for (size_t j = 0; j < size; ++j) {
++            int same = 1;
++            for (unsigned v = 0; v < 64; ++v) if (truth[size][v] != truth[j][v]) { same = 0; break; }
++            if (same) assert(roots[size] == roots[j]);
++        }
++        ++size;
+         if (i % 11 == 0) assert(pndd_collect(e));
+     }
+     for (unsigned f = 0; f < 4; ++f) {
+@@ -51,6 +57,30 @@ static void exercise(unsigned workers, int mixed, pndd_backend backend) {
+         pndd_handle direct = pndd_apply(e, PNDD_DIFF, roots[i], roots[i + 16]); assert(batch[i] == direct);
+         pndd_release(e, batch[i]); pndd_release(e, direct);
+     }
++    uint32_t group_ends[] = {2, 4, 6};
++    unsigned indices[] = {0, 1, 2, 4, 5, 2};
++    pndd_handle arrivals[6], selected[5];
++    for (unsigned i = 0; i < 6; ++i) arrivals[i] = roots[indices[i]];
++    for (int flags = 0; flags < 4; ++flags) {
++        int ecmp = flags & PNDD_PRIORITY_MULTIPATH;
++        assert(pndd_priority_select(e, roots[3], arrivals, 6, group_ends, 3, 1, flags, selected));
++        assert(pndd_collect(e));
++        for (unsigned i = 1; i < 6; ++i) {
++            unsigned count = 0, group_start = i < 2 ? 0 : i < 4 ? 2 : 4;
++            for (unsigned v = 0; v < 64; ++v) {
++                uint64_t values[] = {v & 3, (v >> 2) & 1, (v >> 3) & 3, (v >> 5) & 1};
++                int expected = truth[3][v] && truth[indices[i]][v];
++                for (unsigned j = 0; j < (ecmp ? group_start : i); ++j) expected &= !truth[indices[j]][v];
++                assert(pndd_evaluate(e, selected[i - 1], values, 4) == expected); count += expected;
++            }
++            assert(pndd_satcount(e, selected[i - 1]) == count); pndd_release(e, selected[i - 1]);
++        }
++    }
++    assert(pndd_priority_select(e, roots[3], arrivals, 6, group_ends, 3, 6, 1, NULL));
++    assert(pndd_priority_select(e, roots[3], NULL, 0, NULL, 0, 0, 1, NULL));
++    assert(!pndd_priority_select(e, roots[3], NULL, 0, NULL, 1, 0, 1, NULL));
++    uint32_t invalid_ends[] = {2, 2, 6};
++    assert(!pndd_priority_select(e, roots[3], arrivals, 6, invalid_ends, 3, 1, 1, selected));
+     pndd_handle left = pndd_reduce(e, PNDD_OR, roots, size, 0), tree = pndd_reduce(e, PNDD_OR, roots, size, 1);
+     assert(left == tree); pndd_release(e, left); pndd_release(e, tree);
+     for (size_t i = 0; i < size; ++i) pndd_release(e, roots[i]);
+@@ -169,6 +199,35 @@ static void enormous_domain(unsigned workers) {
+     assert(pndd_collect(e)); assert(pndd_satcount(e, root) == 1);
+     pndd_release(e, root); pndd_release(e, empty); pndd_release(e, all); pndd_close(e);
+ }
++static void wide_fields_and_inspection(unsigned workers) {
++    for (int reverse = 0; reverse <= 1; ++reverse) for (int backend = PNDD_BDD; backend <= PNDD_ZDD; ++backend) {
++        pndd_field fields[] = {{108, backend}, {2, backend}};
++        pndd_config c = pndd_default_config(); c.workers = workers; c.reverse_labels = reverse;
++        pndd_engine *e = pndd_open(&c, fields, 2); assert(e);
++        pndd_handle a = pndd_literal(e, 0, 0, 1), b = pndd_literal(e, 0, 107, 0);
++        pndd_handle root = pndd_apply(e, PNDD_AND, a, b), dead = pndd_not(e, root);
++        assert(pndd_satcount(e, root) == ldexp(1, 108));
++        pndd_handle candidates[] = {a, b, root, dead}; unsigned char live[4];
++        assert(pndd_reachable(e, &root, 1, candidates, 4, live));
++        assert(live[2] && !live[0] && !live[1] && !live[3]);
++        uint32_t field; size_t count; pndd_handle *pairs;
++        assert(pndd_snapshot(e, root, &field, &count, &pairs)); assert(field == 0 && count == 1);
++        assert(pndd_min_label_cost(e, pairs[1], 0, backend == PNDD_ZDD) == 1);
++        if (backend != PNDD_ZDD) {
++            size_t cube_count; signed char *cubes;
++            assert(pndd_label_cubes(e, pairs[1], 0, 16, &cube_count, &cubes));
++            assert(cube_count == 1 && cubes[0] == 1 && cubes[107] == 0);
++            for (unsigned bit = 1; bit < 107; ++bit) assert(cubes[bit] == -1);
++            free(cubes);
++        }
++        pndd_release(e, pairs[0]); pndd_release(e, pairs[1]); free(pairs);
++        pndd_handle value = pndd_value(e, 0, UINT64_MAX);
++        assert(pndd_satcount(e, value) == 4);
++        uint64_t assignment[] = {UINT64_MAX, 0}; assert(pndd_evaluate(e, value, assignment, 2) == 1);
++        pndd_release(e, value); pndd_release(e, a); pndd_release(e, b);
++        pndd_release(e, root); pndd_release(e, dead); assert(pndd_collect(e)); pndd_close(e);
++    }
++}
+ int main(int argc, char **argv) {
+     unsigned workers = argc > 1 ? (unsigned)atoi(argv[1]) : 1;
+     for (int backend = 0; backend < 4; ++backend) exercise(workers, 0, (pndd_backend)backend);
+@@ -184,6 +243,7 @@ int main(int argc, char **argv) {
+     }
+     pressure(workers, PNDD_BCDD); pressure(workers, PNDD_ZDD); memory_failure(workers);
+     label_exhaustion(workers, PNDD_BCDD); label_exhaustion(workers, PNDD_ZDD); single_entry_gc(workers); enormous_domain(workers);
++    wide_fields_and_inspection(workers);
+     printf("all four backends, mixed fields, GC, batch, N-Queens: %u workers OK\n", workers);
+     return 0;
+ }
+diff --git a/src/main/java/org/ants/jndd/bdd/ComplementedBDD.java b/src/main/java/org/ants/jndd/bdd/ComplementedBDD.java
+index 9480885..0575c63 100644
+--- a/src/main/java/org/ants/jndd/bdd/ComplementedBDD.java
++++ b/src/main/java/org/ants/jndd/bdd/ComplementedBDD.java
+@@ -7,7 +7,8 @@ import java.util.Arrays;
+  *
+  * <p>Handles reserve bit zero as a complement flag. Internal node {@code n} has regular handle
+  * {@code n << 1}; terminals remain the conventional handles 0 and 1. The unique-table invariant
+- * requires every internal high child to be regular. Consequently negation is constant time and a
++ * requires every low child (including terminals) to be regular, as in Sylvan.
++ * Consequently negation is constant time and a
+  * function and its complement share every internal node.
+  *
+  * <p>The manager is deliberately self-contained for use as an NDD label backend: nodes are stored
+@@ -366,7 +367,9 @@ public final class ComplementedBDD {
+     private int uniqueMk(int var, int low, int high) {
+         if (low == high) return low;
+ 
+-        boolean complementResult = isInternalComplemented(high);
++        // Include the complemented TRUE terminal in normalization. Keeping low
++        // edges regular also leaves positive variable literals uncomplemented.
++        boolean complementResult = (low & 1) != 0;
+         if (complementResult) {
+             low ^= 1;
+             high ^= 1;
+diff --git a/src/main/java/org/ants/jndd/diagram/NDD.java b/src/main/java/org/ants/jndd/diagram/NDD.java
+index 4ba700d..8be118c 100644
+--- a/src/main/java/org/ants/jndd/diagram/NDD.java
++++ b/src/main/java/org/ants/jndd/diagram/NDD.java
+@@ -710,6 +710,8 @@ public class NDD {
+      */
+     public static int ref(int nodeId) { return nodeTable.ref(nodeId); }
+ 
++    public static int getReferenceCount(int nodeId) { return nodeTable.getReferenceCount(nodeId); }
++
+     /**
+      * Decrement reference count of a node.
+      *
+diff --git a/src/main/java/org/ants/jndd/nodetable/NodeTable.java b/src/main/java/org/ants/jndd/nodetable/NodeTable.java
+index 3d941f1..801c0aa 100644
+--- a/src/main/java/org/ants/jndd/nodetable/NodeTable.java
++++ b/src/main/java/org/ants/jndd/nodetable/NodeTable.java
+@@ -618,6 +618,10 @@ public class NodeTable {
+         return nodeId;
+     }
+ 
++    public int getReferenceCount(int nodeId) {
++        return nodeId <= 1 ? Integer.MAX_VALUE : refCount[nodeId];
++    }
++
+     /**
+      * Mark a node as permanently referenced (e.g. variable nodes), so it is never collected.
+      *
+diff --git a/src/main/java/org/ants/jndd/parallel/NDDNode.java b/src/main/java/org/ants/jndd/parallel/NDDNode.java
+index 3a5eee9..dbcee74 100644
+--- a/src/main/java/org/ants/jndd/parallel/NDDNode.java
++++ b/src/main/java/org/ants/jndd/parallel/NDDNode.java
+@@ -20,6 +20,12 @@ public final class NDDNode implements AutoCloseable {
+         return engine == node.engine && handle == node.handle;
+     }
+     @Override public int hashCode() {
+-        return 31 * System.identityHashCode(engine) + (int) (handle ^ (handle >>> 32));
++        // Node IDs and allocation cookies often advance together. Folding the
++        // two halves directly maps id ^ (id + 1) to only a few hash values.
++        long hash = handle;
++        hash ^= hash >>> 30; hash *= 0xbf58476d1ce4e5b9L;
++        hash ^= hash >>> 27; hash *= 0x94d049bb133111ebL;
++        hash ^= hash >>> 31;
++        return 31 * System.identityHashCode(engine) + (int) (hash ^ (hash >>> 32));
+     }
+ }
+diff --git a/src/main/java/org/ants/jndd/parallel/ParallelNDD.java b/src/main/java/org/ants/jndd/parallel/ParallelNDD.java
+index 9e610a1..58aa93b 100644
+--- a/src/main/java/org/ants/jndd/parallel/ParallelNDD.java
++++ b/src/main/java/org/ants/jndd/parallel/ParallelNDD.java
+@@ -16,8 +16,8 @@ public final class ParallelNDD implements AutoCloseable {
+         public final Backend backend;
+         public Field(int width, Backend backend) {
+             this.backend = Objects.requireNonNull(backend, "backend");
+-            if (width < 1 || width > 64 || (backend == Backend.BITSET && width > 7))
+-                throw new IllegalArgumentException("Width must be 1..64 (BITSET: 1..7)");
++            if (width < 1 || width > 4096 || (backend == Backend.BITSET && width > 7))
++                throw new IllegalArgumentException("Width must be 1..4096 (BITSET: 1..7)");
+             this.width = width;
+         }
+     }
+@@ -59,7 +59,7 @@ public final class ParallelNDD implements AutoCloseable {
+         }
+         synchronized (ParallelNDD.class) {
+             if (active != null) throw new IllegalStateException("Only one active native engine is supported");
+-            int flags = (config.nddParallel ? 1 : 0) | (config.labelParallel ? 2 : 0) | (config.batchParallel ? 4 : 0);
++            int flags = (config.nddParallel ? 1 : 0) | (config.labelParallel ? 2 : 0) | (config.batchParallel ? 4 : 0) | (config.reverseLabelOrder ? 8 : 0);
+             nativeEngine = openNative(widths, backends, config.workers, config.memoryBytes,
+                     config.cacheEntries, config.taskThreshold, config.chunkSize,
+                     config.spawnDepth, flags, config.gcInterval);
+@@ -91,7 +91,8 @@ public final class ParallelNDD implements AutoCloseable {
+         if (bit < 0 || bit >= fields[field].width) throw new IllegalArgumentException("Invalid bit index");
+         return wrap(literalNative(nativeEngine, field, bit, positive));
+     }
+-    /** Values are unsigned; all long bit patterns are valid for width 64. */
++    /** Values are unsigned; fields wider than 64 use zero extension. Use literals
++     * to constrain arbitrary bits of a wide field. */
+     public synchronized NDDNode value(int field, long value) {
+         checkOpen(); checkField(field);
+         if (fields[field].width < 64 && (value < 0 || (value >>> fields[field].width) != 0))
+@@ -148,8 +149,98 @@ public final class ParallelNDD implements AutoCloseable {
+         for (int i = 0; i < nodes.length; ++i) values[i] = handle(nodes[i]);
+         return wrap(reduceNative(nativeEngine, operation.ordinal(), values, order == Reduction.BALANCED_TREE));
+     }
++    /** Select ordered condition groups inside one worker-pool admission.
++     * A selected condition is intersected with budget and excludes all earlier
++     * groups. When multipath is false it also excludes earlier conditions in
++     * its own group. Outputs are owned roots for conditions[start..length). */
++    public synchronized NDDNode[] prioritySelect(NDDNode budget, NDDNode[] conditions,
++            int[] groupEnds, int start, boolean multipath) {
++        return prioritySelect(budget, conditions, groupEnds, start, multipath, false);
++    }
++    /** Equivalent selection with per-condition budget intersection first,
++     * useful for small header regions inside a large accumulated predicate. */
++    public synchronized NDDNode[] prioritySelect(NDDNode budget, NDDNode[] conditions,
++            int[] groupEnds, int start, boolean multipath, boolean intersectFirst) {
++        checkOpen(); Objects.requireNonNull(conditions); Objects.requireNonNull(groupEnds);
++        if (start < 0 || start > conditions.length) throw new IllegalArgumentException("Invalid start");
++        int[] ends = groupEnds.clone(); int previous = 0;
++        for (int end : ends) {
++            if (end <= previous || end > conditions.length) throw new IllegalArgumentException("Invalid priority groups");
++            previous = end;
++        }
++        if (previous != conditions.length) throw new IllegalArgumentException("Groups must cover all conditions");
++        long root = handle(budget); long[] input = new long[conditions.length];
++        for (int i = 0; i < input.length; ++i) input[i] = handle(conditions[i]);
++        NDDNode[] nodes = new NDDNode[conditions.length - start];
++        long[] result = prioritySelectNative(nativeEngine, root, input, ends, start,
++                (multipath ? 1 : 0) | (intersectFirst ? 2 : 0));
++        int i = 0;
++        try { for (; i < nodes.length; ++i) nodes[i] = new NDDNode(this, result[i]); return nodes; }
++        catch (OutOfMemoryError error) {
++            for (int j = 0; j < i; ++j) nodes[j].close();
++            for (; i < result.length; ++i) releaseNative(nativeEngine, result[i]);
++            throw error;
++        }
++    }
+     public synchronized void collect() { checkOpen(); collectNative(nativeEngine); }
+     public synchronized Stats stats() { checkOpen(); return new Stats(statsNative(nativeEngine)); }
++
++    /** Owned child roots and field conditions. A condition expresses just its
++     * edge label, with a TRUE target, and hides the backend's raw handle. */
++    public static final class Snapshot implements AutoCloseable {
++        public final int field;
++        public final NDDNode[] targets, conditions;
++        Snapshot(int field, NDDNode[] targets, NDDNode[] conditions) {
++            this.field = field; this.targets = targets; this.conditions = conditions;
++        }
++        @Override public void close() {
++            for (NDDNode node : targets) node.close();
++            for (NDDNode node : conditions) node.close();
++        }
++    }
++    public synchronized Snapshot snapshot(NDDNode root) {
++        long[] data = snapshotNative(nativeEngine, handle(root));
++        try {
++            int count = (data.length - 1) / 2;
++            NDDNode[] targets = new NDDNode[count], labels = new NDDNode[count];
++            for (int i = 0; i < count; ++i) {
++                targets[i] = new NDDNode(this, data[i * 2 + 1]);
++                labels[i] = new NDDNode(this, data[i * 2 + 2]);
++            }
++            return new Snapshot((int)data[0], targets, labels);
++        } catch (OutOfMemoryError failure) {
++            for (int i = 1; i < data.length; ++i) releaseNative(nativeEngine, data[i]);
++            throw failure;
++        }
++    }
++    /** Tests graph reachability without changing ownership. Used by adapters
++     * that retain borrowed integer handles while external roots remain alive. */
++    public synchronized boolean[] reachable(NDDNode[] roots, NDDNode[] candidates) {
++        checkOpen();
++        long[] rr = new long[roots.length], cc = new long[candidates.length];
++        for (int i = 0; i < rr.length; ++i) rr[i] = handle(roots[i]);
++        for (int i = 0; i < cc.length; ++i) cc[i] = handle(candidates[i]);
++        return reachableNative(nativeEngine, rr, cc);
++    }
++    public synchronized int minLabelCost(NDDNode condition, int field, boolean costlyValue) {
++        checkField(field);
++        if (fields[field].backend == Backend.ZDD && !costlyValue)
++            throw new UnsupportedOperationException("ZDD cost supports counting present elements only");
++        return minLabelCostNative(nativeEngine, handle(condition), field, costlyValue);
++    }
++    /** Enumerates bounded MSB-first label cubes; -1 denotes a don't-care bit. */
++    public synchronized byte[][] labelCubes(NDDNode condition, int field, int limit) {
++        checkField(field);
++        if (limit < 1 || limit > 65536) throw new IllegalArgumentException("Cube limit must be 1..65536");
++        return labelCubesNative(nativeEngine, handle(condition), field, fields[field].width, limit);
++    }
++    /** Structural 64-bit checksum for diagrams with BDD/BCDD labels, using
++     * shared variable indices and an edge-order independent combination. */
++    public synchronized long fingerprint(NDDNode root) {
++        for (Field field : fields) if (field.backend != Backend.BDD && field.backend != Backend.BCDD)
++            throw new UnsupportedOperationException("Fingerprint supports BDD/BCDD fields");
++        return fingerprintNative(nativeEngine, handle(root));
++    }
+     @Override public synchronized void close() {
+         if (!closed) {
+             synchronized (ParallelNDD.class) {
+@@ -173,6 +264,12 @@ public final class ParallelNDD implements AutoCloseable {
+     private static native boolean evaluateNative(long engine, long a, long[] values);
+     private static native long[] batchNative(long engine, int op, long[] a, long[] b);
+     private static native long reduceNative(long engine, int op, long[] values, boolean tree);
++    private static native long[] prioritySelectNative(long engine, long budget, long[] input, int[] groupEnds, int start, int flags);
+     private static native void collectNative(long engine);
+     private static native long[] statsNative(long engine);
++    private static native long[] snapshotNative(long engine, long root);
++    private static native boolean[] reachableNative(long engine, long[] roots, long[] candidates);
++    private static native int minLabelCostNative(long engine, long condition, int field, boolean costlyValue);
++    private static native byte[][] labelCubesNative(long engine, long condition, int field, int width, int limit);
++    private static native long fingerprintNative(long engine, long root);
+ }
+diff --git a/src/main/java/org/ants/jndd/parallel/ParallelNDDConfig.java b/src/main/java/org/ants/jndd/parallel/ParallelNDDConfig.java
+index 746bcb7..195fe53 100644
+--- a/src/main/java/org/ants/jndd/parallel/ParallelNDDConfig.java
++++ b/src/main/java/org/ants/jndd/parallel/ParallelNDDConfig.java
+@@ -5,6 +5,7 @@ public final class ParallelNDDConfig {
+     public final int workers, cacheEntries, taskThreshold, chunkSize, spawnDepth, gcInterval;
+     public final long memoryBytes;
+     public final boolean nddParallel, labelParallel, batchParallel;
++    public final boolean reverseLabelOrder;
+ 
+     public ParallelNDDConfig(int workers) {
+         this(workers, 512L << 20);
+@@ -17,6 +18,12 @@ public final class ParallelNDDConfig {
+     public ParallelNDDConfig(int workers, long memoryBytes, int cacheEntries,
+             int taskThreshold, int chunkSize, int spawnDepth, int gcInterval,
+             boolean nddParallel, boolean labelParallel, boolean batchParallel) {
++        this(workers, memoryBytes, cacheEntries, taskThreshold, chunkSize, spawnDepth,
++                gcInterval, nddParallel, labelParallel, batchParallel, false);
++    }
++    public ParallelNDDConfig(int workers, long memoryBytes, int cacheEntries,
++            int taskThreshold, int chunkSize, int spawnDepth, int gcInterval,
++            boolean nddParallel, boolean labelParallel, boolean batchParallel, boolean reverseLabelOrder) {
+         if (workers < 1 || workers > 256 || memoryBytes < (4L << 20)
+                 || cacheEntries < 1 || (cacheEntries & (cacheEntries - 1)) != 0
+                 || taskThreshold < 1 || chunkSize < 1 || spawnDepth < 0 || spawnDepth > 32
+@@ -33,5 +40,6 @@ public final class ParallelNDDConfig {
+         this.nddParallel = nddParallel;
+         this.labelParallel = labelParallel;
+         this.batchParallel = batchParallel;
++        this.reverseLabelOrder = reverseLabelOrder;
+     }
+ }
+diff --git a/src/test/java/org/ants/jndd/bdd/ComplementedBDDTest.java b/src/test/java/org/ants/jndd/bdd/ComplementedBDDTest.java
+index c656bfa..4497465 100644
+--- a/src/test/java/org/ants/jndd/bdd/ComplementedBDDTest.java
++++ b/src/test/java/org/ants/jndd/bdd/ComplementedBDDTest.java
+@@ -6,6 +6,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
+ import org.junit.jupiter.api.Test;
+ 
+ class ComplementedBDDTest {
++    @Test
++    void complementedTerminalsPreserveCanonicalIdentity() {
++        ComplementedBDD bdd = new ComplementedBDD(512, 256);
++        int x = bdd.createVar(), y = bdd.createVar();
++        int left = bdd.ref(bdd.and(bdd.not(x), y));
++        int right = bdd.ref(bdd.and(bdd.not(x), bdd.not(y)));
++        int rebuilt = bdd.ref(bdd.or(left, right));
++        assertEquals(bdd.not(x), rebuilt);
++        assertEquals(x, bdd.not(rebuilt));
++        bdd.gc(); assertEquals(bdd.not(x), bdd.or(left, right));
++        bdd.deref(left); bdd.deref(right); bdd.deref(rebuilt);
++    }
+     @Test
+     void complementedOperationsMatchTruthTablesAndSatCount() {
+         ComplementedBDD bdd = new ComplementedBDD(512, 256);
+diff --git a/src/test/java/org/ants/jndd/parallel/ParallelNDDTest.java b/src/test/java/org/ants/jndd/parallel/ParallelNDDTest.java
+index be95191..045d595 100644
+--- a/src/test/java/org/ants/jndd/parallel/ParallelNDDTest.java
++++ b/src/test/java/org/ants/jndd/parallel/ParallelNDDTest.java
+@@ -8,6 +8,82 @@ import static org.junit.jupiter.api.Assertions.*;
+ 
+ @EnabledIfSystemProperty(named = "pndd.tests", matches = "true")
+ class ParallelNDDTest {
++    @Test void prioritySelectionMatchesEnumerationAndSurvivesGc() {
++        try (ParallelNDD e = new ParallelNDD(new ParallelNDDConfig(4),
++                new ParallelNDD.Field(3, ParallelNDD.Backend.BCDD))) {
++            NDDNode[] inputs = {e.literal(0, 0, true), e.literal(0, 1, true),
++                    e.literal(0, 2, true), e.literal(0, 0, false)};
++            try (NDDNode budget = e.literal(0, 2, false)) {
++                for (boolean multipath : new boolean[]{false, true}) for (boolean first : new boolean[]{false, true}) {
++                    long runs = e.stats().externalRuns;
++                    NDDNode[] selected = e.prioritySelect(budget, inputs, new int[]{2, 4}, 1, multipath, first);
++                    assertEquals(runs + 1, e.stats().externalRuns); e.collect();
++                    for (int i = 1; i < inputs.length; ++i) {
++                        int groupStart = i < 2 ? 0 : 2;
++                        for (int value = 0; value < 8; ++value) {
++                            boolean expected = e.evaluate(budget, value) && e.evaluate(inputs[i], value);
++                            for (int j = 0; j < (multipath ? groupStart : i); ++j) expected &= !e.evaluate(inputs[j], value);
++                            assertEquals(expected, e.evaluate(selected[i - 1], value));
++                        }
++                        selected[i - 1].close();
++                    }
++                }
++                assertEquals(0, e.prioritySelect(budget, inputs, new int[]{2, 4}, 4, true).length);
++                assertThrows(IllegalArgumentException.class, () -> e.prioritySelect(budget, inputs, new int[]{2, 2, 4}, 0, true));
++                inputs[0].close();
++                assertThrows(IllegalStateException.class, () -> e.prioritySelect(budget, inputs, new int[]{2, 4}, 0, true));
++            } finally { for (NDDNode node : inputs) node.close(); }
++        }
++    }
++    @Test void emptyReachabilityRejectsClosedEngine() {
++        ParallelNDD closed = new ParallelNDD(new ParallelNDDConfig(1),
++                new ParallelNDD.Field(1, ParallelNDD.Backend.BCDD));
++        closed.close();
++        try (ParallelNDD replacement = new ParallelNDD(new ParallelNDDConfig(1),
++                new ParallelNDD.Field(1, ParallelNDD.Backend.BCDD))) {
++            assertThrows(IllegalStateException.class,
++                    () -> closed.reachable(new NDDNode[0], new NDDNode[0]));
++            assertEquals(0, replacement.reachable(new NDDNode[0], new NDDNode[0]).length);
++        }
++    }
++    @Test void cachedScalarApplyAvoidsExternalRunAndSurvivesCollection() {
++        ParallelNDDConfig c = new ParallelNDDConfig(2, 64L << 20, 4096, 4, 2, 4, 0, true, false, true);
++        try (ParallelNDD e = new ParallelNDD(c, new ParallelNDD.Field(4, ParallelNDD.Backend.BCDD));
++             NDDNode a = e.literal(0, 0, true); NDDNode b = e.literal(0, 1, true);
++             NDDNode first = e.and(a, b)) {
++            long runs = e.stats().externalRuns;
++            try (NDDNode second = e.and(a, b)) {
++                assertEquals(first, second); assertEquals(runs, e.stats().externalRuns);
++            }
++            e.collect(); runs = e.stats().externalRuns;
++            try (NDDNode third = e.and(a, b)) {
++                assertEquals(first, third); assertEquals(runs + 1, e.stats().externalRuns);
++            }
++        }
++    }
++    @Test void wideFieldsInspectionAndBothVariableOrders() {
++        for (boolean reverse : new boolean[]{false, true})
++            for (ParallelNDD.Backend mode : new ParallelNDD.Backend[]{ParallelNDD.Backend.BDD, ParallelNDD.Backend.BCDD}) {
++                ParallelNDDConfig config = new ParallelNDDConfig(2, 64L << 20, 4096, 2, 1, 4, 1, true, true, true, reverse);
++                try (ParallelNDD e = new ParallelNDD(config, new ParallelNDD.Field(108, mode), new ParallelNDD.Field(2, mode));
++                     NDDNode a = e.literal(0, 0, true); NDDNode b = e.literal(0, 107, false);
++                     NDDNode root = e.and(a, b); NDDNode dead = e.not(root);
++                     NDDNode value = e.value(0, -1L)) {
++                    assertEquals(Math.scalb(1.0, 108), e.satCount(root));
++                    assertEquals(4.0, e.satCount(value)); assertTrue(e.evaluate(value, -1L, 0));
++                    assertArrayEquals(new boolean[]{false, false, true, false},
++                            e.reachable(new NDDNode[]{root}, new NDDNode[]{a, b, root, dead}));
++                    try (ParallelNDD.Snapshot s = e.snapshot(root)) {
++                        assertEquals(0, s.field); assertEquals(1, s.targets.length);
++                        assertEquals(1, e.minLabelCost(s.conditions[0], 0, false));
++                        byte[][] cubes = e.labelCubes(s.conditions[0], 0, 16);
++                        assertEquals(1, cubes.length); assertEquals(1, cubes[0][0]); assertEquals(0, cubes[0][107]);
++                        for (int bit = 1; bit < 107; ++bit) assertEquals(-1, cubes[0][bit]);
++                        e.collect(); assertEquals(e.fingerprint(root), e.fingerprint(s.conditions[0]));
++                    }
++                }
++            }
++    }
+     private static NDD.LabelMode legacyMode(ParallelNDD.Backend b) {
+         return b == ParallelNDD.Backend.BCDD ? NDD.LabelMode.COMPLEMENTED_BDD : NDD.LabelMode.valueOf(b.name());
+     }

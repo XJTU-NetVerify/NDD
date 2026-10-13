@@ -1,0 +1,15 @@
+{
+  "CMakeCache.txt": "479dda51500f70aea7acb3d77edb7b3ef4397bcdf3dbf33f9cc3a5754241bd86",
+  "final-ndd-sources.tar.gz": "041552944cdd04c17c44c7f41b7e3b0d0488ea1f83c5ab07731742a4a89812e5",
+  "final-ndd.diff": "606cb98000dde40479605b293294e659cf06e02206d940196fc3765a2fbd5e6a",
+  "final-ndd.status": "54f40a7a2c03945663c4f40e7590fae5a5ad9a8f3dfcfaaaadde0b1212de1fe7",
+  "final-sre-sources.tar.gz": "58384aa2f04fc7aeedaa8265c8bc23aedbae478d5460ce5f2876f15735ffef15",
+  "final-sre.diff": "eb68327b983db851fc7b83356626af4b2a470638056c6c5fa84d115b69a51331",
+  "final-sre.status": "52b3f909c0dc8be65e63d3a582c85d83ccc704847494138e3b49966278a3dedf",
+  "fixed-java-ndd.jar": "d49bb937709bd06907cc626e57f58307746e0836ea44f75ff24a5847efeeef52",
+  "libpnddjni.so": "9a3f31ffb7650c2cbfe43516df2f766ef220964561a8a560c235805bcc0e2e61",
+  "native-sre-classes.tar.gz": "fcd690d2247cf06dc1c5d0e0e4bf18bdea4d8fe6710c6fd197861bd175577c97",
+  "ndd-1.0.1.jar": "0b1f096ffcfc7b4b219976c47025d5abdd6dac6bcfd0359f985f6e2eee3cc7e3",
+  "original-java-sre-classes.tar.gz": "2d36f2b677177d15d0d977652e69c6d9e972a0ea62dc0a9148d65efa100c2bbc",
+  "pndd-flags.make": "e56fa142754f407f472768123a14c8fc2cd5b845c5e7f1329990df8c093f97cb"
+}

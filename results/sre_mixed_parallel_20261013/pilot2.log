@@ -1,0 +1,22 @@
+BEGIN profile=A fattree04
+01 fattree04-mf1-native6-r1: ok total=0.284086695s wall=0.352s RSS=108.6MiB
+02 fattree04-mf1-java-r1: ok total=0.274334484s wall=0.352s RSS=123.8MiB
+03 fattree04-mf1-native1-r1: ok total=0.261963116s wall=0.352s RSS=107.7MiB
+04 fattree04-mf1-java-r2: ok total=0.283914042s wall=0.353s RSS=114.4MiB
+05 fattree04-mf1-native1-r2: ok total=0.261247171s wall=0.352s RSS=111.3MiB
+06 fattree04-mf1-native6-r2: ok total=0.275280429s wall=0.352s RSS=108.9MiB
+BEGIN profile=B fattree04
+01 fattree04-mf1-native6-r1: ok total=0.296246081s wall=0.402s RSS=121.2MiB
+02 fattree04-mf1-java-r1: ok total=0.275750429s wall=0.352s RSS=119.8MiB
+03 fattree04-mf1-native1-r1: ok total=0.270955803s wall=0.352s RSS=113.1MiB
+04 fattree04-mf1-java-r2: ok total=0.267881178s wall=0.352s RSS=122.4MiB
+05 fattree04-mf1-native1-r2: ok total=0.275364793s wall=0.352s RSS=114.0MiB
+06 fattree04-mf1-native6-r2: ok total=0.29466754s wall=0.410s RSS=119.1MiB
+BEGIN profile=D fattree04
+01 fattree04-mf1-native6-r1: ok total=0.30791572s wall=0.402s RSS=131.2MiB
+02 fattree04-mf1-java-r1: ok total=0.267165073s wall=0.352s RSS=103.2MiB
+03 fattree04-mf1-native1-r1: ok total=0.281208172s wall=0.352s RSS=123.1MiB
+04 fattree04-mf1-java-r2: ok total=0.26200486s wall=0.352s RSS=107.3MiB
+05 fattree04-mf1-native1-r2: ok total=0.282068437s wall=0.352s RSS=123.4MiB
+06 fattree04-mf1-native6-r2: ok total=0.306075377s wall=0.402s RSS=130.9MiB
+Completed 18 fresh processes; failures: 0

@@ -5,6 +5,7 @@ public final class ParallelNDDConfig {
     public final int workers, cacheEntries, taskThreshold, chunkSize, spawnDepth, gcInterval;
     public final long memoryBytes;
     public final boolean nddParallel, labelParallel, batchParallel;
+    public final boolean reverseLabelOrder;
 
     public ParallelNDDConfig(int workers) {
         this(workers, 512L << 20);
@@ -17,6 +18,12 @@ public final class ParallelNDDConfig {
     public ParallelNDDConfig(int workers, long memoryBytes, int cacheEntries,
             int taskThreshold, int chunkSize, int spawnDepth, int gcInterval,
             boolean nddParallel, boolean labelParallel, boolean batchParallel) {
+        this(workers, memoryBytes, cacheEntries, taskThreshold, chunkSize, spawnDepth,
+                gcInterval, nddParallel, labelParallel, batchParallel, false);
+    }
+    public ParallelNDDConfig(int workers, long memoryBytes, int cacheEntries,
+            int taskThreshold, int chunkSize, int spawnDepth, int gcInterval,
+            boolean nddParallel, boolean labelParallel, boolean batchParallel, boolean reverseLabelOrder) {
         if (workers < 1 || workers > 256 || memoryBytes < (4L << 20)
                 || cacheEntries < 1 || (cacheEntries & (cacheEntries - 1)) != 0
                 || taskThreshold < 1 || chunkSize < 1 || spawnDepth < 0 || spawnDepth > 32
@@ -33,5 +40,6 @@ public final class ParallelNDDConfig {
         this.nddParallel = nddParallel;
         this.labelParallel = labelParallel;
         this.batchParallel = batchParallel;
+        this.reverseLabelOrder = reverseLabelOrder;
     }
 }

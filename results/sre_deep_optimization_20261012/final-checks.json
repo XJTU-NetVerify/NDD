@@ -1,0 +1,85 @@
+{
+  "valid": true,
+  "runs": 72,
+  "golden_sha256": "6dfe27e755282be36336eda220a46b66d13d920e57df4c05f0c19a7aecc080ff",
+  "binary_versions_match": {
+    "native_library_sha256": true,
+    "ndd_jar_sha256": true,
+    "java_control_jar_sha256": true,
+    "java_control_adapter_sha256": true
+  },
+  "cases": [
+    {
+      "size": 4,
+      "mf": 1,
+      "eight_runs": true,
+      "all_ok": true,
+      "same_outputs": true,
+      "original_outputs": true
+    },
+    {
+      "size": 4,
+      "mf": 2,
+      "eight_runs": true,
+      "all_ok": true,
+      "same_outputs": true,
+      "original_outputs": true
+    },
+    {
+      "size": 4,
+      "mf": 3,
+      "eight_runs": true,
+      "all_ok": true,
+      "same_outputs": true,
+      "original_outputs": true
+    },
+    {
+      "size": 8,
+      "mf": 1,
+      "eight_runs": true,
+      "all_ok": true,
+      "same_outputs": true,
+      "original_outputs": true
+    },
+    {
+      "size": 8,
+      "mf": 2,
+      "eight_runs": true,
+      "all_ok": true,
+      "same_outputs": true,
+      "original_outputs": true
+    },
+    {
+      "size": 8,
+      "mf": 3,
+      "eight_runs": true,
+      "all_ok": true,
+      "same_outputs": true,
+      "original_outputs": true
+    },
+    {
+      "size": 12,
+      "mf": 1,
+      "eight_runs": true,
+      "all_ok": true,
+      "same_outputs": true,
+      "original_outputs": true
+    },
+    {
+      "size": 12,
+      "mf": 2,
+      "eight_runs": true,
+      "all_ok": true,
+      "same_outputs": true,
+      "original_outputs": true
+    },
+    {
+      "size": 12,
+      "mf": 3,
+      "eight_runs": true,
+      "all_ok": true,
+      "same_outputs": true,
+      "original_outputs": true
+    }
+  ]
+}

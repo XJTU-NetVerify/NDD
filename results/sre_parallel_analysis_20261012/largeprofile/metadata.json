@@ -1,0 +1,26 @@
+{
+  "arguments": {
+    "out": "/home/cheney/NDD/results/sre_parallel_analysis_20261012",
+    "phase": "largeprofile",
+    "repeats": 2,
+    "timeout": 600,
+    "sre": "/home/cheney/SRE"
+  },
+  "configs": {
+    "hashprof1": [
+      "count-node-profile",
+      1,
+      {
+        "profile": "true"
+      }
+    ]
+  },
+  "timestamp": "2026-10-12T00:29:46+0800",
+  "libraries": {
+    "count-node-profile": "1902fb0f6a7ada364df6691d3892e2e7ee54d2ba2fb1296812760b0c9c5f291c"
+  },
+  "sre_adapter_sha256": "f794a2a96d445515cefa9835d23d2256fe6b48501b2fbfbaee5aaf827919fe0e",
+  "ndd_jar_sha256": "a6300e3c70723a6701f840feea28feef983b6e854a637688bf7744dafa6bb344",
+  "hash_class_sha256": "952d28477c4fde064de8fd9fb828a907f2bf410d07cd4a00d505b923fc789f3b",
+  "methodology": "Fresh processes, sequential shuffled paired rounds, CPU 0,2,4,6,8,10; F Header-Link plan1 original trim; Xmx8g / native3GiB / RSS12GiB; profiles inclusive and perturbed; prototypes compile-time opt-in."
+}

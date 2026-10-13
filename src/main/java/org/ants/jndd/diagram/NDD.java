@@ -710,6 +710,8 @@ public class NDD {
      */
     public static int ref(int nodeId) { return nodeTable.ref(nodeId); }
 
+    public static int getReferenceCount(int nodeId) { return nodeTable.getReferenceCount(nodeId); }
+
     /**
      * Decrement reference count of a node.
      *

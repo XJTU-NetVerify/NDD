@@ -1,0 +1,47 @@
+[
+  {
+    "size": 4,
+    "mf": 1,
+    "all_ok": true,
+    "bgp_routes": true,
+    "ndd_field_layout": true,
+    "link_variable_order_hash": true,
+    "link_polarity": true,
+    "semantic_condition_rows": true,
+    "semantic_condition_sha256": true,
+    "rib_rows": true,
+    "rib_sha256": true,
+    "reachability_csv_rows": true,
+    "reachability_csv_sha256": true
+  },
+  {
+    "size": 4,
+    "mf": 2,
+    "all_ok": true,
+    "bgp_routes": true,
+    "ndd_field_layout": true,
+    "link_variable_order_hash": true,
+    "link_polarity": true,
+    "semantic_condition_rows": true,
+    "semantic_condition_sha256": true,
+    "rib_rows": true,
+    "rib_sha256": true,
+    "reachability_csv_rows": true,
+    "reachability_csv_sha256": true
+  },
+  {
+    "size": 4,
+    "mf": 3,
+    "all_ok": true,
+    "bgp_routes": true,
+    "ndd_field_layout": true,
+    "link_variable_order_hash": true,
+    "link_polarity": true,
+    "semantic_condition_rows": true,
+    "semantic_condition_sha256": true,
+    "rib_rows": true,
+    "rib_sha256": true,
+    "reachability_csv_rows": true,
+    "reachability_csv_sha256": true
+  }
+]

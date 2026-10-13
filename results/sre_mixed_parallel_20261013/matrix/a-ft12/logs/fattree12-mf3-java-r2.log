@@ -1,0 +1,35 @@
+ndd_backend_profile:ALL_BDD
+ndd_domain_order:HEADER_LINK
+ndd_test_plan:1
+ndd_field_layout:0:dstIP:32:BDD,1:srcIP:32:BDD,2:dstPort:16:BDD,3:srcPort:16:BDD,4:protocol:8:BDD,5:link0:108:BDD,6:link1:108:BDD,7:link2:108:BDD,8:link3:108:BDD,9:link4:108:BDD,10:link5:108:BDD,11:link6:108:BDD,12:link7:108:BDD
+link_variable_order_hash:d77d8a117d51b8c3
+link_polarity:1=up
+init:1.071676732
+163890 bgp route
+src_compute:344.174227177
+src_rib_dump:1.347380396
+src:345.522471085
+spf_fwd:9.764915543
+spf_acl:0.001071488
+spf_reachability:9.776148041
+spf:19.544467449
+mine:0.002530034
+exit:1.68665E-4
+total:366.205841644
+memory:2699MB
+-------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------
+New bdd nodes:123474376
+ndd_nodes_created:10787022
+ndd_nodes_alive:10787022
+label_nodes_alive_bdd:25144018
+label_nodes_alive_bcdd:0
+label_nodes_alive_zdd:0
+label_nodes_alive_total:25144018
+label_nodes_created_bdd:-1
+label_nodes_created_bcdd:0
+label_nodes_created_zdd:0
+ndd_engine:java
+semantic_condition_rows:335628
+semantic_condition_sha256:0ffc3b9b5fede67cda51e5a017bc65cf7dfa4960659286e9cb4a7a495558ce23
+verification_seconds:0.922417395

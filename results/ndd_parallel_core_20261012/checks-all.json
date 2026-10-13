@@ -1,0 +1,48 @@
+{
+  "valid": true,
+  "timed_runs": 56,
+  "same_java_workload": true,
+  "phases": [
+    {
+      "phase": "cache08",
+      "complete": true,
+      "valid": true
+    },
+    {
+      "phase": "cache12",
+      "complete": true,
+      "valid": true
+    },
+    {
+      "phase": "grain08",
+      "complete": true,
+      "valid": true
+    },
+    {
+      "phase": "label08",
+      "complete": true,
+      "valid": true
+    },
+    {
+      "phase": "label12",
+      "complete": true,
+      "valid": true
+    },
+    {
+      "phase": "affinity08",
+      "complete": true,
+      "valid": true
+    },
+    {
+      "phase": "affinity12",
+      "complete": true,
+      "valid": true
+    },
+    {
+      "phase": "confirm",
+      "complete": true,
+      "valid": true
+    }
+  ],
+  "diagnostic_runs_excluded": 4
+}

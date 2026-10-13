@@ -1,0 +1,18 @@
+[ 14%] Built target lace14
+[ 14%] Built target lace
+[ 64%] Built target sylvan
+[ 67%] Building C object CMakeFiles/pndd.dir/src/pndd.c.o
+[ 71%] Linking C static library libpndd.a
+[ 71%] Built target pndd
+[ 75%] Building C object CMakeFiles/pndd_nqueens.dir/bench/nqueens.c.o
+[ 82%] Building C object CMakeFiles/pndd_test.dir/tests/test_pndd.c.o
+[ 82%] Building C object CMakeFiles/pndd_entry.dir/bench/entry.c.o
+[ 85%] Building C object CMakeFiles/pnddjni.dir/src/jni.c.o
+[ 89%] Linking C executable pndd_entry
+[ 92%] Linking C executable pndd_nqueens
+[ 96%] Linking C shared library libpnddjni.so
+[100%] Linking C executable pndd_test
+[100%] Built target pndd_entry
+[100%] Built target pndd_nqueens
+[100%] Built target pnddjni
+[100%] Built target pndd_test

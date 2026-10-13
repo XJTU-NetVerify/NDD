@@ -1,0 +1,87 @@
+{
+  "arguments": {
+    "out": "/home/cheney/NDD/results/sre_parallel_analysis_20261012",
+    "phase": "matrix",
+    "repeats": 2,
+    "timeout": 180,
+    "sre": "/home/cheney/SRE"
+  },
+  "configs": {
+    "base1": [
+      "baseline",
+      1,
+      {}
+    ],
+    "base6": [
+      "baseline",
+      6,
+      {}
+    ],
+    "pool6": [
+      "baseline",
+      6,
+      {
+        "nddParallel": "false"
+      }
+    ],
+    "coarse6": [
+      "baseline",
+      6,
+      {
+        "threshold": "64"
+      }
+    ],
+    "labels6": [
+      "baseline",
+      6,
+      {
+        "nddParallel": "false",
+        "labels": "true",
+        "depth": "2"
+      }
+    ],
+    "both6": [
+      "baseline",
+      6,
+      {
+        "labels": "true",
+        "depth": "2"
+      }
+    ],
+    "count1": [
+      "count",
+      1,
+      {}
+    ],
+    "and1": [
+      "and",
+      1,
+      {}
+    ],
+    "sycache1": [
+      "sycache",
+      1,
+      {}
+    ],
+    "opt1": [
+      "opt",
+      1,
+      {}
+    ],
+    "opt6": [
+      "opt",
+      6,
+      {}
+    ]
+  },
+  "timestamp": "2026-10-12T00:06:02+0800",
+  "libraries": {
+    "sycache": "b41addfb0e469d3ee2796a0d8ebdb41495bc98d13d5b355045fdc33baabbd0a6",
+    "baseline": "fe1826a22bebef7a499a2af049c39a69ee5f80a2fe128c1d9a8a0adba7c02bb7",
+    "and": "39792ca1bc7dddce77756d8ca970a442f3f9e8903d6aa1f57a9891401b532238",
+    "count": "fc8320fe3c753b3a4e80f75972903058c966971249856835d091fb68d4a92879",
+    "opt": "c8ea7185981c6384720509b3584c00190509b5a879e3439f2aece9fa225dc9f8"
+  },
+  "sre_adapter_sha256": "f5d211efd9645598a9b22bef2ea935dc94c53674e370e5a5479e258c7b4441cb",
+  "methodology": "Fresh processes, sequential shuffled paired rounds, CPU 0,2,4,6,8,10; F Header-Link plan1 original trim; Xmx8g / native3GiB / RSS12GiB; profiles inclusive and perturbed; prototypes compile-time opt-in."
+}

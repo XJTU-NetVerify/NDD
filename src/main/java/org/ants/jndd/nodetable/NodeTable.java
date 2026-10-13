@@ -618,6 +618,10 @@ public class NodeTable {
         return nodeId;
     }
 
+    public int getReferenceCount(int nodeId) {
+        return nodeId <= 1 ? Integer.MAX_VALUE : refCount[nodeId];
+    }
+
     /**
      * Mark a node as permanently referenced (e.g. variable nodes), so it is never collected.
      *

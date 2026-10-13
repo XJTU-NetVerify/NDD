@@ -1,0 +1,6 @@
+01 fattree04-mf3-native6-r1: ok total=0.245541047s wall=0.352s RSS=111.3MiB
+02 fattree04-mf1-native6-r1: ok total=0.320153857s wall=0.454s RSS=137.4MiB
+03 fattree04-mf2-native6-r1: ok total=0.248130239s wall=0.352s RSS=112.0MiB
+04 fattree04-mf1-native6-r2: ok total=0.320781484s wall=0.454s RSS=134.4MiB
+05 fattree04-mf2-native6-r2: ok total=0.231928861s wall=0.352s RSS=111.8MiB
+06 fattree04-mf3-native6-r2: ok total=0.23642287s wall=0.356s RSS=113.8MiB

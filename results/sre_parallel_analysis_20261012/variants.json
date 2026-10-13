@@ -1,0 +1,25 @@
+{
+  "profile": [
+    "PROFILE"
+  ],
+  "count": [
+    "EXPERIMENT_SATCOUNT_CACHE"
+  ],
+  "and": [
+    "EXPERIMENT_BCDD_AND"
+  ],
+  "sycache": [
+    "EXPERIMENT_SYLVAN_CACHE"
+  ],
+  "opt": [
+    "EXPERIMENT_SATCOUNT_CACHE",
+    "EXPERIMENT_BCDD_AND",
+    "EXPERIMENT_SYLVAN_CACHE"
+  ],
+  "opt-profile": [
+    "PROFILE",
+    "EXPERIMENT_SATCOUNT_CACHE",
+    "EXPERIMENT_BCDD_AND",
+    "EXPERIMENT_SYLVAN_CACHE"
+  ]
+}

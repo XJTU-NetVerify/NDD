@@ -1,0 +1,20 @@
+[  7%] Building C object _deps/lace-build/CMakeFiles/lace.dir/src/lace.c.o
+[ 11%] Built target lace14
+[ 15%] Linking C static library liblace.a
+[ 15%] Built target lace
+[ 19%] Building C object sylvan-build/src/CMakeFiles/sylvan.dir/sylvan_mtbdd.c.o
+[ 23%] Building C object sylvan-build/src/CMakeFiles/sylvan.dir/sylvan_zdd.c.o
+[ 26%] Linking C static library libsylvan.a
+[ 69%] Built target sylvan
+[ 73%] Building C object CMakeFiles/pndd.dir/src/pndd.c.o
+[ 76%] Linking C static library libpndd.a
+[ 76%] Built target pndd
+[ 80%] Building C object CMakeFiles/pndd_entry.dir/bench/entry.c.o
+[ 84%] Building C object CMakeFiles/pndd_nqueens.dir/bench/nqueens.c.o
+[ 88%] Building C object CMakeFiles/pndd_test.dir/tests/test_pndd.c.o
+[ 92%] Linking C executable pndd_entry
+[ 96%] Linking C executable pndd_nqueens
+[100%] Linking C executable pndd_test
+[100%] Built target pndd_entry
+[100%] Built target pndd_nqueens
+[100%] Built target pndd_test

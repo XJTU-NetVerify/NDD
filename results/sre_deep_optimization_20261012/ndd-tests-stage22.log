@@ -1,0 +1,79 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ----------------------------< org.ants:ndd >----------------------------
+[INFO] Building ndd 1.0.1
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ ndd ---
+[WARNING] Using platform encoding (UTF-8 actually) to copy filtered resources, i.e. build is platform dependent!
+[INFO] skip non existing resourceDirectory /home/cheney/NDD/src/main/resources
+[INFO] 
+[INFO] --- compiler:3.11.0:compile (default-compile) @ ndd ---
+[INFO] Changes detected - recompiling the module! :source
+[WARNING] File encoding has not been set, using platform encoding UTF-8, i.e. build is platform dependent!
+[INFO] Compiling 104 source files with javac [debug target 8] to target/classes
+[WARNING] bootstrap class path not set in conjunction with -source 8
+[WARNING] /home/cheney/NDD/src/main/java/org/ants/javandd/BDDFactory.java:[37,21] java.security.AccessControlException in java.security has been deprecated and marked for removal
+[WARNING] /home/cheney/NDD/src/main/java/org/ants/javandd/BDDFactory.java:[37,21] java.security.AccessControlException in java.security has been deprecated and marked for removal
+[WARNING] /home/cheney/NDD/src/main/java/org/ants/javandd/BDDFactory.java:[37,21] java.security.AccessControlException in java.security has been deprecated and marked for removal
+[WARNING] /home/cheney/NDD/src/main/java/org/ants/javandd/BDDFactory.java:[62,14] java.security.AccessControlException in java.security has been deprecated and marked for removal
+[INFO] /home/cheney/NDD/src/main/java/jdd/util/TextAreaTarget.java: Some input files use or override a deprecated API.
+[INFO] /home/cheney/NDD/src/main/java/jdd/util/TextAreaTarget.java: Recompile with -Xlint:deprecation for details.
+[INFO] /home/cheney/NDD/src/main/java/org/ants/javandd/TracingFactory.java: Some input files use unchecked or unsafe operations.
+[INFO] /home/cheney/NDD/src/main/java/org/ants/javandd/TracingFactory.java: Recompile with -Xlint:unchecked for details.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ ndd ---
+[WARNING] Using platform encoding (UTF-8 actually) to copy filtered resources, i.e. build is platform dependent!
+[INFO] skip non existing resourceDirectory /home/cheney/NDD/src/test/resources
+[INFO] 
+[INFO] --- compiler:3.11.0:testCompile (default-testCompile) @ ndd ---
+[INFO] Changes detected - recompiling the module! :dependency
+[WARNING] File encoding has not been set, using platform encoding UTF-8, i.e. build is platform dependent!
+[INFO] Compiling 8 source files with javac [debug target 8] to target/test-classes
+[WARNING] bootstrap class path not set in conjunction with -source 8
+[INFO] 
+[INFO] --- surefire:3.2.5:test (default-test) @ ndd ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running application.examples.ProductConfigurationExampleTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.034 s -- in application.examples.ProductConfigurationExampleTest
+[INFO] Running org.ants.jndd.bdd.ComplementedBDDTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.003 s -- in org.ants.jndd.bdd.ComplementedBDDTest
+[INFO] Running org.ants.jndd.parallel.NDDNodeHashTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.003 s -- in org.ants.jndd.parallel.NDDNodeHashTest
+[INFO] Running org.ants.jndd.parallel.ParallelNDDTest
+[INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.074 s -- in org.ants.jndd.parallel.ParallelNDDTest
+[INFO] Running org.ants.jndd.diagram.NDDManipulationApiTest
+[INFO] Tests run: 10, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.020 s -- in org.ants.jndd.diagram.NDDManipulationApiTest
+[INFO] Running org.ants.jndd.diagram.NDDMixedBackendTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.006 s -- in org.ants.jndd.diagram.NDDMixedBackendTest
+[INFO] Running org.ants.jndd.diagram.NDDBitsetBackendTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.004 s -- in org.ants.jndd.diagram.NDDBitsetBackendTest
+[INFO] Running org.ants.jndd.diagram.LabelDecisionDiagramBackendFactoryTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.002 s -- in org.ants.jndd.diagram.LabelDecisionDiagramBackendFactoryTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 35, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] 
+[INFO] --- jar:3.4.1:jar (default-jar) @ ndd ---
+[INFO] Building jar: /home/cheney/NDD/target/ndd-1.0.1.jar
+[INFO] 
+[INFO] --- assembly:3.7.1:single (make-assembly) @ ndd ---
+[INFO] Building jar: /home/cheney/NDD/target/ndd-1.0.1-jar-with-dependencies.jar
+[INFO] 
+[INFO] --- install:3.1.2:install (default-install) @ ndd ---
+[INFO] Installing /home/cheney/NDD/pom.xml to /home/cheney/.m2/repository/org/ants/ndd/1.0.1/ndd-1.0.1.pom
+[INFO] Installing /home/cheney/NDD/target/ndd-1.0.1.jar to /home/cheney/.m2/repository/org/ants/ndd/1.0.1/ndd-1.0.1.jar
+[INFO] Installing /home/cheney/NDD/target/ndd-1.0.1-jar-with-dependencies.jar to /home/cheney/.m2/repository/org/ants/ndd/1.0.1/ndd-1.0.1-jar-with-dependencies.jar
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  5.081 s
+[INFO] Finished at: 2026-10-12T15:38:19+08:00
+[INFO] ------------------------------------------------------------------------

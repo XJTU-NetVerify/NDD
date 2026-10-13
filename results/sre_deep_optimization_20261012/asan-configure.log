@@ -1,0 +1,17 @@
+-- 
+-- Lace 1.6.2 configuration summary:
+--   Build type        : Debug
+--   Shared libraries  : OFF
+--   Top-level project : OFF
+--   Use HWLOC         : OFF
+--   Use -march=native : ON
+--   Use -fPIC         : ON
+--   Backoff when idle : ON
+--   Count tasks       : OFF
+--   Count steals      : OFF
+--   Count splits      : OFF
+--   Record PIE times  : OFF
+-- 
+-- Configuring done (0.5s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/cheney/NDD/native/build-asan

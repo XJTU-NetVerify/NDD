@@ -4,15 +4,141 @@ The `parallel` branch provides a **C11 core + JNI + Java instance API** for para
 Boolean Network Decision Diagrams. It supports BDD, BCDD, ZDD, BITSET and mixed
 fields, while retaining the existing Java implementation as a baseline.
 
-On the measured N-Queens workloads (N=12/13), six workers deliver **3.44–3.59×
-native scaling**. The Java batch API is **1.85–2.48× faster end to end** than the
-same-backend Java baseline, with **36–56% of its peak RSS**. These are measured
-results for this workload and configuration, rather than guarantees for other applications.
+Six workers achieve **3.52–3.56× native scaling on N-Queens** and about
+**1.69–2.03× on the larger SRE network-verification workloads**. On SRE
+fattree12/MF3, six workers are **2.26–3.13× faster than the corresponding
+original Java implementation** for the measured A/B/D profiles. Small SRE
+loads do not amortize worker startup and synchronization.
 
 - [Native build, API and configuration reference](native/README.md)
-- [Implementation report and complete experiment index (中文)](doc/parallel-implementation.md)
-- [Final five-round C/JNI/Java benchmark](results/parallel_ndd_20261011_aligned_final/README.md)
+- [Implementation report (中文)](doc/parallel-implementation.md)
+- [Current core experiments and N-Queens samples (中文)](results/ndd_parallel_core_20261012/README.md)
+- [SRE A/B/D: all 27 workloads, memory, phases and reproduction (中文)](results/sre_mixed_parallel_20261013/README.md)
+- [SRE cross-list batching and original Java controls (中文)](results/sre_priority_batch_20261012/README.md)
+- [Archived five-round N-Queens Java/native comparison](results/parallel_ndd_20261011_aligned_final/README.md)
 - [Correctness and sanitizer validation](results/parallel_ndd_20261011_aligned_validation/README.md)
+
+## Current performance
+
+Measurements use an i7-14700KF Linux/WSL host, six physical cores selected by
+CPU affinity `0,2,4,6,8,10`, GCC 13.3 Release and Java 17. The tables below show
+arithmetic means of **two independent processes per configuration**. Native
+self-scaling is `T_native(1) / T_native(6)`; the Java comparison includes the C
+implementation, caches, allocation, existing batch integration and thread gains.
+It does not isolate the effect of adding threads.
+
+### N-Queens: native computation
+
+2026-10-12 cohort: original Boolean encoding, fixed left-fold, BCDD, cache
+262144, 3 GiB native
+diagram budget, label tasks disabled. C computation excludes initialization and
+close; these seconds cannot be compared directly with SRE application totals.
+
+| N | 1 worker s | 6 workers s | Native self-scaling | Solutions |
+|---:|---:|---:|---:|---:|
+| 12 | 3.445 | 0.978 | **3.52×** | 14,200 |
+| 13 | 25.337 | 7.113 | **3.56×** | 73,712 |
+
+Each solver enters one external Lace RUN; recursive NDD work supplies the
+parallelism. These runs had no NDD or label GC. Exact samples, build hashes and
+settings are in [the current-core N-Queens data](results/ndd_parallel_core_20261012/nqueens/summary.json).
+The broader BDD/BCDD/ZDD, Java JNI, BITSET/compact and 1–28 worker experiments
+remain in the explicitly archived measurements below.
+
+### SRE: Java versus native 1/6 workers
+
+2026-10-13 cohort: A = Header-BDD / Link-BDD, B = Header-BDD / Link-ZDD,
+D = Header-BCDD /
+Link-ZDD. The matrix covers fattree04/08/12 and MF=1/2/3: **162 fresh processes**,
+all successful. Within each profile, route counts, field layout, link ordering
+and polarity, condition digests, full RIB text/counts and reachability CSV
+matched. RIB and reachability outputs also matched across A/B/D.
+
+The table highlights MF3; [all 27 workloads](results/sre_mixed_parallel_20261013/matrix/tables.md)
+include MF1/2 and slower cases. Time is the application's `total`, including
+initialization, SRC, RIB output and data-plane analysis, excluding JVM startup,
+post-timing checks and native close.
+
+| Profile / fattree / MF | Original Java s | Native1 s | Native6 s | Native self-scaling | Java/native6 |
+|---|---:|---:|---:|---:|---:|
+| A / 08 / 3 | 9.199 | 8.495 | 5.591 | 1.52× | 1.65× |
+| B / 08 / 3 | 8.893 | 7.844 | 5.195 | 1.51× | 1.71× |
+| D / 08 / 3 | 9.260 | 7.738 | 5.206 | 1.49× | 1.78× |
+| A / 12 / 3 | 385.119 | 288.472 | 170.449 | **1.69×** | **2.26×** |
+| B / 12 / 3 | 185.754 | 125.705 | 62.140 | **2.02×** | **2.99×** |
+| D / 12 / 3 | 200.338 | 129.093 | 63.938 | **2.02×** | **3.13×** |
+
+B/D give similar native performance on the large case. Two samples and runs
+blocked by profile/size do not establish a stable advantage for either Header
+backend. A has 101 NDD collections per run versus four for B/D, and slower
+data-plane phases; GC wall time was not separately measured. All six-worker
+large-case totals beat Java, but individual phases can regress: A's forwarding
+and reachability remain slower than Java. The SRC stage itself scales by
+2.34–2.38×; the complete application scales less.
+
+| fattree12 / MF3 | Java peak RSS MiB | Native1 peak RSS MiB | Native6 peak RSS MiB |
+|---|---:|---:|---:|
+| A | 6497.6 | 3915.6 | 3951.7 |
+| B | 4848.2 | 3163.0 | 3395.5 |
+| D | 5489.3 | 3698.9 | 3369.4 |
+
+RSS is the mean of two **whole-process high-water marks**, including Java,
+Sylvan, Lace and allocator overhead. Some smaller inputs use more native RSS.
+The common process RSS guard is 12 GiB; JVM heap is 8 GiB and native diagram
+budget is 3 GiB. Native caches for 04/08/12 are 262144/4194304/16777216 entries,
+with the same settings for all profiles and worker counts at each size.
+
+Header-Link order, original trim and plan=1 are preserved. Native NDD/batch
+parallelism is enabled, label tasks disabled, threshold/chunk/depth=4/2/4,
+priority-list block=64 and adapter GC water mark explicitly 1228 MiB. The
+adapter's default remains 35% of its graph budget; this benchmark setting was
+not selected separately for each profile. Java retains its frozen original
+compute path, with post-timing compatibility/checksum fixes recorded in the
+[report](results/sre_mixed_parallel_20261013/README.md).
+
+Java JDD and Sylvan ZDD have different internal variable directions. Their
+physical field/link mapping and failure semantics match, but cross-Java ratios
+include representation differences. Native1/6 hold the representation fixed.
+The ZDD digest is a diagnostic, can degenerate for dense families, and is used
+alongside explicit small-domain tests, full RIB/counts and reachability outputs.
+
+MF1 shows little native scaling; 04 six-worker runs are usually slower.
+04/MF2/3 have zero BGP routes under the original trim and mainly measure setup
+and small checks. There is no universal speedup claim.
+
+### SRE F profile and optimization history
+
+The latest generic-core F (BCDD/BCDD) cohort held SRE classes, input, JNI calling
+pattern, cache and GC settings fixed while tuning versioned cache publication
+and Lace coordinator locality:
+
+| F profile / MF3 | Previous native1 s | Previous native6 s | Current native1 s | Current native6 s | Current self-scaling |
+|---|---:|---:|---:|---:|---:|
+| fattree08 | 7.823 | 6.133 | 7.628 | 4.950 | 1.54× |
+| fattree12 | 125.120 | 68.871 | 125.345 | 61.862 | 2.03× |
+
+Java was not rerun in this cohort, so no Java ratio is inferred from its
+historical timings. The [core report](results/ndd_parallel_core_20261012/README.md)
+contains controls, phases, RSS and artifact hashes. Coordinator polling can
+increase idle CPU consumption.
+
+Earlier [cross-list batching measurements](results/sre_priority_batch_20261012/README.md)
+recorded F/12/MF3 Java/native1/native6 of 323.948/121.398/68.434 s (1.77× native
+scaling, 4.73× versus Java). These use the preceding build and are not mixed
+with the current cohort. The initial scalar integration had no parallel gains;
+[its complete report](results/sre_parallel_20261011_final/README.md) and the
+[profiling analysis](results/sre_parallel_analysis_20261012/README.md) preserve
+that result. Task organization, core storage/cache changes and resource policy
+matter as well as worker count.
+
+### Published data and reproduction
+
+Reports include raw timing/metric records, logs, checks, build settings and source
+snapshots. Compiled `.so`/JAR files and class directories remain in local artifact
+archives; their exact hashes are recorded in manifests. Commands referring to
+frozen artifact directories require those archives. A fresh checkout can build
+the current core using the commands below; SRE also requires the matching SRE
+adapter and Java-control versions recorded in its report/source snapshots.
 
 ## What is parallelized?
 
@@ -39,7 +165,9 @@ flowchart TD
   them in a deterministic order. Small problems run directly.
 - **Batch operations:** `applyBatch` submits independent applications together;
   AND/OR reductions support a fixed left-fold or balanced tree. Each batch enters
-  one top-level Lace `RUN`, using `CALL`/`SPAWN` internally.
+  one top-level Lace `RUN`, using `CALL`/`SPAWN` internally. `prioritySelect`
+  prepares ordered group coverage and selects independent conditions together,
+  preserving group priority and optional multipath semantics.
 - **Label operations:** BDD, BCDD and ZDD have optional recursive task splitting.
   BITSET uses direct word operations. Label spawning is disabled by default:
   N-Queens benefited chiefly from the NDD layer.
@@ -57,9 +185,9 @@ are confined to a build-local copy; versions and licenses are in [NOTICE](native
 
 | Backend | Label representation | Field width |
 |---|---|---:|
-| BDD | Plain C BDD, without complemented edges | 1–64 bits |
-| BCDD | Sylvan complemented-edge BDD | 1–64 bits |
-| ZDD | Ordinary set-family ZDD with explicit powerset universe | 1–64 bits |
+| BDD | Plain C BDD, without complemented edges | 1–4096 bits |
+| BCDD | Sylvan complemented-edge BDD | 1–4096 bits |
+| ZDD | Ordinary set-family ZDD with explicit powerset universe | 1–4096 bits |
 | BITSET | Two 64-bit words | 1–7 bits |
 
 Each width-`w` field has a Boolean domain of `2^w` values. Fields can mix backends;
@@ -89,7 +217,8 @@ The legacy Java artifact can still be built with `mvn package` without a native
 build. Existing pinned local dependency checkouts and sanitizer commands are
 covered in [native/README.md](native/README.md).
 
-Validation passed Release/Debug CTest at 1/2/4/6 workers, 29 Maven tests,
+The archived initial validation passed Release/Debug CTest at 1/2/4/6 workers,
+29 Maven tests,
 ASan/UBSan with leak detection at 1/6 workers, and `-Xcheck:jni`. Small-domain
 enumeration covers all four backends and mixed fields, including GC, stale handles,
 resource exhaustion and recovery. All 410 final cold-process benchmark samples
@@ -157,9 +286,13 @@ fields of N bits and therefore rejects BITSET for N>7. Compact encoding uses
 `ceil(log2 N)` bits per row and constrains valid values; it is a different
 benchmark track. The Java CLI currently uses original encoding.
 
-## Measured performance
+## Archived N-Queens measurements (2026-10-11)
 
-The final matrix uses five independent processes per configuration, shuffled
+This earlier build predates the SRE migration, Java BCDD terminal-normalization
+fix and current core tuning. It is preserved for its broader backend and JNI
+coverage; its Java ratios are not measurements of the current build.
+
+The archived matrix uses five independent processes per configuration, shuffled
 interleaved rounds, CPU affinity 0,2,4,6,8,10 on the current Linux guest, GCC 13.3
 Release and Java 17. Native diagram budget / legacy Java heap: 3 GiB; JNI JVM
 heap: 512 MiB; common process-tree RSS ceiling: 4 GiB. CPU IDs represent distinct
@@ -179,9 +312,8 @@ caches have different layouts/capacities, recorded in metadata.
 | 13 | BCDD | 26.689 | 14.613 | 9.182 | 7.561 | 3.53× |
 | 13 | ZDD | 26.699 | 14.926 | 9.276 | 7.552 | 3.54× |
 
-This isolates scaling within the native engine. Its single-worker path is still
-slower than the corresponding legacy Java baseline; further serial optimization
-is needed.
+This isolates scaling within the archived native engine. In this cohort its
+single-worker path was slower than the corresponding legacy Java baseline.
 
 ### Wider worker sweep: up to 28 workers
 

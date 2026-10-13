@@ -1,0 +1,14 @@
+Internal ctest changing into directory: /home/cheney/NDD/native/build-analysis-sre
+Test project /home/cheney/NDD/native/build-analysis-sre
+    Start 1: pndd_correctness_1
+1/4 Test #1: pndd_correctness_1 ...............   Passed    1.62 sec
+    Start 2: pndd_correctness_2
+2/4 Test #2: pndd_correctness_2 ...............   Passed    3.84 sec
+    Start 3: pndd_correctness_4
+3/4 Test #3: pndd_correctness_4 ...............   Passed    8.49 sec
+    Start 4: pndd_correctness_6
+4/4 Test #4: pndd_correctness_6 ...............   Passed    8.92 sec
+
+100% tests passed, 0 tests failed out of 4
+
+Total Test time (real) =  22.88 sec

@@ -1,0 +1,153 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ------------------------------< sre:SRE >-------------------------------
+[INFO] Building SRE 1.0
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ SRE ---
+[WARNING] Using platform encoding (UTF-8 actually) to copy filtered resources, i.e. build is platform dependent!
+[INFO] skip non existing resourceDirectory /home/cheney/SRE/src/main/resources
+[INFO] 
+[INFO] --- compiler:3.13.0:compile (default-compile) @ SRE ---
+[INFO] Recompiling the module because of changed source code.
+[WARNING] File encoding has not been set, using platform encoding UTF-8, i.e. build is platform dependent!
+[INFO] Compiling 708 source files with javac [debug target 11] to target/classes
+[WARNING] system modules path not set in conjunction with -source 11
+[WARNING] /home/cheney/SRE/src/main/java/jdd/applet/JDDVersion.java:[12,33] java.applet.Applet in java.applet has been deprecated and marked for removal
+[WARNING] /home/cheney/SRE/src/main/java/jdd/applet/JDDVersion.java:[12,33] java.applet.Applet in java.applet has been deprecated and marked for removal
+[WARNING] /home/cheney/SRE/src/main/java/jdd/applet/JDDVersion.java:[12,33] java.applet.Applet in java.applet has been deprecated and marked for removal
+[WARNING] /home/cheney/SRE/src/main/java/jdd/applet/QueensApplet.java:[15,35] java.applet.Applet in java.applet has been deprecated and marked for removal
+[WARNING] /home/cheney/SRE/src/main/java/jdd/applet/QueensApplet.java:[15,35] java.applet.Applet in java.applet has been deprecated and marked for removal
+[WARNING] /home/cheney/SRE/src/main/java/jdd/applet/QueensApplet.java:[15,35] java.applet.Applet in java.applet has been deprecated and marked for removal
+[WARNING] /home/cheney/SRE/src/main/java/jdd/applet/SolverApplet.java:[22,35] java.applet.Applet in java.applet has been deprecated and marked for removal
+[WARNING] /home/cheney/SRE/src/main/java/jdd/applet/SolverApplet.java:[22,35] java.applet.Applet in java.applet has been deprecated and marked for removal
+[WARNING] /home/cheney/SRE/src/main/java/jdd/applet/SolverApplet.java:[22,35] java.applet.Applet in java.applet has been deprecated and marked for removal
+[WARNING] /home/cheney/SRE/src/main/java/jdd/applet/TraceApplet.java:[17,34] java.applet.Applet in java.applet has been deprecated and marked for removal
+[WARNING] /home/cheney/SRE/src/main/java/jdd/applet/TraceApplet.java:[17,34] java.applet.Applet in java.applet has been deprecated and marked for removal
+[WARNING] /home/cheney/SRE/src/main/java/jdd/applet/TraceApplet.java:[17,34] java.applet.Applet in java.applet has been deprecated and marked for removal
+[WARNING] /home/cheney/SRE/src/main/java/jdd/bdd/BDDIO.java:[203,32] Integer(int) in java.lang.Integer has been deprecated and marked for removal
+[WARNING] /home/cheney/SRE/src/main/java/jdd/bdd/BDDIO.java:[204,31] Integer(int) in java.lang.Integer has been deprecated and marked for removal
+[WARNING] /home/cheney/SRE/src/main/java/jdd/bdd/BDDIO.java:[216,65] Integer(int) in java.lang.Integer has been deprecated and marked for removal
+[WARNING] /home/cheney/SRE/src/main/java/jdd/bdd/BDDIO.java:[220,58] Integer(int) in java.lang.Integer has been deprecated and marked for removal
+[WARNING] /home/cheney/SRE/src/main/java/jdd/bdd/BDDIO.java:[233,42] Integer(int) in java.lang.Integer has been deprecated and marked for removal
+[WARNING] /home/cheney/SRE/src/main/java/jdd/bdd/BDDIO.java:[233,61] Integer(int) in java.lang.Integer has been deprecated and marked for removal
+[WARNING] /home/cheney/SRE/src/main/java/jdd/bdd/BDDIO.java:[238,65] Integer(int) in java.lang.Integer has been deprecated and marked for removal
+[INFO] /home/cheney/SRE/src/main/java/jdd/applet/TraceApplet.java: Some input files use or override a deprecated API.
+[INFO] /home/cheney/SRE/src/main/java/jdd/applet/TraceApplet.java: Recompile with -Xlint:deprecation for details.
+[INFO] /home/cheney/SRE/src/main/java/controlplane/process/bgp/routemap/RouteMapMatch.java: Some input files use unchecked or unsafe operations.
+[INFO] /home/cheney/SRE/src/main/java/controlplane/process/bgp/routemap/RouteMapMatch.java: Recompile with -Xlint:unchecked for details.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ SRE ---
+[WARNING] Using platform encoding (UTF-8 actually) to copy filtered resources, i.e. build is platform dependent!
+[INFO] skip non existing resourceDirectory /home/cheney/SRE/src/test/resources
+[INFO] 
+[INFO] --- compiler:3.13.0:testCompile (default-testCompile) @ SRE ---
+[INFO] Recompiling the module because of changed dependency.
+[WARNING] File encoding has not been set, using platform encoding UTF-8, i.e. build is platform dependent!
+[INFO] Compiling 15 source files with javac [debug target 11] to target/test-classes
+[WARNING] system modules path not set in conjunction with -source 11
+[INFO] 
+[INFO] --- surefire:3.0.0-M1:test (default-test) @ SRE ---
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running bdd.NDDHeaderDecompositionTest
+log4j:WARN No appenders could be found for logger (main.SRELogger).
+log4j:WARN Please initialize the log4j system properly.
+log4j:WARN See http://logging.apache.org/log4j/1.2/faq.html#noconfig for more info.
+ndd_field_layout:0:dstIP:32:BDD,1:srcIP:32:BDD,2:dstPort:16:BDD,3:srcPort:16:BDD,4:protocol:8:BDD,5:link0:1:BDD
+link_variable_order_hash:7b43885041d168b4
+link_polarity:1=up
+ndd_field_layout:0:dstIP:32:BDD,1:srcIP:32:BDD,2:dstPort:16:BDD,3:srcPort:16:BDD,4:protocol:8:BDD,5:link0:1:BDD
+link_variable_order_hash:7b43885041d168b4
+link_polarity:1=up
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.05 s - in bdd.NDDHeaderDecompositionTest
+[INFO] Running sre.ndd.ParallelMigrationTest
+ndd_engine:native
+ndd_workers:6
+ndd_native_budget_mib:3072
+ndd_label_order:legacy-lsb-first
+ndd_parallel:true
+ndd_label_parallel:false
+ndd_engine:native
+ndd_workers:6
+ndd_native_budget_mib:3072
+ndd_label_order:legacy-lsb-first
+ndd_parallel:true
+ndd_label_parallel:false
+ndd_field_layout:0:dstIP:32:COMPLEMENTED_BDD,1:srcIP:32:COMPLEMENTED_BDD,2:dstPort:16:COMPLEMENTED_BDD,3:srcPort:16:COMPLEMENTED_BDD,4:protocol:8:COMPLEMENTED_BDD,5:link0:1:COMPLEMENTED_BDD
+link_variable_order_hash:7b43885041d168b4
+link_polarity:1=up
+ndd_engine:native
+ndd_workers:6
+ndd_native_budget_mib:3072
+ndd_label_order:legacy-lsb-first
+ndd_parallel:true
+ndd_label_parallel:false
+ndd_field_layout:0:dstIP:32:COMPLEMENTED_BDD,1:srcIP:32:COMPLEMENTED_BDD,2:dstPort:16:COMPLEMENTED_BDD,3:srcPort:16:COMPLEMENTED_BDD,4:protocol:8:COMPLEMENTED_BDD,5:link0:1:COMPLEMENTED_BDD
+link_variable_order_hash:7b43885041d168b4
+link_polarity:1=up
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.124 s - in sre.ndd.ParallelMigrationTest
+[INFO] Running application.differential.s0.S0InfrastructureTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.128 s - in application.differential.s0.S0InfrastructureTest
+[INFO] Running application.differential.s0.S0CrossBackendFixedPointTest
+ndd_field_layout:0:dstIP:32:BDD,1:srcIP:32:BDD,2:dstPort:16:BDD,3:srcPort:16:BDD,4:protocol:8:BDD,5:link0:1:BDD
+link_variable_order_hash:7b43885041d168b4
+link_polarity:1=up
+ndd_field_layout:0:dstIP:32:BDD,1:srcIP:32:BDD,2:dstPort:16:BDD,3:srcPort:16:BDD,4:protocol:8:BDD,5:link0:1:BDD
+link_variable_order_hash:7b43885041d168b4
+link_polarity:1=up
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.069 s - in application.differential.s0.S0CrossBackendFixedPointTest
+[INFO] Running application.differential.s0.S0OspfFixedPointSmokeTest
+ndd_field_layout:0:dstIP:32:BDD,1:srcIP:32:BDD,2:dstPort:16:BDD,3:srcPort:16:BDD,4:protocol:8:BDD,5:link0:1:BDD
+link_variable_order_hash:7b43885041d168b4
+link_polarity:1=up
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.004 s - in application.differential.s0.S0OspfFixedPointSmokeTest
+[INFO] Running application.differential.s0.S0Ft04ManifestSmokeTest
+ndd_field_layout:0:dstIP:32:BDD,1:srcIP:32:BDD,2:dstPort:16:BDD,3:srcPort:16:BDD,4:protocol:8:BDD,5:link0:16:BDD,6:link1:16:BDD
+link_variable_order_hash:9d0193c26373974b
+link_polarity:1=up
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.055 s - in application.differential.s0.S0Ft04ManifestSmokeTest
+[INFO] Running application.differential.s4.PfecPropertyTransactionTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.006 s - in application.differential.s4.PfecPropertyTransactionTest
+[INFO] Running application.differential.s5.PersistentGenerationCoordinatorTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.001 s - in application.differential.s5.PersistentGenerationCoordinatorTest
+[INFO] Running application.differential.s5.IncrementalAdmissionPolicyTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0 s - in application.differential.s5.IncrementalAdmissionPolicyTest
+[INFO] Running application.differential.s5.PersistentReachabilityCommitTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.001 s - in application.differential.s5.PersistentReachabilityCommitTest
+[INFO] Running application.differential.s3.SpfAffectedSourceProbeTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.003 s - in application.differential.s3.SpfAffectedSourceProbeTest
+[INFO] Running application.differential.s1.OspfCostContributionTransactionTest
+ndd_field_layout:0:dstIP:32:BDD,1:srcIP:32:BDD,2:dstPort:16:BDD,3:srcPort:16:BDD,4:protocol:8:BDD,5:link0:1:BDD,6:link1:1:BDD
+link_variable_order_hash:7313f53d45c5919f
+link_polarity:1=up
+ndd_field_layout:0:dstIP:32:BDD,1:srcIP:32:BDD,2:dstPort:16:BDD,3:srcPort:16:BDD,4:protocol:8:BDD,5:link0:1:BDD,6:link1:1:BDD
+link_variable_order_hash:7313f53d45c5919f
+link_polarity:1=up
+ndd_field_layout:0:dstIP:32:BDD,1:srcIP:32:BDD,2:dstPort:16:BDD,3:srcPort:16:BDD,4:protocol:8:BDD,5:link0:1:BDD,6:link1:1:BDD
+link_variable_order_hash:7313f53d45c5919f
+link_polarity:1=up
+ndd_field_layout:0:dstIP:32:BDD,1:srcIP:32:BDD,2:dstPort:16:BDD,3:srcPort:16:BDD,4:protocol:8:BDD,5:link0:1:BDD,6:link1:1:BDD
+link_variable_order_hash:7313f53d45c5919f
+link_polarity:1=up
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.018 s - in application.differential.s1.OspfCostContributionTransactionTest
+[INFO] Running org.ants.jndd.bdd.ComplementedBDDTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.001 s - in org.ants.jndd.bdd.ComplementedBDDTest
+[INFO] Running org.ants.jndd.nodetable.NodeTableIndirectBlockTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0 s - in org.ants.jndd.nodetable.NodeTableIndirectBlockTest
+[INFO] Running org.ants.jndd.diagram.NDDIndirectHandleSemanticsTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.002 s - in org.ants.jndd.diagram.NDDIndirectHandleSemanticsTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 36, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  5.631 s
+[INFO] Finished at: 2026-10-12T14:27:50+08:00
+[INFO] ------------------------------------------------------------------------

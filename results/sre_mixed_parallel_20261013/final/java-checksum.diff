@@ -1,0 +1,48 @@
+--- /home/cheney/.cache/ndd-bench-tools/sre-java-baseline-20261012/src/main/java/sre/ndd/NDD.java	2026-10-12 00:19:19.193331241 +0800
++++ /home/cheney/NDD/results/sre_mixed_parallel_20261013/final/java-checksum-source/sre/ndd/NDD.java	2026-10-13 00:28:24.444385259 +0800
+@@ -262,12 +262,18 @@
+     public static long getTotalCreated() { return isNative() ? engine.stats().nodesCreated : org.ants.jndd.diagram.NDD.getTotalCreated(); }
+     public static long getNodeCount() { return isNative() ? engine.stats().nodesLive : org.ants.jndd.diagram.NDD.getNodeCount(); }
+     public static long getLabelNodeCount() { return isNative() ? engine.stats().labelsLive : org.ants.jndd.diagram.NDD.getLabelNodeCount(); }
+-    public static long getLabelTotalCreated() { return isNative() ? engine.stats().labelsCreated : org.ants.jndd.diagram.NDD.getLabelTotalCreated(); }
++    public static long getLabelTotalCreated() {
++        if (isNative()) return engine.stats().labelsCreated;
++        try { return org.ants.jndd.diagram.NDD.getLabelTotalCreated(); }
++        catch (NoSuchMethodError legacyJdd) { return -1; }
++    }
+     public static long getLabelNodeCount(LabelMode mode) {
+         return isNative() ? (modes.contains(mode) ? getLabelNodeCount() : 0) : org.ants.jndd.diagram.NDD.getLabelNodeCount(mode);
+     }
+     public static long getLabelTotalCreated(LabelMode mode) {
+-        return isNative() ? (modes.contains(mode) ? getLabelTotalCreated() : 0) : org.ants.jndd.diagram.NDD.getLabelTotalCreated(mode);
++        if (isNative()) return modes.contains(mode) ? getLabelTotalCreated() : 0;
++        try { return org.ants.jndd.diagram.NDD.getLabelTotalCreated(mode); }
++        catch (NoSuchMethodError legacyJdd) { return -1; }
+     }
+     public static void gc() { if (isNative()) collect(); else org.ants.jndd.diagram.NDD.gc(); }
+     public static void gcLabelEngine() { if (isNative()) collect(); else org.ants.jndd.diagram.NDD.gcLabelEngine(); }
+@@ -313,8 +319,8 @@
+         long result = mix(sum ^ ((long)field << 32) ^ count); nodeDigests.put(id, result); return result;
+     }
+     private static long fingerprintLabel(int field, int label) {
+-        if (label <= 1) return mix(0xf00 + label);
+         LabelMode mode = getFieldLabelMode(field);
++        if (label <= 1) return mode == LabelMode.ZDD ? label : mix(0xf00 + label);
+         long key = ((long)mode.ordinal() << 32) | (label & 0xffffffffL);
+         Long old = labelDigests.get(key); if (old != null) return old;
+         int maxWidth = 0;
+@@ -324,9 +330,12 @@
+             ComplementedBDD b = getBCDDEngine(); var = b.getVar(label); low = b.getLow(label); high = b.getHigh(label);
+         } else if (mode == LabelMode.BDD) {
+             BDD b = getBDDEngine(); var = b.getVar(label); low = b.getLow(label); high = b.getHigh(label);
+-        } else throw new UnsupportedOperationException("Fingerprint supports BDD/BCDD labels");
++        } else if (mode == LabelMode.ZDD) {
++            ZDD z = getZDDEngine(); var = z.getVar(label); low = z.getLow(label); high = z.getHigh(label);
++        } else throw new UnsupportedOperationException("Fingerprint supports BDD/BCDD/ZDD labels");
+         long l = fingerprintLabel(field, low), h = fingerprintLabel(field, high);
+-        long result = mix(var ^ Long.rotateLeft(l, 13) ^ Long.rotateLeft(h, 37) ^ 0xabcdef1234567890L);
++        long result = mode == LabelMode.ZDD ? l + (mix(var ^ 0xabcdef1234567890L) | 1L) * h
++                : mix(var ^ Long.rotateLeft(l, 13) ^ Long.rotateLeft(h, 37) ^ 0xabcdef1234567890L);
+         labelDigests.put(key, result); return result;
+     }
+ }

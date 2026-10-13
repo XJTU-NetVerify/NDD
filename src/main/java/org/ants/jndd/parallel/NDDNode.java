@@ -20,6 +20,12 @@ public final class NDDNode implements AutoCloseable {
         return engine == node.engine && handle == node.handle;
     }
     @Override public int hashCode() {
-        return 31 * System.identityHashCode(engine) + (int) (handle ^ (handle >>> 32));
+        // Node IDs and allocation cookies often advance together. Folding the
+        // two halves directly maps id ^ (id + 1) to only a few hash values.
+        long hash = handle;
+        hash ^= hash >>> 30; hash *= 0xbf58476d1ce4e5b9L;
+        hash ^= hash >>> 27; hash *= 0x94d049bb133111ebL;
+        hash ^= hash >>> 31;
+        return 31 * System.identityHashCode(engine) + (int) (hash ^ (hash >>> 32));
     }
 }

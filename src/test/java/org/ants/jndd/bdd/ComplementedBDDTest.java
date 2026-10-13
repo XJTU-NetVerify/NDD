@@ -7,6 +7,18 @@ import org.junit.jupiter.api.Test;
 
 class ComplementedBDDTest {
     @Test
+    void complementedTerminalsPreserveCanonicalIdentity() {
+        ComplementedBDD bdd = new ComplementedBDD(512, 256);
+        int x = bdd.createVar(), y = bdd.createVar();
+        int left = bdd.ref(bdd.and(bdd.not(x), y));
+        int right = bdd.ref(bdd.and(bdd.not(x), bdd.not(y)));
+        int rebuilt = bdd.ref(bdd.or(left, right));
+        assertEquals(bdd.not(x), rebuilt);
+        assertEquals(x, bdd.not(rebuilt));
+        bdd.gc(); assertEquals(bdd.not(x), bdd.or(left, right));
+        bdd.deref(left); bdd.deref(right); bdd.deref(rebuilt);
+    }
+    @Test
     void complementedOperationsMatchTruthTablesAndSatCount() {
         ComplementedBDD bdd = new ComplementedBDD(512, 256);
         int x = bdd.createVar();

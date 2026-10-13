@@ -1,0 +1,17 @@
+{
+  "exe_sha256": "4c7e44217c3efcc865c04d80cd0a71e1195447c10e46ee432c9e5d601e852886",
+  "lib_sha256": "9a3f31ffb7650c2cbfe43516df2f766ef220964561a8a560c235805bcc0e2e61",
+  "encoding": "original",
+  "tree": false,
+  "workers": [
+    1,
+    6
+  ],
+  "repeats": 2,
+  "cpu_mask": "0,2,4,6,8,10",
+  "memory_mib": 3072,
+  "cache_entries": 262144,
+  "ndd_parallel": true,
+  "label_parallel": false,
+  "note": "Same deep-optimization build, compute timer excludes init/close; no concurrent benchmark/build."
+}

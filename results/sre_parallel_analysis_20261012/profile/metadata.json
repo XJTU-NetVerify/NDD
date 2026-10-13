@@ -1,0 +1,46 @@
+{
+  "arguments": {
+    "out": "/home/cheney/NDD/results/sre_parallel_analysis_20261012",
+    "phase": "profile",
+    "repeats": 2,
+    "timeout": 180,
+    "sre": "/home/cheney/SRE"
+  },
+  "configs": {
+    "prof1": [
+      "profile",
+      1,
+      {
+        "profile": "true"
+      }
+    ],
+    "prof6": [
+      "profile",
+      6,
+      {
+        "profile": "true"
+      }
+    ],
+    "optprof1": [
+      "opt-profile",
+      1,
+      {
+        "profile": "true"
+      }
+    ],
+    "optprof6": [
+      "opt-profile",
+      6,
+      {
+        "profile": "true"
+      }
+    ]
+  },
+  "timestamp": "2026-10-12T00:04:45+0800",
+  "libraries": {
+    "opt-profile": "b275a8c5079dccfc5b23540f810dee2a44d10e782002788836339f1141702b40",
+    "profile": "588b3fb4b6259afa9a29f427221af60a27fd04a1a4581f4eb01e46e0bf1220ff"
+  },
+  "sre_adapter_sha256": "f5d211efd9645598a9b22bef2ea935dc94c53674e370e5a5479e258c7b4441cb",
+  "methodology": "Fresh processes, sequential shuffled paired rounds, CPU 0,2,4,6,8,10; F Header-Link plan1 original trim; Xmx8g / native3GiB / RSS12GiB; profiles inclusive and perturbed; prototypes compile-time opt-in."
+}

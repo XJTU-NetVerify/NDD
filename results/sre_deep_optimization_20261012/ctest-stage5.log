@@ -1,0 +1,23 @@
+Internal ctest changing into directory: /home/cheney/NDD/native/build-deep
+Test project /home/cheney/NDD/native/build-deep
+    Start 1: pndd_correctness_1
+1/4 Test #1: pndd_correctness_1 ...............   Passed    0.67 sec
+    Start 2: pndd_correctness_2
+2/4 Test #2: pndd_correctness_2 ...............   Passed    3.92 sec
+    Start 3: pndd_correctness_4
+3/4 Test #3: pndd_correctness_4 ...............Subprocess aborted***Exception:  14.63 sec
+pndd_test: /home/cheney/NDD/native/tests/test_pndd.c:142: memory_failure: Assertion `e' failed.
+
+    Start 4: pndd_correctness_6
+4/4 Test #4: pndd_correctness_6 ...............Subprocess aborted***Exception:  15.37 sec
+pndd_test: /home/cheney/NDD/native/tests/test_pndd.c:142: memory_failure: Assertion `e' failed.
+
+
+50% tests passed, 2 tests failed out of 4
+
+Total Test time (real) =  34.59 sec
+
+The following tests FAILED:
+	  3 - pndd_correctness_4 (Subprocess aborted)
+	  4 - pndd_correctness_6 (Subprocess aborted)
+Errors while running CTest

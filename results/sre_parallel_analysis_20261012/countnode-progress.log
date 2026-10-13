@@ -1,0 +1,12 @@
+1/12 hash1 r1: ok total=7.708454058s cpu=1.98 RSS=443.3
+2/12 hashcount6 r1: ok total=7.963507347s cpu=2.67 RSS=435.6
+3/12 hashbounded1 r1: ok total=6.431808984s cpu=1.94 RSS=444.1
+4/12 hash6 r1: ok total=9.322356952s cpu=2.45 RSS=423.0
+5/12 hashbounded6 r1: ok total=7.826992981s cpu=2.71 RSS=427.9
+6/12 hashcount1 r1: ok total=6.482150786s cpu=1.97 RSS=443.0
+7/12 hashbounded6 r2: ok total=7.872791687s cpu=2.70 RSS=428.3
+8/12 hash1 r2: ok total=7.336117472s cpu=2.09 RSS=442.5
+9/12 hashbounded1 r2: ok total=6.242859864s cpu=2.04 RSS=435.8
+10/12 hash6 r2: ok total=9.178725077s cpu=2.47 RSS=424.8
+11/12 hashcount1 r2: ok total=6.476286139s cpu=1.98 RSS=423.5
+12/12 hashcount6 r2: ok total=8.089944271s cpu=2.65 RSS=430.4

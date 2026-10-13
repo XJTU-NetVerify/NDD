@@ -1,0 +1,809 @@
+{
+  "arguments": {
+    "ndd": "/home/cheney/NDD",
+    "java": "/home/cheney/.cache/ndd-bench-tools/sysroot/usr/lib/jvm/java-17-openjdk-amd64/bin/java",
+    "java_classes": null,
+    "java_jar": null,
+    "native_classes": "/home/cheney/NDD/results/sre_priority_batch_20261012/final/sre-classes",
+    "native_jar": "/home/cheney/NDD/results/sre_priority_batch_20261012/final/ndd.jar",
+    "library": "/home/cheney/NDD/native/build-par-root/libpnddjni.so",
+    "output": "/home/cheney/NDD/results/ndd_parallel_core_20261012/confirm/ft12-rootcache-1-r2",
+    "cpus": "0,2,4,6,8,10",
+    "repeats": 1,
+    "repeat_start": 2,
+    "timeout": 900,
+    "rss_limit_mib": 12288,
+    "seed": 20261011,
+    "sizes": "12",
+    "mfs": "3",
+    "engines": "native1",
+    "cache": 16777216,
+    "collect_every": 0,
+    "gc_high_water_mib": 1228,
+    "batch": "true",
+    "select_first": "false",
+    "priority_batch": "true",
+    "priority_lists": "true",
+    "priority_list_block": 64,
+    "canonical_compare": "true",
+    "budget_difference": "true",
+    "reach_batch": "true",
+    "clip_forwarding": "true",
+    "forward_batch": "true",
+    "labels": "false",
+    "ndd_parallel": "true",
+    "threshold": 4,
+    "chunk": 2,
+    "depth": 4
+  },
+  "timestamp": "2026-10-12T22:38:48+0800",
+  "java": "openjdk version \"17.0.11\" 2024-04-16\nOpenJDK Runtime Environment (build 17.0.11+9-Ubuntu-1)\nOpenJDK 64-Bit Server VM (build 17.0.11+9-Ubuntu-1, mixed mode, sharing)",
+  "cpu": "Architecture:                            x86_64\nCPU op-mode(s):                          32-bit, 64-bit\nAddress sizes:                           39 bits physical, 48 bits virtual\nByte Order:                              Little Endian\nCPU(s):                                  28\nOn-line CPU(s) list:                     0-27\nVendor ID:                               GenuineIntel\nModel name:                              Intel(R) Core(TM) i7-14700KF\nCPU family:                              6\nModel:                                   183\nThread(s) per core:                      2\nCore(s) per socket:                      14\nSocket(s):                               1\nStepping:                                1\nBogoMIPS:                                6835.20\nFlags:                                   fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ss ht syscall nx pdpe1gb rdtscp lm constant_tsc rep_good nopl xtopology tsc_reliable nonstop_tsc cpuid tsc_known_freq pni pclmulqdq vmx ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm abm 3dnowprefetch ssbd ibrs ibpb stibp ibrs_enhanced tpr_shadow ept vpid ept_ad fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid rdseed adx smap clflushopt clwb sha_ni xsaveopt xsavec xgetbv1 xsaves avx_vnni vnmi umip waitpkg gfni vaes vpclmulqdq rdpid movdiri movdir64b fsrm md_clear serialize ibt flush_l1d arch_capabilities\nVirtualization:                          VT-x\nHypervisor vendor:                       Microsoft\nVirtualization type:                     full\nL1d cache:                               672 KiB (14 instances)\nL1i cache:                               448 KiB (14 instances)\nL2 cache:                                28 MiB (14 instances)\nL3 cache:                                33 MiB (1 instance)\nNUMA node(s):                            1\nNUMA node0 CPU(s):                       0-27\nVulnerability Gather data sampling:      Not affected\nVulnerability Ghostwrite:                Not affected\nVulnerability Indirect target selection: Not affected\nVulnerability Itlb multihit:             Not affected\nVulnerability L1tf:                      Not affected\nVulnerability Mds:                       Not affected\nVulnerability Meltdown:                  Not affected\nVulnerability Mmio stale data:           Not affected\nVulnerability Old microcode:             Not affected\nVulnerability Reg file data sampling:    Mitigation; Clear Register File\nVulnerability Retbleed:                  Mitigation; Enhanced IBRS\nVulnerability Spec rstack overflow:      Not affected\nVulnerability Spec store bypass:         Mitigation; Speculative Store Bypass disabled via prctl\nVulnerability Spectre v1:                Mitigation; usercopy/swapgs barriers and __user pointer sanitization\nVulnerability Spectre v2:                Mitigation; Enhanced / Automatic IBRS; IBPB conditional; PBRSB-eIBRS SW sequence; BHI BHI_DIS_S\nVulnerability Srbds:                     Not affected\nVulnerability Tsa:                       Not affected\nVulnerability Tsx async abort:           Not affected\nVulnerability Vmscape:                   Not affected",
+  "compiler": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+  "native_library_sha256": "a928cd2c142ff2254bf96b8b3670f7ef9cd679e5ea1874b738c2a7176abdcc96",
+  "ndd_jar_sha256": "ba57d4f18a89f4da7877169ac100e18e5fb029e36b395d9b25e184e7e5cbc6d2",
+  "configuration": {
+    "profile": "F / all BCDD",
+    "order": "header-link",
+    "plan": 1,
+    "trim": true,
+    "java_heap": "8 GiB",
+    "native_diagram_budget_mib": 3072,
+    "cache_entries": 16777216,
+    "threshold": 4,
+    "chunk": 2,
+    "depth": 4,
+    "label_parallel": false,
+    "ndd_parallel": true,
+    "propagation_batch": true,
+    "priority_batch": true,
+    "priority_lists": true,
+    "priority_list_block": 64,
+    "route_select_first": false,
+    "canonical_compare": true,
+    "forwarding_budget_difference": true,
+    "reachability_batch": true,
+    "clipped_forwarding": true,
+    "forwarding_batch": true,
+    "adapter_collect_every": 0,
+    "adapter_gc_high_water_mib": 1228,
+    "native_gc_interval": 0,
+    "label_order": "legacy LSB-first",
+    "rss_limit_mib": 12288,
+    "clock": "time.monotonic",
+    "sampling_seconds": 0.05,
+    "total_excludes": "JVM startup, post-timing checksum and native close",
+    "wall_includes": "startup, checksum and close"
+  },
+  "native_control_jar_sha256": "ba57d4f18a89f4da7877169ac100e18e5fb029e36b395d9b25e184e7e5cbc6d2",
+  "native_control_classes": "/home/cheney/NDD/results/sre_priority_batch_20261012/final/sre-classes",
+  "native_control_adapter_sha256": "1b67d2ebf3ea45c31422069b60edd5347fd27248cae071e4f72a292e6806cd61",
+  "ndd_commit": "6f70a73fb6f86732ad741cea8ec75076254fe449",
+  "sre_commit": "4a11efcb07b075629448a44f0168ee4a0bcd0b1b",
+  "inputs": [
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-100.json",
+      "sha256": "93004254c10e2435ef1b48b7a2ad4bf424fb4bc55bbb514f037aca06d6fc6adb"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-101.json",
+      "sha256": "7480ada69a4b1744c3316ce3070dc12a4d03e6d6b3bbbb8f914d190badc0587d"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-108.json",
+      "sha256": "ed7b2dd2d88c291477acdb2a4029239154bff104511572b569c6064f017980a7"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-109.json",
+      "sha256": "ee9c4d01c52a63ff7eb19e9aacc25dcbf33e1e427469781802e8a79980a746cc"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-110.json",
+      "sha256": "41ba740f22df6c5799b205eab740481960d6f98453262d77b9e1aad1dc053848"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-111.json",
+      "sha256": "e00945a1551363e43102c1b67b71dca65184722ab1e113e4a66564a627848c30"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-112.json",
+      "sha256": "5af686a3a42cb0c6894296fa03a66c66e7b9ca2738dc33b12027e6345e97f365"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-113.json",
+      "sha256": "9c60c4464de0a8ee9a0200359d775ee883e7e781c8500c3763da42a2f35ab504"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-120.json",
+      "sha256": "16b1a3834ad231a957c6206df064517ac8aa4d1bb8de622d6314738c1a296e70"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-121.json",
+      "sha256": "42e6262abf051714274260d2cc87400e995283dbb266d20cee1af45c7ee2feb3"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-122.json",
+      "sha256": "d9402274e77f4b1069d6544f2c40500a736c7843551df91cf6ad20a6c4d1d2d3"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-123.json",
+      "sha256": "1bf71e039b9868a19013a8fbee5dff822c1c57e8effaa32b127469e73a79cf24"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-124.json",
+      "sha256": "44481efcb6451a0da54f21a2af5a3d229f00b8c0f7becf974c7cc5418329f5ac"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-125.json",
+      "sha256": "c77193e8772fc5791794b9894341fe062b1cb57e28508e3f7ed30ec9bc59b107"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-132.json",
+      "sha256": "1fa16403bc4d32bb6a95d9a3624c7996c80bbaf42030281693f49b662f615d8f"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-133.json",
+      "sha256": "5f28cf605e927bce5cf16bb1aaca9299af78a7fc92a577f45e438315fbcad308"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-134.json",
+      "sha256": "7e9339276333aebf45d80a7940f16160fd2cb42314b6fd4bbb6d92b5acabaffe"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-135.json",
+      "sha256": "91de1c1342613b5800fa50a47519f242caf19afd697be0c373deb821c83892a8"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-136.json",
+      "sha256": "a4bdba74b5f6958be483648bdb7105333d2ef9932037fc8198262e5f1e5e8a82"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-137.json",
+      "sha256": "c61ddc450fed3d808599c12157e690793bb1e79821e5b853229e81081c2f4dd0"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-144.json",
+      "sha256": "fa0dda4985f1530ebe973def51d2593bf23fdb40f87d1410210ecb33000f99fc"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-145.json",
+      "sha256": "112d46352e4dfcda45d87ed6cf9b1808a65565c73d93be9a20989d42dbc97f51"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-146.json",
+      "sha256": "8e1d1acc9010e48d106051c25201028e4ee62c140e7340ba9df348d7b198534e"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-147.json",
+      "sha256": "ef102da5903a7a4eb8d1cafd860e1cbf2a220ecfc096843f5689ee08ff3110c7"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-148.json",
+      "sha256": "c06e1e85f7536dbb60dd427e8a909cecc67b80b6c04f12389f695f022e936908"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-149.json",
+      "sha256": "c71fabdcb951a88c07c77b5e4baae7c6d4f797799985e2be99850de285fb9188"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-156.json",
+      "sha256": "423e17f941a171af221beb70b0a30101c2ce0dbbad73b289814f9f1b7a662759"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-157.json",
+      "sha256": "83be6d18bc79116ae59ebf43d8e90dbc322ee83e2e1476e1c96f907bbddebef9"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-158.json",
+      "sha256": "5554cd42627a216d80446ab62b646ac2098e58317d3e8c9023547ddf6b29cb58"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-159.json",
+      "sha256": "72a060bb2565ba5a6cbcd0be10c59dcb7b3923754b8f24bf49be1443fe0a9a0f"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-160.json",
+      "sha256": "ce30acd74e114ad6c7843f0106cbff30def867903140d254cfce08fce6fc2841"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-161.json",
+      "sha256": "495d6234ba60fd3a7caaa37ae1d774e8d26750987bbfb78b313f23e3e00ff240"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-168.json",
+      "sha256": "accea266be3c14b5829429d82c68d8d96db152db08cabf83b18cdb4d6e4330b2"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-169.json",
+      "sha256": "15c43f296c4754059d0d6f8129fac8f95015d7b17d356f65fb1c4d1c2a5c5796"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-170.json",
+      "sha256": "8c6d51e00075bbc785be9342f44772a51c5fd70c05b3a47d1eefe5e441ddbc0f"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-171.json",
+      "sha256": "b75b51c8a21602ff8f1534daa457d2c2ffe7195d3d91e213086f0c5405ae435f"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-172.json",
+      "sha256": "3c51d38684bdf102e63e7ba59d3bc4d48d3c2aa77f179182975eb2429eb1071b"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-173.json",
+      "sha256": "1508ea1034658979796945544289267255a4606c4f13bb1da3e26a5cea004883"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-36.json",
+      "sha256": "a42ac3b42af1bbab146768cc75b4c812805a16aa9e3f16e2f79adcaeb8fb0ab0"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-37.json",
+      "sha256": "dce566a25e253692a4ec3a64d370fdd9e9e1c0fbf40f142df58259b1684c4acf"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-38.json",
+      "sha256": "002ea1bdb5ad5cc0d6ea036e0670d5719f237da93d93d97a49ea6b703d62c950"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-39.json",
+      "sha256": "f9ebb5565d41670c449dde06bfc7624dc7de4e0d8e71a72bc33142080d0efa15"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-40.json",
+      "sha256": "127f83118aadd8672e274b51a8bca74129cc10c9e9ad072d8c8037cbe8b30fc5"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-41.json",
+      "sha256": "ac7c231afaa1cb7c4ea10d95d7faed455ccfab05b0c30e41b58761a33a2bde25"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-48.json",
+      "sha256": "ca09337fd85e848a04af02abfaec9f6c320b4dceb607b18d1c45592fe0ff099d"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-49.json",
+      "sha256": "ed2721dc6cb0ba99a663aff80776353bf42a08bfabba41f9d7dd8d82441e852c"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-50.json",
+      "sha256": "b70a7a453b9f106de5222b2b2676c5ef0557ea59e2f0ef1acfcefd6e72478f7c"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-51.json",
+      "sha256": "211d3108884171f3d4fd39b4dae394fe82c38fab5ab1e642171af36d20ef008d"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-52.json",
+      "sha256": "d1b3e1c80fa5d1c223a10873c66fd2a454568d4b341aca934925ba3e704e0a23"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-53.json",
+      "sha256": "40ded69d4bf1855954b9d2f635ef2854cf674216412cd3c3c8ca03d87be0268a"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-60.json",
+      "sha256": "04382584f7c3e67b64644413540b0036db6199e04cfe654bfa9f48bde6a2242b"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-61.json",
+      "sha256": "586131ca536072a8fb7006fa9779585d3493ec48f6c248cb467a86fdd3b2e42d"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-62.json",
+      "sha256": "109ef6ea9dd88d76e90569bd41c5702eb4774eaa68dedf465a174e66acb5ad44"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-63.json",
+      "sha256": "644936645e2edc495784fcad5e13cd4b0e2ef4724d64c5c529024aa9b92c2dd4"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-64.json",
+      "sha256": "cb046020fa158f8751804fcd8e876a3339383410a9edcdfff908a50274ee4da6"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-65.json",
+      "sha256": "77dcda3ffef49aec8d200f90cc260eb8b24ade181f9ba852440a8e833bd8d4be"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-72.json",
+      "sha256": "4a17b8700985f3d14107d1c9f44ed1fee28ab5a64bf8848f7540ced54f16d37a"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-73.json",
+      "sha256": "5853219bde626e671b70a4868b9d8d86869ece7077b7a87d7ac09ce8633fe8aa"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-74.json",
+      "sha256": "80b49a5dbd629b51a3284bd208a2c6ebcb94eb467ff7ba9338077f8c184cdcce"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-75.json",
+      "sha256": "0d21c9ce8665f78d6288cf2b972c148a80ae9908a0b527550619561aa0db0347"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-76.json",
+      "sha256": "4f9ee94176e148b283d58f227861f6e6738306c089b596df328639c05ed215b7"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-77.json",
+      "sha256": "efcf1a85ab03d9126c01e4176a33da008666aad2438a45a0eb6476dc5c17a004"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-84.json",
+      "sha256": "c7465fe356a25fd2b1a5ce7bf1ed986243ac503b246758ad0b4adba05d4cc309"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-85.json",
+      "sha256": "d22d5385224ba231784a84c9a02789d7e12ffe745091b35008bf6531521cd3c1"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-86.json",
+      "sha256": "26fd80d50e5112fdb0e3c6eb3f5d6b20a56d63da48a0c20f8cba254979c55fcc"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-87.json",
+      "sha256": "c407b6d87c9d93201f532aba70543e1ae68c844f573f5f8efc63cd1115678025"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-88.json",
+      "sha256": "59d1c58f97edb5cf4c2e6b9393e6f8f481a18dac63825be6951b000740d42e0a"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-89.json",
+      "sha256": "37103364efdfb4afd9e5ebf86658b319691ed7f4efb0a96a821df1173d095ae0"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-96.json",
+      "sha256": "b1b47aa2c451e1f70af73119eb4f31ff4d7d0236be9d62845ab43a10bc09693e"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-97.json",
+      "sha256": "c06413b24211a366faba85463b63ef54f78646f1d61cb99bfec27006ca9e9a8e"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-98.json",
+      "sha256": "5b0fb32b1c50f6e566a6727e8c593b5ec24e9a6ea0ed5191e0f453c5c4478178"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/aggregation-99.json",
+      "sha256": "ac031e7523bd29abdd8bf5a8b4513bb52ec15493e229e80f927a55ad864810e4"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/core-0.json",
+      "sha256": "fa7cbff1fcb6981ad343e51b21aa72aa11fbecd061f273cc020fbba928c3380f"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/core-1.json",
+      "sha256": "a102ef307f5564e152ab7b197b5ff39a5c8cc084b20dcb3f6884bf3324459884"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/core-10.json",
+      "sha256": "9f4e0288129d4215990e6b85d82a810517f8e3aac2b10d611020e3aa4cec51b1"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/core-11.json",
+      "sha256": "60ec78f3938bc9e7c7a25262f3af3ea9c37d792cf6d356eea0fde2f358e1792f"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/core-12.json",
+      "sha256": "b9b712fe1bdd701e34a0331893b42a6860cc91b2dbf28be40dd468a9e4ebf067"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/core-13.json",
+      "sha256": "4466b060125faeac571cd5d0193a99342684616cbb762c768256230f15c288de"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/core-14.json",
+      "sha256": "d14cff87c27415b7d2a6b6c5aaaa8e85cabd37daea0e272d84ca433c4373c82a"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/core-15.json",
+      "sha256": "d5531090ffc8f92c5eca900ee1c1dab54721f7b3197d46e8351cd1d11a076591"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/core-16.json",
+      "sha256": "134d7d6add7c4e5559d5000085e60a86b58a47b1839680be2ad66a81fd161466"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/core-17.json",
+      "sha256": "af517535dc5269ac51f44c8c32b887ee2ae8e332a2efc9c6a66e470d842380b5"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/core-18.json",
+      "sha256": "8652e75ccbd122df78c1adb5aaf24d86fc5202b0bd4e95195fdc8e3c4ff4c684"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/core-19.json",
+      "sha256": "e933d87e7c1b62da9c9d6ce3a07d2470622cd47f380ba2448ebb03d74426994b"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/core-2.json",
+      "sha256": "9654f67b770b71bcea3ef39d5067a7b39ab2a33e8e29794d7dbd97315f5c1f0a"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/core-20.json",
+      "sha256": "2c196305f8d00c95805941cac1944238740bceff26bcee850c9c1c49fbd1632b"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/core-21.json",
+      "sha256": "fc51aee6526fc8f503120ab1315a18b97a8f89c2ff1bfa77a5133ef2b78d6e34"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/core-22.json",
+      "sha256": "b0f859981cefeb24bff384147832771672261d4568abf1e07f70ca742f26a2e7"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/core-23.json",
+      "sha256": "0d4edb603484c471a290be6a91535a536cb379282275a5a5534a28e646c11894"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/core-24.json",
+      "sha256": "658dc8c4c3f1fb402b5669a7fb3c9a941e11cf0f0fd1ea416887b25739e6917f"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/core-25.json",
+      "sha256": "f3507b7d86b8755f56af87d632d28c7e425ce82f41512aa8ca545cfdd0976d18"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/core-26.json",
+      "sha256": "21199eb3b3b337491274ba999034881677910e156ad781096aa39da487ccd7bc"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/core-27.json",
+      "sha256": "763036fb439c03e1ef3ef684a151b9340d4050a4709f4127e68bd9981ef2e4dc"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/core-28.json",
+      "sha256": "d8f8c1f58640f800b45d7e32167202a677ee6f4c0cbf76c4dce232a892e3d96c"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/core-29.json",
+      "sha256": "eb93340eeff6286ea32a70c7c18eff05f5640ec64f58ab86c1862b691c60c435"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/core-3.json",
+      "sha256": "19954564b9bb4bcc66ec661cc44f77deedbaf7954bcf48135f4ca88e35fbde7e"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/core-30.json",
+      "sha256": "84461197387cceb13aea233aa3dd28865a06c8eb75d6261b2b269a0ce6c0b7a7"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/core-31.json",
+      "sha256": "f00b22c51fd9770eb410fd5e071cd6a027a9f7ff05c15022ce712e2314f2977e"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/core-32.json",
+      "sha256": "361a10c4e3c629c3284c0bc579576c77160f8f47d53b243578846e17126d6f10"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/core-33.json",
+      "sha256": "1883142dd73dad6cd75f0acf4faa3a682fe0fecf6cd06b9d7c5f6367fdd64ba2"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/core-34.json",
+      "sha256": "309318284b2d14d50a980fadcd4c202d88e87ae38a149e5b33f7dc0d219302ce"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/core-35.json",
+      "sha256": "9e23bbbfed8f54a577cce97566e409da9e1c54a0dec35eb9f28bf803f7227a6f"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/core-4.json",
+      "sha256": "683f3fae59470b1080617f017ff87f5dbd6f53ca75842e751d57204bd3adeca7"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/core-5.json",
+      "sha256": "13839adedec0dda5564a7eb46cfbb29e393094161d0692357422d867c7724902"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/core-6.json",
+      "sha256": "4e97906499d3db69e5882aed131881effc72feb7832acb596f917042433d5973"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/core-7.json",
+      "sha256": "81c89519bc285dc86c1a39798f2e726f84329a87623871167786de1933f6b49d"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/core-8.json",
+      "sha256": "c37af0251e07bd795d42a03add5eec5e0523f9301a8d47e26f9c2ff217002348"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/core-9.json",
+      "sha256": "cd4d55b098aa33f56bc5beda080366d3c43bae710b62712b684e2337394d412d"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-102.json",
+      "sha256": "8600c7b8560807f43353fa334f8084e19fde9a7e55368339b79e671f1cc007cb"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-103.json",
+      "sha256": "cc504e3ccfb0dcdb0fcb4a0486423112303c921ba1e3d5d709d8b9b3836b3360"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-104.json",
+      "sha256": "f1b743a86d4b7b3edde9d132aa6027605d054e2c292d40f9f7c3f35a9ee846e6"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-105.json",
+      "sha256": "abda284834c4b81d5545ebb514cf80a824ea545a27b7bb368730a4a782526ede"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-106.json",
+      "sha256": "7afbcbfb991d3f920aebee4974eb5f843dbedffd5a87d006ebbaa0c8ae3e783d"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-107.json",
+      "sha256": "10e32c85cc29a355b6c8a3af92650d56df587974bc268a1458863f28dd8c4096"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-114.json",
+      "sha256": "4fb743fc367c21f2629ae4e1d00a49254357c11e8f233a926786186d8a029dff"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-115.json",
+      "sha256": "e1b67921592ad5f1f161c853c242ab26c1695c5ea57e2bf8638b700df40b7993"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-116.json",
+      "sha256": "8eedfe6602dd0421960c9e89f11d49a6d1ba3bfde43418916bc9661805535524"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-117.json",
+      "sha256": "d5d5542e7f671bfcf303fb32d4650372d98b69870db0ed7e32ac54a3183f864f"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-118.json",
+      "sha256": "6a09a5eae87781d929eadc5a2f2f7e807fd975580c73fde37aa3370dfc6c4246"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-119.json",
+      "sha256": "84df4bf3524b37565ef70c0dcbc4529721f27de8648b72073b8f30be6856ba4f"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-126.json",
+      "sha256": "e00acf69b3f770d1642db9d67f9cbea304b31fe0fe719547fef1782f93ec164c"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-127.json",
+      "sha256": "40cc369e1660d89c41d039701457f300db68cd8c42450c1a65e959a1a39415e1"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-128.json",
+      "sha256": "407cd2eee0bbf1f54276cc5a65f7bf4d2fe120ad4486f923fc69bb55827e9835"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-129.json",
+      "sha256": "9ca4df9347f8b3815a9d0db0560cbd5fcdee270cb3feaee7190a0408afd915d8"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-130.json",
+      "sha256": "afa4ffd3b5f3a5f72bd7c28d538d6452bc6870025056183e6e587a27b7be03b1"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-131.json",
+      "sha256": "fd56c9b1c4a9daf3eb7a2ad573d04c795c8f44a94b19c1bcf91c8ee1b17f1ec1"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-138.json",
+      "sha256": "9bbc4900d09b2ea4e15326f79bcbdd722662841b8a4b284f6f563ebf3033bece"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-139.json",
+      "sha256": "fade8b5c5f746db408749b8da480bf685d0d1a62b9c67775267157a0a3a6c0b0"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-140.json",
+      "sha256": "7d0728527e11fd042011cf6997ab0c921e551edad92da7c27979da6f2e3aa674"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-141.json",
+      "sha256": "6d8c07c421270c3c3b06783823348602784902fd4c156092007e3ebe0d97c390"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-142.json",
+      "sha256": "fea39790e7d039c7d4b2d71e015e05100264cdeb513c186b2685525bb1d3c5b5"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-143.json",
+      "sha256": "c89374cf353e709d8e76071168d24ccdcc769def0ca5b415dc73cf0acdd12d27"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-150.json",
+      "sha256": "2115a1d625bbb68e4991c3c53bd5d17ad0c7a4aaba702f59809e06e96196b8f5"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-151.json",
+      "sha256": "80d705f676955de5b9d9c1cb2028154524f59bc1b3743a32a8c7557e17c85fb7"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-152.json",
+      "sha256": "726b5be5cf66ce68abad7afc9e3578cb3c65bf1cc0fe1d0925ebc37e74714561"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-153.json",
+      "sha256": "fdac2c31ab5b472d9d9e4e4359a2b53398b25b5b92c5a2dd88e09cdf2ca15912"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-154.json",
+      "sha256": "be61d60337ada83a5fe3d96ca83d4ea5a254fc1cc5f00d952e575000d71e242d"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-155.json",
+      "sha256": "8e5799834e72c68b789b0d07a76137e7a6a44e5ffc30a5dc6f668fe43232d31e"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-162.json",
+      "sha256": "5c5fbea1e84e738ce9616ec4bbb0b52de6838c0bad84aecebb79f996379b364c"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-163.json",
+      "sha256": "765e6159e9a6d4564718f5b43bf994261548796540eae325e94639c2c732d4c0"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-164.json",
+      "sha256": "29839bbbed251aa50852bee8de9d6eb7c0abd12995470d4db0dd405b141b3015"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-165.json",
+      "sha256": "6f58418284503e1928ab8692e2a3a5c4a8dd133017de7eacca1cab9a1f0504ac"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-166.json",
+      "sha256": "77a9736bb45d81013ff32e7141287523dd749e62ed33ad07bcb3f13d986d01bd"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-167.json",
+      "sha256": "2c3577d4562bcaa45352698040942b76f7ba626adb10291dcc4884372ddc8ece"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-174.json",
+      "sha256": "d58182ae1a10b9b9217a4ebbb83600870d7e035e4af3e57723dc4e044f9613fa"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-175.json",
+      "sha256": "e89588edb5162f69253d5d67a91cc21dd2d5cb9c910f318cfc7617c003af9ad6"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-176.json",
+      "sha256": "ef9d387ba949d09bec1d4eaeae1ffc2d26a2bd1eab57a7b0cab4b487163ec011"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-177.json",
+      "sha256": "306d963dd0f187ff9c298aabe80093f96c626dddb214cc66ef688880400c0c79"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-178.json",
+      "sha256": "b69e96c8f3a2c3597423868da309eaaccb202923246748c7db9ce2f6fdb0a4b9"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-179.json",
+      "sha256": "5024d2006df2ba9f288dfeec879938daf08305905495647dbf0f6233cf74a3f8"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-42.json",
+      "sha256": "dce26a6037535cff4e642261782576d59d32363a0c2fb10915059c15274f66da"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-43.json",
+      "sha256": "87562e9d9f28423a99a32968fd239caa539d889389d922ddbd1cadf25d5ddd95"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-44.json",
+      "sha256": "37efe2b71c957b16ddcfa1c5a2fc4784b1be462e81c9d426dfadc0162ba1ea79"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-45.json",
+      "sha256": "780e20fe9c1981409973acab0a3683c0e72ea06e856a169cd0689b1801266183"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-46.json",
+      "sha256": "5eb1ac76e76624d3d67f56215c3bac840f1577d9770a79184c259ae7d6e4b8d2"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-47.json",
+      "sha256": "0793626bcd36452562319eeb151b9c117a25396363b05ad051bc3f843356aadc"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-54.json",
+      "sha256": "e43ddd6a3d72088f27bd7ecdcce69f2088e155170e264497442bcd4c68c46fd1"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-55.json",
+      "sha256": "db72d3f6db4e9bd45dfd46f21413b4aee66065399a372413a9683ae0375bc115"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-56.json",
+      "sha256": "0a343c00b4ebef039dfe1a87a7705435c08bc8760eb44e5ac05c7bc664ff05a0"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-57.json",
+      "sha256": "dbd7d2376908e09ace8da3b2c55c6b9a249a3816933008491a4ce07f7ff8ef7f"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-58.json",
+      "sha256": "dc9c8f5db0a959c677322768c5fce16c9bd6cbb20cff6ae213d72548b90aa82a"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-59.json",
+      "sha256": "e49e24b6107b506c6e3affee7c1ebf594fa853201bb02329635d9376befcfb96"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-66.json",
+      "sha256": "f568f243b5cdc5c34da9cc1b0c52c7052e9a8dbad59c14d78b689527f3268569"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-67.json",
+      "sha256": "9a2084181ea98f724178aabdec9c288f7aef1e98153e5af2906c89e201291eab"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-68.json",
+      "sha256": "4a8e0bbd485d2cdb4f1095513f51c6c28cb34737376844e7334beaefa73204ca"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-69.json",
+      "sha256": "a1f4e1ff162c3740e74bf8de5d4dd2069a22950e41f328d947759322b0c7b8a0"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-70.json",
+      "sha256": "5059a95c503cce9ec48692bd3993ecb08116ddedf0bff7c547ff6f01c5b67037"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-71.json",
+      "sha256": "81faabd376c586c29a3cfe637e4839a50aef24c46075a2ac3e5e8680f88b5e93"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-78.json",
+      "sha256": "8f3116056248b2c13d33ba32cd8cf854de9f33bf21f05bf8c3a3b3fb9d23e0b8"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-79.json",
+      "sha256": "791c39450bc0861f7c7d3d7d9d0c4b1114eb657d78afbab3776da6652109ca43"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-80.json",
+      "sha256": "cd0a083b91aa99a1dbb0f7f64ce550425152910c9674e642a382c9104a108c62"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-81.json",
+      "sha256": "69ef452a12b75cc8a32959d87cffae2085322356f10881d19319784168334a8e"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-82.json",
+      "sha256": "e293a4e7eaaee61543be2b2b82645bb38dcc62150a54ca4c1b68224c4417589f"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-83.json",
+      "sha256": "e4ea779922b623d019618653d94f12f78f915287a63197d33b8b7a681cd194a6"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-90.json",
+      "sha256": "440736afdee1fccad6e47bea450aca2a702949f71857c3330d74307a86659e27"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-91.json",
+      "sha256": "d8ce20fdaeea9568e1ee942714bed68f1249f339c4ab49582c0c83a8da0f2d32"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-92.json",
+      "sha256": "265de63ac717f625999674c73476e75082211fadaf6238ff0782a13ce3218678"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-93.json",
+      "sha256": "173e9fc0fab9796de31bd66016731c9d3bfeed38155d8418c2c9a5fa1092f130"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-94.json",
+      "sha256": "ea8b8b878e1305c825965c40a2ac37b34626a43bcdfd3403a84ac797474683c7"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/configs/edge-95.json",
+      "sha256": "c33c991da8294fd7037fc8295111a85044419bc161104c828e3b0489bb5b14e9"
+    },
+    {
+      "path": "networks/exp/fattree/bgp/bgp_fattree12/topology.txt",
+      "sha256": "78c328ae27da2704cc72e1744403cc49193a1f7441a09610dcc4680ba2611e68"
+    }
+  ]
+}

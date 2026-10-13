@@ -1,0 +1,36 @@
+-- 
+-- Lace 1.6.2 configuration summary:
+--   Build type        : Release
+--   Shared libraries  : OFF
+--   Top-level project : OFF
+--   Use HWLOC         : OFF
+--   Use -march=native : ON
+--   Use -fPIC         : ON
+--   Backoff when idle : ON
+--   Count tasks       : OFF
+--   Count steals      : OFF
+--   Count splits      : OFF
+--   Record PIE times  : OFF
+-- 
+-- Configuring done (0.1s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/cheney/NDD/native/build-analysis-sre
+[  3%] Building C object _deps/lace-build/CMakeFiles/lace.dir/src/lace.c.o
+[ 10%] Built target lace14
+[ 14%] Linking C static library liblace.a
+[ 14%] Built target lace
+[ 17%] Building C object sylvan-build/src/CMakeFiles/sylvan.dir/sylvan_mtbdd.c.o
+[ 21%] Building C object sylvan-build/src/CMakeFiles/sylvan.dir/sylvan_zdd.c.o
+[ 25%] Linking C static library libsylvan.a
+[ 64%] Built target sylvan
+[ 67%] Building C object CMakeFiles/pndd.dir/src/pndd.c.o
+[ 71%] Linking C static library libpndd.a
+[ 71%] Built target pndd
+[ 75%] Linking C executable pndd_entry
+[ 78%] Linking C executable pndd_nqueens
+[ 82%] Linking C shared library libpnddjni.so
+[ 85%] Linking C executable pndd_test
+[ 92%] Built target pnddjni
+[ 92%] Built target pndd_nqueens
+[ 96%] Built target pndd_entry
+[100%] Built target pndd_test

@@ -1,0 +1,84 @@
+{
+  "samples": 162,
+  "expected_samples": 162,
+  "all_requested_samples_present": true,
+  "no_duplicate_samples": true,
+  "all_successful": true,
+  "frozen_files_checked": 2809,
+  "changed_frozen_files": [],
+  "blocks": [
+    {
+      "directory": "a-ft04",
+      "library_matches": true,
+      "native_jar_matches": true,
+      "java_jar_matches": true,
+      "native_adapter_matches": true,
+      "java_adapter_matches": true
+    },
+    {
+      "directory": "a-ft08",
+      "library_matches": true,
+      "native_jar_matches": true,
+      "java_jar_matches": true,
+      "native_adapter_matches": true,
+      "java_adapter_matches": true
+    },
+    {
+      "directory": "a-ft12",
+      "library_matches": true,
+      "native_jar_matches": true,
+      "java_jar_matches": true,
+      "native_adapter_matches": true,
+      "java_adapter_matches": true
+    },
+    {
+      "directory": "b-ft04",
+      "library_matches": true,
+      "native_jar_matches": true,
+      "java_jar_matches": true,
+      "native_adapter_matches": true,
+      "java_adapter_matches": true
+    },
+    {
+      "directory": "b-ft08",
+      "library_matches": true,
+      "native_jar_matches": true,
+      "java_jar_matches": true,
+      "native_adapter_matches": true,
+      "java_adapter_matches": true
+    },
+    {
+      "directory": "b-ft12",
+      "library_matches": true,
+      "native_jar_matches": true,
+      "java_jar_matches": true,
+      "native_adapter_matches": true,
+      "java_adapter_matches": true
+    },
+    {
+      "directory": "d-ft04",
+      "library_matches": true,
+      "native_jar_matches": true,
+      "java_jar_matches": true,
+      "native_adapter_matches": true,
+      "java_adapter_matches": true
+    },
+    {
+      "directory": "d-ft08",
+      "library_matches": true,
+      "native_jar_matches": true,
+      "java_jar_matches": true,
+      "native_adapter_matches": true,
+      "java_adapter_matches": true
+    },
+    {
+      "directory": "d-ft12",
+      "library_matches": true,
+      "native_jar_matches": true,
+      "java_jar_matches": true,
+      "native_adapter_matches": true,
+      "java_adapter_matches": true
+    }
+  ],
+  "all_passed": true
+}

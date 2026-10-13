@@ -1,0 +1,47 @@
+{
+  "arguments": {
+    "out": "/home/cheney/NDD/results/sre_parallel_analysis_20261012",
+    "phase": "confirm",
+    "repeats": 2,
+    "timeout": 180,
+    "sre": "/home/cheney/SRE"
+  },
+  "configs": {
+    "java": [
+      "baseline",
+      1,
+      {
+        "engine": "java"
+      }
+    ],
+    "base1": [
+      "baseline",
+      1,
+      {}
+    ],
+    "base6": [
+      "baseline",
+      6,
+      {}
+    ],
+    "hashcount1": [
+      "count-node",
+      1,
+      {}
+    ],
+    "hashcount6": [
+      "count-node",
+      6,
+      {}
+    ]
+  },
+  "timestamp": "2026-10-12T00:24:06+0800",
+  "libraries": {
+    "count-node": "e6a741a414399926bdbb9192b6d5ce461bfff09109ac594788f17dc92fa469eb",
+    "baseline": "fe1826a22bebef7a499a2af049c39a69ee5f80a2fe128c1d9a8a0adba7c02bb7"
+  },
+  "sre_adapter_sha256": "f794a2a96d445515cefa9835d23d2256fe6b48501b2fbfbaee5aaf827919fe0e",
+  "ndd_jar_sha256": "a6300e3c70723a6701f840feea28feef983b6e854a637688bf7744dafa6bb344",
+  "hash_class_sha256": "952d28477c4fde064de8fd9fb828a907f2bf410d07cd4a00d505b923fc789f3b",
+  "methodology": "Fresh processes, sequential shuffled paired rounds, CPU 0,2,4,6,8,10; F Header-Link plan1 original trim; Xmx8g / native3GiB / RSS12GiB; profiles inclusive and perturbed; prototypes compile-time opt-in."
+}

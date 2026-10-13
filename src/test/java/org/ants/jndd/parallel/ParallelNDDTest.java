@@ -8,6 +8,116 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @EnabledIfSystemProperty(named = "pndd.tests", matches = "true")
 class ParallelNDDTest {
+    @Test void multiplePriorityListsShareOneRunAndKeepAllOwnedResultsThroughGc() {
+        ParallelNDDConfig config = new ParallelNDDConfig(6, 16L << 20, 4096, 2, 1, 6, 1, true, true, true);
+        try (ParallelNDD e = new ParallelNDD(config, new ParallelNDD.Field(3, ParallelNDD.Backend.BCDD));
+             NDDNode budget = e.literal(0, 2, false)) {
+            NDDNode[] original = {e.literal(0, 0, true), e.literal(0, 1, true),
+                    e.literal(0, 2, true), e.literal(0, 0, false)};
+            try {
+                ParallelNDD.PriorityRequest[] requests = new ParallelNDD.PriorityRequest[8];
+                for (int i = 0; i < requests.length; ++i) {
+                    NDDNode[] editable = original.clone(); int[] ends = {2, 4};
+                    requests[i] = new ParallelNDD.PriorityRequest(budget, editable, ends, i % 3, (i & 1) != 0, (i & 2) != 0);
+                    editable[0] = null; ends[0] = 0; // descriptions snapshot arrays
+                }
+                long runs = e.stats().externalRuns;
+                NDDNode[][] selected = e.prioritySelectBatch(requests);
+                assertEquals(runs + 1, e.stats().externalRuns); e.collect();
+                for (int r = 0; r < selected.length; ++r) {
+                    for (int i = r % 3; i < original.length; ++i) {
+                        for (int value = 0; value < 8; ++value) {
+                            boolean expected = e.evaluate(budget, value) && e.evaluate(original[i], value);
+                            int prior = (r & 1) != 0 ? (i < 2 ? 0 : 2) : i;
+                            for (int j = 0; j < prior; ++j) expected &= !e.evaluate(original[j], value);
+                            assertEquals(expected, e.evaluate(selected[r][i - r % 3], value));
+                        }
+                        selected[r][i - r % 3].close();
+                    }
+                }
+                e.collect(); assertEquals(4, e.satCount(original[0]));
+                assertEquals(0, e.prioritySelectBatch().length);
+                original[3].close();
+                assertThrows(IllegalStateException.class, () -> e.prioritySelectBatch(requests));
+            } finally { for (NDDNode root : original) root.close(); }
+        }
+    }
+    @Test void prioritySelectionMatchesEnumerationAndSurvivesGc() {
+        try (ParallelNDD e = new ParallelNDD(new ParallelNDDConfig(4),
+                new ParallelNDD.Field(3, ParallelNDD.Backend.BCDD))) {
+            NDDNode[] inputs = {e.literal(0, 0, true), e.literal(0, 1, true),
+                    e.literal(0, 2, true), e.literal(0, 0, false)};
+            try (NDDNode budget = e.literal(0, 2, false)) {
+                for (boolean multipath : new boolean[]{false, true}) for (boolean first : new boolean[]{false, true}) {
+                    long runs = e.stats().externalRuns;
+                    NDDNode[] selected = e.prioritySelect(budget, inputs, new int[]{2, 4}, 1, multipath, first);
+                    assertEquals(runs + 1, e.stats().externalRuns); e.collect();
+                    for (int i = 1; i < inputs.length; ++i) {
+                        int groupStart = i < 2 ? 0 : 2;
+                        for (int value = 0; value < 8; ++value) {
+                            boolean expected = e.evaluate(budget, value) && e.evaluate(inputs[i], value);
+                            for (int j = 0; j < (multipath ? groupStart : i); ++j) expected &= !e.evaluate(inputs[j], value);
+                            assertEquals(expected, e.evaluate(selected[i - 1], value));
+                        }
+                        selected[i - 1].close();
+                    }
+                }
+                assertEquals(0, e.prioritySelect(budget, inputs, new int[]{2, 4}, 4, true).length);
+                assertThrows(IllegalArgumentException.class, () -> e.prioritySelect(budget, inputs, new int[]{2, 2, 4}, 0, true));
+                inputs[0].close();
+                assertThrows(IllegalStateException.class, () -> e.prioritySelect(budget, inputs, new int[]{2, 4}, 0, true));
+            } finally { for (NDDNode node : inputs) node.close(); }
+        }
+    }
+    @Test void emptyReachabilityRejectsClosedEngine() {
+        ParallelNDD closed = new ParallelNDD(new ParallelNDDConfig(1),
+                new ParallelNDD.Field(1, ParallelNDD.Backend.BCDD));
+        closed.close();
+        try (ParallelNDD replacement = new ParallelNDD(new ParallelNDDConfig(1),
+                new ParallelNDD.Field(1, ParallelNDD.Backend.BCDD))) {
+            assertThrows(IllegalStateException.class,
+                    () -> closed.reachable(new NDDNode[0], new NDDNode[0]));
+            assertEquals(0, replacement.reachable(new NDDNode[0], new NDDNode[0]).length);
+        }
+    }
+    @Test void cachedScalarApplyAvoidsExternalRunAndSurvivesCollection() {
+        ParallelNDDConfig c = new ParallelNDDConfig(2, 64L << 20, 4096, 4, 2, 4, 0, true, false, true);
+        try (ParallelNDD e = new ParallelNDD(c, new ParallelNDD.Field(4, ParallelNDD.Backend.BCDD));
+             NDDNode a = e.literal(0, 0, true); NDDNode b = e.literal(0, 1, true);
+             NDDNode first = e.and(a, b)) {
+            long runs = e.stats().externalRuns;
+            try (NDDNode second = e.and(a, b)) {
+                assertEquals(first, second); assertEquals(runs, e.stats().externalRuns);
+            }
+            e.collect(); runs = e.stats().externalRuns;
+            try (NDDNode third = e.and(a, b)) {
+                assertEquals(first, third); assertEquals(runs + 1, e.stats().externalRuns);
+            }
+        }
+    }
+    @Test void wideFieldsInspectionAndBothVariableOrders() {
+        for (boolean reverse : new boolean[]{false, true})
+            for (ParallelNDD.Backend mode : new ParallelNDD.Backend[]{ParallelNDD.Backend.BDD, ParallelNDD.Backend.BCDD}) {
+                ParallelNDDConfig config = new ParallelNDDConfig(2, 64L << 20, 4096, 2, 1, 4, 1, true, true, true, reverse);
+                try (ParallelNDD e = new ParallelNDD(config, new ParallelNDD.Field(108, mode), new ParallelNDD.Field(2, mode));
+                     NDDNode a = e.literal(0, 0, true); NDDNode b = e.literal(0, 107, false);
+                     NDDNode root = e.and(a, b); NDDNode dead = e.not(root);
+                     NDDNode value = e.value(0, -1L)) {
+                    assertEquals(Math.scalb(1.0, 108), e.satCount(root));
+                    assertEquals(4.0, e.satCount(value)); assertTrue(e.evaluate(value, -1L, 0));
+                    assertArrayEquals(new boolean[]{false, false, true, false},
+                            e.reachable(new NDDNode[]{root}, new NDDNode[]{a, b, root, dead}));
+                    try (ParallelNDD.Snapshot s = e.snapshot(root)) {
+                        assertEquals(0, s.field); assertEquals(1, s.targets.length);
+                        assertEquals(1, e.minLabelCost(s.conditions[0], 0, false));
+                        byte[][] cubes = e.labelCubes(s.conditions[0], 0, 16);
+                        assertEquals(1, cubes.length); assertEquals(1, cubes[0][0]); assertEquals(0, cubes[0][107]);
+                        for (int bit = 1; bit < 107; ++bit) assertEquals(-1, cubes[0][bit]);
+                        e.collect(); assertEquals(e.fingerprint(root), e.fingerprint(s.conditions[0]));
+                    }
+                }
+            }
+    }
     private static NDD.LabelMode legacyMode(ParallelNDD.Backend b) {
         return b == ParallelNDD.Backend.BCDD ? NDD.LabelMode.COMPLEMENTED_BDD : NDD.LabelMode.valueOf(b.name());
     }

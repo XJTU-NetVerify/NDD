@@ -22,6 +22,39 @@ s = s.replace(old, '''while (atomic_load_explicit(finished, memory_order_relaxed
         STEAL_RANDOM();
         if (n_workers > n_pus) lace_sleep_us(50);
     }''')
+old = '''lace_steal_external(WorkerP* self, Task* head)
+{
+    for (int i = 0; i < LACE_EXT_SLOTS; i++) {'''
+if s.count(old) != 1:
+    raise SystemExit('Pinned Lace external task dispatch has changed')
+s = s.replace(old, '''lace_steal_external(WorkerP* self, Task* head)
+{
+#if defined(PNDD_ROOT_AFFINITY)
+    /* PNDD serializes admission. Reusing the same coordinator preserves its
+       front caches; other workers steal recursive/batch tasks normally. */
+    if (self->worker != 0) {
+        /* Yield the shared CPUs to the coordinator when oversubscribed. */
+        if (n_workers > n_pus) lace_sleep_us(50);
+        return;
+    }
+#endif
+    for (int i = 0; i < LACE_EXT_SLOTS; i++) {''')
+old = '''#if LACE_BACKOFF
+        // Progressive idle: pause → yield → futex sleep'''
+if s.count(old) != 1:
+    raise SystemExit('Pinned Lace idle policy has changed')
+s = s.replace(old, '''#if defined(PNDD_ROOT_AFFINITY)
+        /* A shared wake-one futex could wake the wrong worker. Keep the
+           coordinator polling cooperatively; its normal steal/newframe loop
+           and quit check are retained. Single-worker Lace already polls. */
+        if (worker_id == 0) {
+            lace_cpu_yield();
+            if (atomic_load_explicit(quit, memory_order_relaxed)) break;
+            continue;
+        }
+#endif
+#if LACE_BACKOFF
+        // Progressive idle: pause → yield → futex sleep''')
 p.write_text('/* PNDD adaptation: bounded sleep in oversubscribed GC waits. */\n' + s)
 # sched_getaffinity is a GNU extension. The upstream check omits its feature
 # macro and falls back to the host CPU count, ignoring taskset/container masks.

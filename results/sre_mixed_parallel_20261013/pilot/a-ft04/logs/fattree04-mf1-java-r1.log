@@ -1,0 +1,33 @@
+ndd_backend_profile:ALL_BDD
+ndd_domain_order:HEADER_LINK
+ndd_test_plan:1
+ndd_field_layout:0:dstIP:32:BDD,1:srcIP:32:BDD,2:dstPort:16:BDD,3:srcPort:16:BDD,4:protocol:8:BDD,5:link0:16:BDD,6:link1:16:BDD
+link_variable_order_hash:1ff91f9d5fd4769
+link_polarity:1=up
+init:0.10380416
+440 bgp route
+src_compute:0.077962746
+src_rib_dump:0.011966789
+src:0.090483055
+spf_fwd:0.014446802
+spf_acl:1.56659E-4
+spf_reachability:0.006025074
+spf:0.022236792
+mine:0.001675901
+exit:9.8686E-5
+total:0.281230292
+memory:9MB
+-------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------
+New bdd nodes:15454
+ndd_nodes_created:4398
+ndd_nodes_alive:4398
+label_nodes_alive_bdd:10048
+label_nodes_alive_bcdd:0
+label_nodes_alive_zdd:0
+label_nodes_alive_total:10048
+Exception in thread "main" java.lang.NoSuchMethodError: 'long jdd.bdd.BDD.getTotalCreated()'
+	at org.ants.jndd.diagram.LabelDecisionDiagramBackends$BooleanBddBackend.totalCreated(LabelDecisionDiagramBackends.java:158)
+	at org.ants.jndd.diagram.NDD.getLabelTotalCreated(NDD.java:558)
+	at sre.ndd.NDD.getLabelTotalCreated(NDD.java:270)
+	at application.config2spec.NDDConfig2spec.main(NDDConfig2spec.java:318)

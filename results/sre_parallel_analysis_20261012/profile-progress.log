@@ -1,0 +1,4 @@
+1/4 optprof1 r1: ok total=12.05586133s cpu=1.88 RSS=558.9
+2/4 prof6 r1: ok total=14.704780975s cpu=2.13 RSS=421.5
+3/4 prof1 r1: ok total=12.98650017s cpu=1.96 RSS=416.5
+4/4 optprof6 r1: ok total=13.846630565s cpu=2.18 RSS=563.8

@@ -70,8 +70,10 @@ try (ParallelNDD e = new ParallelNDD(new ParallelNDDConfig(6),
 }
 ```
 
-Fields and bits are zero-based; bit 0 is most significant. `value` uses unsigned
-long values (all bit patterns allowed at width 64). Label variables are shared
+Fields and bits are zero-based; bit 0 is most significant. BDD/BCDD/ZDD fields
+support widths 1–4096; BITSET remains limited to 1–7. `value` and `evaluate` use
+unsigned long values, zero-extended when a field is wider than 64 bits. Construct
+arbitrary wide constraints with `literal`. Label variables are shared
 and right-aligned within each backend. ZDD universe is an explicit powerset,
 not its TRUE leaf. BITSET covers up to 128 assignments and divides out unused
 prefix bits when narrower fields share its variable pool.
@@ -97,6 +99,25 @@ chunk 2, spawn depth 4, combined cache 262,144 entries, GC interval 128, and a
 cache comparison selected the larger cache for the default. At N=12, 65,536
 entries can save about 6 MiB with similar time. These are N-Queens defaults,
 not universal optima.
+
+For migration from legacy Java BDD/BCDD, the full configuration constructor has
+an additional `reverseLabelOrder` boolean. Set it to `true` to use legacy
+LSB-first label order and its shared creation-number variable pool. Public bit
+indices remain MSB-first. The default remains `false`; historical N-Queens
+results use that default. Variable order changes diagram size and performance,
+so comparisons must record it. Cached scalar `apply` calls now return from the
+native admission path without another top-level Lace RUN; cache misses still
+enter Lace. A miss can therefore be counted both by admission and recursion.
+
+Adapters can use `snapshot` (owned targets and opaque field-condition roots),
+`reachable` (a mask over candidate roots), bounded `labelCubes`, and
+`minLabelCost`. Close every owned snapshot handle after use. BDD/BCDD cubes
+contain MSB-first bytes with `-1` for don't-care; ZDD/BITSET enumeration can
+produce many cubes and fails explicitly at the requested bound. ZDD cost
+supports counting present elements only. `fingerprint` provides a structural
+64-bit checksum for BDD/BCDD labels and a weighted family sum for ZDD labels,
+independent of ZDD traversal direction. Matching it is a regression check, not
+a proof of semantic equivalence. BITSET fingerprints remain unsupported.
 `new ParallelNDDConfig(workers, memoryBytes)` changes the budget; the full
 constructor exposes independent NDD/label/batch switches and tuning settings.
 Use a larger budget for large diagrams. Cache sizes must be powers of two.
@@ -123,8 +144,10 @@ can lose precision; large domains can overflow to positive infinity.
 - Cache entries are protected by short shard locks and include operation and
   backend/counting context. Worker statistics and allocation credits avoid a
   shared atomic update on every cache access. Locks are isolated on 64-byte cache
-  lines; the containing engine uses C11 aligned allocation. Cache entries are cleared before
-  any node reuse and before Sylvan collection.
+  lines; the containing engine uses C11 aligned allocation. NDD collection clears
+  all caches before any node reuse. Label-only Sylvan collection clears label
+  caches; NDD memo entries remain valid because all allocated NDD labels are
+  marked and NDD IDs are not recycled by a label collection.
 - NDD mark/sweep runs in a stopped Lace frame **between admitted operations**.
   Owned roots and cached literals are traced. Sylvan can collect **inside** a
   label operation: all allocated NDD labels, scoped temporary vectors and pending
@@ -231,3 +254,104 @@ N-Queens exercises Boolean NDD; it does not validate MT algebra or establish
 network-verification performance.
 
 Implementation status, measured tradeoffs and result links: [Chinese report](../doc/parallel-implementation.md).
+
+## SRE optimizations and diagnostics
+
+The SRE follow-up found repeated whole-table scratch allocation in `satCount`.
+Relative cardinality is cached in immutable NDD nodes by default
+(`PNDD_EXPERIMENT_SATCOUNT_CACHE=ON`, retaining the legacy option name). It adds
+16 bytes per node on the measured 64-bit layout. Surviving nodes keep their count
+across collection; newly allocated or reused nodes start with an invalid count.
+The admitted count path writes the cache after worker computations finish, so
+this is not a concurrently writable query cache. Missing-field factors and the
+public `double` count semantics are preserved.
+
+The current Release build also enables `PNDD_LTO`, `PNDD_FAST_BCDD`,
+`PNDD_SPLIT_CACHE`, `PNDD_PAD_ROOTS`, `PNDD_LOCAL_CACHE`, `PNDD_LEAF_APPLY`,
+`PNDD_RESIDUAL_APPLY`, `PNDD_LABEL_GC_KEEP_NDD`, `PNDD_NODE_SLABS`, and
+`PNDD_COST_GRAIN`. Each can be disabled independently for ablation:
+
+- Small apply buffers use stack storage. Single-edge diagrams with a shared
+  child apply their labels directly. Different-field operations avoid redundant
+  universe intersections. OR/DIFF maintain ordered residuals and prune empty
+  work before child recursion.
+- The checked BCDD AND path reads cofactors directly, prunes terminal children,
+  normalizes complement edges and retains allocation-error propagation. Plain
+  BDD, ZDD and BITSET retain their own semantics and implementations.
+- Half of the configured shared cache belongs to NDD operations and half to
+  labels. Each worker has an additional front cache, up to 512 KiB; all front
+  caches together are sized toward at most 1/64 of the diagram memory budget,
+  with a floor of 64 entries per worker. All reservations are charged to the
+  memory budget, including that floor in very small, highly oversubscribed engines.
+- Terminal and single-edge nodes use 64-byte aligned slab cells. Cells are
+  reused after NDD GC; slab reservations are charged to the memory budget and
+  retained until close. Larger nodes use variable-sized allocations.
+- NDD child tasks resolve trivial cases and existing memo entries before
+  deciding whether enough uncached work remains to spawn.
+
+`prioritySelect(budget, conditions, groupEnds, start, multipath)` computes
+ordered selection in one Lace admission: prefix coverage is prepared in order,
+then independent selections run in parallel. Exclusive group ends cover the
+whole input. Earlier groups are excluded; `multipath=false` also excludes earlier
+members of the same group. Only the suffix beginning at `start` is returned.
+The overload with `intersectFirst=true` intersects each condition with budget
+before subtracting coverage, useful for small forwarding header regions.
+Both evaluation orders have the same Boolean result. Every returned root is
+owned; inputs remain borrowed. SRE uses this API, propagation AND batches and
+reachability AND batches while applying routing/DFS updates in their original
+order. Its memory-pressure collection policy is in the SRE adapter, separate
+from `ParallelNDDConfig.gcInterval`.
+
+`prioritySelectBatch(PriorityRequest...)` adds parallelism across complete
+independent lists, including their prefix preparation. Each request snapshots
+its condition/group arrays, borrows its budget and input roots, and returns an
+owned suffix row. One JNI call and one top-level Lace RUN cover the batch.
+The C equivalent is `pndd_priority_batch` with non-overlapping output arrays.
+Tasks only produce IDs: ownership is acquired after every task has joined.
+A failure publishes no owned outputs across the entire batch. Empty requests,
+different budgets, flags and suffix positions are supported.
+
+SRE batches independent changed prefixes after a BGP process has inserted all
+incoming routes, and batches global-RIB priority recalculation after installation.
+Result setters and out-queue insertion retain their original order; BGP actor
+and message-delivery order stay the same. `sre.ndd.priorityLists=false` disables
+this layer; `sre.ndd.priorityListsPerBatch` controls bounded blocks (default 64,
+allowed 1..1024). Blocks must fit the memory budget: NDD collection remains at
+operation boundaries, not in the middle of these tasks. Single-list updates
+retain the scalar fast path. SRE prints submitted batch/request counters.
+
+Fresh large-budget engines start Sylvan at 1/4 of its maximum table capacity
+(`PNDD_SYLVAN_INITIAL_RATIO=2`); budgets at most 128 MiB retain a smaller 1/16
+start so allocation/GC pressure is exercised. This capacity tradeoff affects
+startup and label GC; include it in benchmark provenance.
+
+`-DPNDD_PROFILE=ON` adds API timers, worker phase sums, label-cache counters and
+child-job histograms, printed at close. It perturbs execution and must be OFF for
+performance comparisons. API timers are inclusive; worker phase sums can overlap
+and label time is included in preparation/merge work. Do not add these values or
+interpret parallel worker wall sums as elapsed-time fractions. The additional
+BCDD AND and Sylvan-cache experiments also default to OFF and did not improve
+the initial SRE case. See the [initial SRE analysis](../results/sre_parallel_analysis_20261012/README.md)
+and [deep optimization experiments](../results/sre_deep_optimization_20261012/README.md).
+
+The operation cache defaults to `PNDD_OPTIMISTIC_CACHE=ON`: atomic payload
+words and version publication allow reads without acquiring a shard lock.
+Writers claim an individual entry with CAS and skip contested updates. Entries
+remain 32 bytes. Versions never wrap; an exhausted slot stops accepting writes
+until a stopped-world invalidation resets it. NDD/label GC invalidation and
+worker-local front-cache rules remain in force.
+
+`PNDD_ROOT_AFFINITY=ON` adapts the private Lace copy to keep serialized external
+RUN admissions on worker 0. Other workers steal internal tasks normally. The
+coordinator polls cooperatively, preserving GC/newframe and close protocols;
+oversubscribed non-coordinators use bounded waits when an external task needs
+the coordinator. This can consume idle CPU; disable it for a sparse-call
+service if latency does not justify polling. The engine still uses exactly the
+configured number of workers.
+
+Diagnostic `PNDD_PAR_PROFILE=ON` samples lock waits every 1024 calls and records
+worker priority-task load. It is OFF for timing comparisons. Experimental
+`PNDD_BATCH_GRAIN`, `PNDD_PENDING_PARTITION`, and `PNDD_LABEL_GRAIN` default OFF:
+they coordinate coarse/fine tasks, split unresolved child jobs, and prune cached
+or single-branch label tasks. See the [fixed-workload core scaling report](../results/ndd_parallel_core_20261012/README.md)
+for trials, limitations and the selected defaults.

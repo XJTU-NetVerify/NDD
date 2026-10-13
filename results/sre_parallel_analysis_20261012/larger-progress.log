@@ -1,0 +1,6 @@
+1/6 java r1: ok total=22.879904038s cpu=1.32 RSS=3089.7
+2/6 hashcount1 r1: ok total=84.966540147s cpu=1.41 RSS=1260.0
+3/6 hashcount6 r1: ok total=94.052666738s cpu=2.04 RSS=1481.0
+4/6 hashcount1 r2: ok total=86.074190204s cpu=1.42 RSS=1262.9
+5/6 java r2: ok total=23.441647373s cpu=1.31 RSS=3022.8
+6/6 hashcount6 r2: ok total=92.54771716s cpu=2.07 RSS=1506.0

@@ -1,0 +1,7 @@
+{
+  "completed_samples": 2,
+  "unfinished_logs": [
+    "logs/fattree12-mf3-native1-r2.log"
+  ],
+  "reason": "Benchmark process was no longer running after chat turn transition. Completed samples preserved; missing repetition runs in a new directory."
+}

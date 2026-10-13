@@ -1,0 +1,17 @@
+{
+  "valid": true,
+  "runs": 8,
+  "same_java_classes": true,
+  "semantic_fields": [
+    "bgp_routes",
+    "ndd_field_layout",
+    "link_variable_order_hash",
+    "link_polarity",
+    "semantic_condition_rows",
+    "semantic_condition_sha256",
+    "rib_rows",
+    "rib_sha256",
+    "reachability_csv_rows",
+    "reachability_csv_sha256"
+  ]
+}

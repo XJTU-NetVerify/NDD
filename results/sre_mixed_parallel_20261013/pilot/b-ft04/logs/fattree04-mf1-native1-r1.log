@@ -1,0 +1,19 @@
+ndd_backend_profile:HEADER_BDD_LINK_ZDD
+ndd_domain_order:HEADER_LINK
+ndd_test_plan:1
+ndd_engine:native
+ndd_workers:1
+ndd_native_budget_mib:3072
+ndd_label_order:legacy-lsb-first
+ndd_parallel:true
+ndd_label_parallel:false
+Exception in thread "main" java.lang.NullPointerException: Cannot invoke "org.ants.jndd.diagram.LabelDecisionDiagramBackend.mode()" because "org.ants.jndd.diagram.NDD.labelBackend" is null
+	at org.ants.jndd.diagram.NDD.fieldMode(NDD.java:627)
+	at org.ants.jndd.diagram.NDD.ensureFieldMode(NDD.java:611)
+	at org.ants.jndd.diagram.NDD.getBDDVars(NDD.java:503)
+	at bdd.NDDTCWrapper.setLinkVars(NDDTCWrapper.java:214)
+	at bdd.NDDTCWrapper.<init>(NDDTCWrapper.java:49)
+	at bdd.NDDManager.<init>(NDDManager.java:177)
+	at application.config2spec.NDDConfig2spec.setupBDDManager(NDDConfig2spec.java:162)
+	at application.config2spec.NDDConfig2spec.run(NDDConfig2spec.java:233)
+	at application.config2spec.NDDConfig2spec.main(NDDConfig2spec.java:297)

@@ -1,0 +1,916 @@
+diff --git a/README.md b/README.md
+index 6c77b32..80fb6e3 100644
+--- a/README.md
++++ b/README.md
+@@ -152,3 +152,23 @@ SKIP_BUILD=1 NDD_ARGS='backend=e order=header-link plan=1' \
+ - `bgp_fattree12`：180 个路由器、1080 条链路。
+ 
+ 程序运行产生的 `OutBDD/`、`OutNDD/`、`out/` 和 `results/` 不纳入版本控制。
++
++## 当前 Java NDD 与并行 native NDD
++
++`parallel-ndd` 分支将 Config2Spec F 组迁移到当前 NDD 库，并通过
++`-Dsre.ndd.engine=java|native` 选择 Java 或 C/JNI 引擎。native 支持
++`-Dsre.ndd.workers=1|6`；本次比较保留 Header-Link 顺序、原始 trim 和
++LSB 优先的 BCDD 变量顺序。构建、引用适配与复现脚本见
++[并行 NDD 使用说明](experiments/parallel-ndd/README.md)。
++
++本次 fattree04/08/12 × MF=1/2/3，每个引擎重复两次，共 54 次进程运行，
++全部通过跨引擎结果检查。当前 scalar JNI 接入的 6 workers 在九组配置中均慢于
++单 worker 和 Java 基线；fattree12/MF=3 的 native6 平均 608.544 秒，
++Java 320.625 秒，但 native6 峰值 RSS 为 Java 的 36.4%。完整性能表与原始数据见
++[NDD 中的 SRE 实验报告](/home/cheney/NDD/results/sre_parallel_20261011_final/README.md)。
++
++后续诊断修复了 native 根句柄的 Java 哈希冲突，并提供可选的节点计数缓存。
++fattree08/MF3 的 native1/native6 从 37.398/40.341 秒改善到 23.379/24.828 秒，
++但 6 workers 仍慢于单 worker 和 Java。子问题分支少、标签计算发生在派发前、
++标量提交与 GC 是接下来的优化重点；完整证据、开关对照与使用方法见
++[并行收益分析](/home/cheney/NDD/results/sre_parallel_analysis_20261012/README.md)。
+diff --git a/pom.xml b/pom.xml
+index 8e10c55..a049308 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -24,6 +24,7 @@
+                     <target>11</target>
+                     <excludes>
+                         <exclude>org/ants/javandd/**</exclude>
++                        <exclude>org/ants/jndd/**</exclude>
+                     </excludes>
+                 </configuration>
+             </plugin>
+@@ -118,6 +119,13 @@
+     </build>
+ 
+     <dependencies>
++        <!-- Use the current NDD library, including C/JNI instance API. The
++             embedded historical NDD sources are excluded from compilation. -->
++        <dependency>
++            <groupId>org.ants</groupId>
++            <artifactId>ndd</artifactId>
++            <version>1.0.1</version>
++        </dependency>
+         <dependency>
+             <groupId>com.google.code.gson</groupId>
+             <artifactId>gson</artifactId>
+diff --git a/src/main/java/application/config2spec/NDDConfig2spec.java b/src/main/java/application/config2spec/NDDConfig2spec.java
+index 70d8ccd..4e2e432 100644
+--- a/src/main/java/application/config2spec/NDDConfig2spec.java
++++ b/src/main/java/application/config2spec/NDDConfig2spec.java
+@@ -1,6 +1,6 @@
+ package application.config2spec;
+ 
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ import org.ants.jndd.bdd.ComplementedBDD;
+ import java.nio.file.Path;
+ import java.nio.file.Paths;
+@@ -327,6 +327,9 @@ public class NDDConfig2spec {
+             System.out.println("bcdd_apply_cache_misses:" + bcdd.getCacheMisses());
+         }
+ 
++        NDD.printNativeStats();
++        if (Boolean.getBoolean("sre.ndd.checksum")) sre.ndd.SemanticCheck.print();
++        NDD.closeNative();
+         // NDD.showStatestic();
+     }
+ }
+diff --git a/src/main/java/application/differential/s0/S0ResourceSample.java b/src/main/java/application/differential/s0/S0ResourceSample.java
+index dc30394..a9634c4 100644
+--- a/src/main/java/application/differential/s0/S0ResourceSample.java
++++ b/src/main/java/application/differential/s0/S0ResourceSample.java
+@@ -1,6 +1,6 @@
+ package application.differential.s0;
+ 
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ 
+ import java.io.IOException;
+ import java.nio.file.Files;
+diff --git a/src/main/java/application/differential/s0/SemanticNdd.java b/src/main/java/application/differential/s0/SemanticNdd.java
+index 3ee64ca..6157a31 100644
+--- a/src/main/java/application/differential/s0/SemanticNdd.java
++++ b/src/main/java/application/differential/s0/SemanticNdd.java
+@@ -1,6 +1,6 @@
+ package application.differential.s0;
+ 
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ 
+ /** Exact NDD helpers. Raw handle equality is only a fast path. */
+ final class SemanticNdd {
+diff --git a/src/main/java/application/differential/s1/OspfCostContributionTransaction.java b/src/main/java/application/differential/s1/OspfCostContributionTransaction.java
+index 35138b3..7e92cb4 100644
+--- a/src/main/java/application/differential/s1/OspfCostContributionTransaction.java
++++ b/src/main/java/application/differential/s1/OspfCostContributionTransaction.java
+@@ -15,7 +15,7 @@ import datamodel.ipv4.Ip;
+ import datamodel.ipv4.Prefix;
+ import datamodel.list.NDDSortedMultiList;
+ import main.NDDController;
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ 
+ import java.util.ArrayDeque;
+ import java.util.ArrayList;
+diff --git a/src/main/java/application/differential/s1/OspfDormantContributionIndex.java b/src/main/java/application/differential/s1/OspfDormantContributionIndex.java
+index 3a06cb5..4615273 100644
+--- a/src/main/java/application/differential/s1/OspfDormantContributionIndex.java
++++ b/src/main/java/application/differential/s1/OspfDormantContributionIndex.java
+@@ -9,7 +9,7 @@ import datamodel.ipv4.Ip;
+ import datamodel.ipv4.Prefix;
+ import datamodel.list.NDDSortedMultiList;
+ import datamodel.list.NDDSortedMultiListItem;
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ 
+ import java.util.ArrayList;
+ import java.util.Arrays;
+diff --git a/src/main/java/application/differential/s1/S1SingleEventSmoke.java b/src/main/java/application/differential/s1/S1SingleEventSmoke.java
+index 91699c6..e7a49ea 100644
+--- a/src/main/java/application/differential/s1/S1SingleEventSmoke.java
++++ b/src/main/java/application/differential/s1/S1SingleEventSmoke.java
+@@ -22,7 +22,7 @@ import datamodel.ipv4.Prefix;
+ import main.Configuration;
+ import main.NDDController;
+ import main.storage.Storage;
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ 
+ import java.nio.file.Path;
+ import java.nio.file.Paths;
+diff --git a/src/main/java/application/differential/s2/AffectedPrefixRibFibTransaction.java b/src/main/java/application/differential/s2/AffectedPrefixRibFibTransaction.java
+index d018132..bfdc6e7 100644
+--- a/src/main/java/application/differential/s2/AffectedPrefixRibFibTransaction.java
++++ b/src/main/java/application/differential/s2/AffectedPrefixRibFibTransaction.java
+@@ -11,7 +11,7 @@ import datamodel.list.NDDSortedMultiListItem;
+ import dataplane.fib.NDDFib;
+ import dataplane.fib.NDDForwardingRule;
+ import main.NDDController;
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ 
+ import java.util.ArrayList;
+ import java.util.Collections;
+diff --git a/src/main/java/application/differential/s3/FibPortSnapshot.java b/src/main/java/application/differential/s3/FibPortSnapshot.java
+index fd2e494..a1939f5 100644
+--- a/src/main/java/application/differential/s3/FibPortSnapshot.java
++++ b/src/main/java/application/differential/s3/FibPortSnapshot.java
+@@ -3,7 +3,7 @@ package application.differential.s3;
+ import controlplane.network.NDDPort;
+ import controlplane.network.NDDRouter;
+ import controlplane.network.PortName;
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ 
+ import java.util.Collection;
+ import java.util.Collections;
+diff --git a/src/main/java/application/differential/s3/SpfAffectedSourceProbe.java b/src/main/java/application/differential/s3/SpfAffectedSourceProbe.java
+index 1e5543d..fdc18f3 100644
+--- a/src/main/java/application/differential/s3/SpfAffectedSourceProbe.java
++++ b/src/main/java/application/differential/s3/SpfAffectedSourceProbe.java
+@@ -1,7 +1,7 @@
+ package application.differential.s3;
+ 
+ import controlplane.network.NDDRouter;
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ 
+ import java.util.Collections;
+ import java.util.Collection;
+diff --git a/src/main/java/application/differential/s3/SpfReachabilityIndex.java b/src/main/java/application/differential/s3/SpfReachabilityIndex.java
+index 0d85699..a7da657 100644
+--- a/src/main/java/application/differential/s3/SpfReachabilityIndex.java
++++ b/src/main/java/application/differential/s3/SpfReachabilityIndex.java
+@@ -3,7 +3,7 @@ package application.differential.s3;
+ import controlplane.network.NDDRouter;
+ import dataplane.analysis.NDDReachabilityDB;
+ import dataplane.analysis.NDDReachabilityNode;
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ 
+ import java.util.Collection;
+ import java.util.Collections;
+diff --git a/src/main/java/application/differential/s4/PfecPartitionSnapshot.java b/src/main/java/application/differential/s4/PfecPartitionSnapshot.java
+index f5ba3f5..044ad02 100644
+--- a/src/main/java/application/differential/s4/PfecPartitionSnapshot.java
++++ b/src/main/java/application/differential/s4/PfecPartitionSnapshot.java
+@@ -4,7 +4,7 @@ import controlplane.network.NDDRouter;
+ import dataplane.analysis.NDDReachabilityDB;
+ import dataplane.analysis.NDDReachabilityNode;
+ import multimap.Table;
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ 
+ import java.util.ArrayList;
+ import java.util.Collection;
+diff --git a/src/main/java/application/differential/s4/ReachabilityCoverageSnapshot.java b/src/main/java/application/differential/s4/ReachabilityCoverageSnapshot.java
+index 7a9e475..d16cb93 100644
+--- a/src/main/java/application/differential/s4/ReachabilityCoverageSnapshot.java
++++ b/src/main/java/application/differential/s4/ReachabilityCoverageSnapshot.java
+@@ -4,7 +4,7 @@ import controlplane.network.NDDRouter;
+ import dataplane.analysis.NDDReachabilityDB;
+ import dataplane.analysis.NDDReachabilityNode;
+ import multimap.Table;
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ 
+ import java.util.Collection;
+ import java.util.HashSet;
+diff --git a/src/main/java/application/differential/s4/ReachabilityPropertySet.java b/src/main/java/application/differential/s4/ReachabilityPropertySet.java
+index c1aea5d..aa912fe 100644
+--- a/src/main/java/application/differential/s4/ReachabilityPropertySet.java
++++ b/src/main/java/application/differential/s4/ReachabilityPropertySet.java
+@@ -2,7 +2,7 @@ package application.differential.s4;
+ 
+ import controlplane.network.NDDRouter;
+ import main.NDDController;
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ 
+ import java.util.Collection;
+ import java.util.Collections;
+diff --git a/src/main/java/application/differential/s5/PersistentSreState.java b/src/main/java/application/differential/s5/PersistentSreState.java
+index f732ac9..57408a4 100644
+--- a/src/main/java/application/differential/s5/PersistentSreState.java
++++ b/src/main/java/application/differential/s5/PersistentSreState.java
+@@ -15,7 +15,7 @@ import controlplane.network.NDDCPExecutor;
+ import controlplane.network.NDDRouter;
+ import dataplane.analysis.NDDDPAnalyzer;
+ import dataplane.analysis.NDDReachabilityDB;
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ 
+ import java.util.ArrayList;
+ import java.util.Collection;
+diff --git a/src/main/java/application/differential/s5/S5SequentialSmoke.java b/src/main/java/application/differential/s5/S5SequentialSmoke.java
+index 08b55a2..fa52b59 100644
+--- a/src/main/java/application/differential/s5/S5SequentialSmoke.java
++++ b/src/main/java/application/differential/s5/S5SequentialSmoke.java
+@@ -22,7 +22,7 @@ import datamodel.ipv4.Prefix;
+ import main.Configuration;
+ import main.NDDController;
+ import main.storage.Storage;
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ 
+ import java.nio.file.Files;
+ import java.nio.file.Path;
+diff --git a/src/main/java/bdd/NDDACLWrapper.java b/src/main/java/bdd/NDDACLWrapper.java
+index edfd8a8..eda1da3 100644
+--- a/src/main/java/bdd/NDDACLWrapper.java
++++ b/src/main/java/bdd/NDDACLWrapper.java
+@@ -1,6 +1,6 @@
+ package bdd;
+ 
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ import java.io.Serializable;
+ import java.util.ArrayList;
+ import java.util.Arrays;
+@@ -771,7 +771,13 @@ public class NDDACLWrapper implements Serializable {
+             }
+             byte[] headerBin = new byte[bitNum];
+             Arrays.fill(headerBin, (byte) -1);
+-            predVector2Header_rec(headerPred[i], headerBin, bitNum, collections[i], i);
++            int physicalField = Field.byLogicalIndex(i).fieldNum;
++            for (byte[] cube : NDD.labelCubes(physicalField, headerPred[i], bitNum)) {
++                for (int bit = 0; bit < bitNum; ++bit) headerBin[bitNum - bit - 1] = cube[bit];
++                if (i == Field.dstIP.logicalIndex || i == Field.srcIP.logicalIndex)
++                    bitVector2Prefix(headerBin, (HashSet<Prefix>)collections[i]);
++                else bitVector2Range(headerBin, (HashSet<Range>)collections[i]);
++            }
+         }
+ 
+         HashSet<Header> headers = new HashSet<>();
+diff --git a/src/main/java/bdd/NDDManager.java b/src/main/java/bdd/NDDManager.java
+index 6f5f06c..4a32c37 100644
+--- a/src/main/java/bdd/NDDManager.java
++++ b/src/main/java/bdd/NDDManager.java
+@@ -1,6 +1,6 @@
+ package bdd;
+ 
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ 
+ import application.config2spec.NDDConfig2spec;
+ import controlplane.network.NDDL3Edge;
+diff --git a/src/main/java/bdd/NDDPredicateWrapper.java b/src/main/java/bdd/NDDPredicateWrapper.java
+index 54fc625..4cca02b 100644
+--- a/src/main/java/bdd/NDDPredicateWrapper.java
++++ b/src/main/java/bdd/NDDPredicateWrapper.java
+@@ -1,6 +1,6 @@
+ package bdd;
+ 
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ import controlplane.network.PortName;
+ import datamodel.ipv4.Header;
+ import datamodel.ipv4.Prefix;
+diff --git a/src/main/java/bdd/NDDTCWrapper.java b/src/main/java/bdd/NDDTCWrapper.java
+index 6486693..2c31c17 100644
+--- a/src/main/java/bdd/NDDTCWrapper.java
++++ b/src/main/java/bdd/NDDTCWrapper.java
+@@ -1,6 +1,6 @@
+ package bdd;
+ 
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ import jdd.zdd.ZDD;
+ import java.util.ArrayList;
+ import java.util.Arrays;
+@@ -446,6 +446,23 @@ public class NDDTCWrapper {
+             return;
+ 
+         timer.begin();
++        if (NDD.batchPriority() && NDDController.MF >= 0 && !Configuration.FILTER) {
++            ArrayList<NDDSortedMultiListItem> items = list.flat();
++            int[] arrive = new int[items.size()], ends = new int[list.size()];
++            int offset = 0, start = list.getIIdx();
++            for (int group = 0; group < list.size(); ++group) {
++                if (group < list.getOIdx()) start += list.get(group).size();
++                offset += list.get(group).size(); ends[group] = offset;
++            }
++            for (int i = 0; i < arrive.length; ++i) arrive[i] = items.get(i).getArriveTC();
++            if (start < arrive.length) {
++                int[] selected = NDD.prioritySelectOwned(manager.FILTER_BDD, arrive, ends, start, ecmp);
++                int transferred = 0;
++                try { for (; transferred < selected.length; ++transferred) items.get(start + transferred).setListTC(selected[transferred]); }
++                finally { for (int i = transferred + 1; i < selected.length; ++i) NDD.deref(selected[i]); }
++            }
++            timer.end(); return;
++        }
+         int innerPre = NDD.getFalse(), outerPre = NDD.getFalse();
+         int o, i;
+         for (o = 0; o < list.getOIdx(); o++) {
+@@ -490,6 +507,16 @@ public class NDDTCWrapper {
+     public void calTC(NDDSortedMultiListItem item, int outerPre, int innerPre, boolean ecmp) {
+         timer.begin();
+         boolean relativeToFailureBudget = NDDController.MF >= 0 && !Configuration.FILTER;
++        if (NDD.isNative() && relativeToFailureBudget
++                && Boolean.parseBoolean(System.getProperty("sre.ndd.selectFirst", "false"))) {
++            // (budget \ outer) & arrive == (budget & arrive) \ outer.
++            // Work on the constrained route before excluding prior routes,
++            // avoiding a large complement relative to the whole budget.
++            int tc = NDD.ref(NDD.and(manager.FILTER_BDD, item.getArriveTC()));
++            tc = manager.minusDerefLeft(tc, outerPre);
++            if (!ecmp) tc = manager.minusDerefLeft(tc, innerPre);
++            item.setListTC(tc); timer.end(); return;
++        }
+         int available = relativeToFailureBudget
+                 ? NDD.ref(NDD.diff(manager.FILTER_BDD, outerPre))
+                 : NDD.ref(NDD.not(outerPre));
+@@ -570,14 +597,7 @@ public class NDDTCWrapper {
+     }
+ 
+     private static int minimumFailuresInLabel(int field, int label) {
+-        if (NDD.getFieldLabelMode(field) == NDD.LabelMode.ZDD) {
+-            return minimumZddSetSize(label, new HashMap<>());
+-        }
+-        if (NDD.getFieldLabelMode(field) == NDD.LabelMode.COMPLEMENTED_BDD) {
+-            return NDD.getBCDDEngine().toOne(label);
+-        }
+-        // Legacy BDD Link polarity is 1=up, so a low branch contributes one failure.
+-        return NDD.getBDDEngine().toOne(label);
++        return NDD.minimumFailures(field, label);
+     }
+ 
+     private static int minimumZddSetSize(int label, Map<Integer, Integer> memo) {
+diff --git a/src/main/java/bdd/NDDTuple.java b/src/main/java/bdd/NDDTuple.java
+index 29150ac..7b007ae 100644
+--- a/src/main/java/bdd/NDDTuple.java
++++ b/src/main/java/bdd/NDDTuple.java
+@@ -1,6 +1,6 @@
+ package bdd;
+ 
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ import main.Controller;
+ 
+ import java.util.Objects;
+diff --git a/src/main/java/controlplane/network/NDDCPExecutor.java b/src/main/java/controlplane/network/NDDCPExecutor.java
+index 6f46d6b..9dce7a6 100644
+--- a/src/main/java/controlplane/network/NDDCPExecutor.java
++++ b/src/main/java/controlplane/network/NDDCPExecutor.java
+@@ -15,7 +15,7 @@ import datamodel.ipv4.Prefix;
+ import datamodel.list.NDDSortedMultiList;
+ import main.NDDController;
+ import main.SRELogger;
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ import multimap.Table;
+ import util.NDDUtil;
+ import util.TimeUtil;
+diff --git a/src/main/java/controlplane/network/NDDL3Edge.java b/src/main/java/controlplane/network/NDDL3Edge.java
+index 1201c08..31774aa 100644
+--- a/src/main/java/controlplane/network/NDDL3Edge.java
++++ b/src/main/java/controlplane/network/NDDL3Edge.java
+@@ -1,6 +1,6 @@
+ package controlplane.network;
+ 
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ import java.io.Serializable;
+ import java.util.HashSet;
+ import java.util.Objects;
+diff --git a/src/main/java/controlplane/network/NDDPort.java b/src/main/java/controlplane/network/NDDPort.java
+index 55bbefc..1313e62 100644
+--- a/src/main/java/controlplane/network/NDDPort.java
++++ b/src/main/java/controlplane/network/NDDPort.java
+@@ -1,6 +1,6 @@
+ package controlplane.network;
+ 
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ import datamodel.ipv4.Ip;
+ import datamodel.ipv4.IpAddress;
+ import dataplane.acl.NDDACLRule;
+diff --git a/src/main/java/controlplane/network/NDDRouter.java b/src/main/java/controlplane/network/NDDRouter.java
+index 061d8ef..7660d03 100644
+--- a/src/main/java/controlplane/network/NDDRouter.java
++++ b/src/main/java/controlplane/network/NDDRouter.java
+@@ -1,6 +1,6 @@
+ package controlplane.network;
+ 
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ import controlplane.process.bgp.BgpProcess;
+ import controlplane.process.bgp.NDDBgpProcess;
+ import controlplane.process.ospf.NDDOspfProcess;
+diff --git a/src/main/java/controlplane/process/bgp/NDDBgpEdge.java b/src/main/java/controlplane/process/bgp/NDDBgpEdge.java
+index d58bcbf..656726f 100644
+--- a/src/main/java/controlplane/process/bgp/NDDBgpEdge.java
++++ b/src/main/java/controlplane/process/bgp/NDDBgpEdge.java
+@@ -1,6 +1,6 @@
+ package controlplane.process.bgp;
+ 
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ 
+ public class NDDBgpEdge {
+     NDDBgpNeighborConfig src;
+diff --git a/src/main/java/controlplane/process/bgp/NDDBgpExecutor.java b/src/main/java/controlplane/process/bgp/NDDBgpExecutor.java
+index 6b0d613..09dac40 100644
+--- a/src/main/java/controlplane/process/bgp/NDDBgpExecutor.java
++++ b/src/main/java/controlplane/process/bgp/NDDBgpExecutor.java
+@@ -1,6 +1,6 @@
+ package controlplane.process.bgp;
+ 
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ import java.io.BufferedWriter;
+ import java.io.File;
+ import java.io.FileWriter;
+@@ -259,21 +259,30 @@ public class NDDBgpExecutor {
+         return new int[] { total, valid };
+     }
+ 
+-    public static void propagate(NDDBgpRoute route, NDDBgpEdge edge) {
++    static boolean canPropagate(NDDBgpRoute route, NDDBgpEdge edge) {
+         if (route.getType() == BgpRoute.BgpRouteType.FROM_IBGP_NEIGHBOR
+                 && edge.src.neighborType != BgpNeighborConfig.NeighborType.EBGP) {
+-            return;
++            return false;
+         }
+         if (route.getType() == BgpRoute.BgpRouteType.FROM_ROUTE_REFLECTOR) {
+-            return;
++            return false;
+         }
++        return true;
++    }
++
++    public static void propagate(NDDBgpRoute route, NDDBgpEdge edge) {
++        if (!canPropagate(route, edge)) return;
++        propagatePrepared(route, edge, NDD.ref(NDD.and(route.getListTC(), edge.getTC())));
++    }
++
++    /** Consumes the prepared condition exactly as the scalar propagation path. */
++    static void propagatePrepared(NDDBgpRoute route, NDDBgpEdge edge, int newTC) {
+ 
+         // if(edge.src.process.router.getRouterName().equals("aggregation-56") &&
+         // edge.dst.process.router.getRouterName().equals("core-3"))
+         // {
+         // // NDD.checkCorrectness = true;
+         // }
+-        int newTC = NDD.ref(NDD.and(route.getListTC(), edge.getTC()));
+         // if(edge.src.process.router.getRouterName().equals("aggregation-56") &&
+         // edge.dst.process.router.getRouterName().equals("core-3"))
+         // {
+diff --git a/src/main/java/controlplane/process/bgp/NDDBgpProcess.java b/src/main/java/controlplane/process/bgp/NDDBgpProcess.java
+index 0bd419f..60df418 100644
+--- a/src/main/java/controlplane/process/bgp/NDDBgpProcess.java
++++ b/src/main/java/controlplane/process/bgp/NDDBgpProcess.java
+@@ -1,6 +1,6 @@
+ package controlplane.process.bgp;
+ 
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ import multimap.HashMultimap;
+ import multimap.Multimap;
+ import multimap.Table;
+@@ -259,6 +259,8 @@ public class NDDBgpProcess implements NDDProcess {
+     }
+ 
+     public void routeOut(Map<NDDBgpProcess, NDDBgpEdge> edges, Function<BgpNeighborConfig.NeighborType, Boolean> func) {
++        List<NDDBgpRoute> batchRoutes = NDD.batchPropagation() ? new ArrayList<>() : null;
++        List<NDDBgpEdge> batchEdges = batchRoutes == null ? null : new ArrayList<>();
+         // if(router.getRouterName().equals("core-3") ||
+         // router.getRouterName().equals("aggregation-56"))
+         // {
+@@ -285,13 +287,26 @@ public class NDDBgpProcess implements NDDProcess {
+                         // {
+                         // System.out.println(tmp.toString());
+                         // }
+-                        NDDBgpExecutor.propagate(tmp, e);
++                        if (batchRoutes == null) NDDBgpExecutor.propagate(tmp, e);
++                        else if (NDDBgpExecutor.canPropagate(tmp, e)) {
++                            batchRoutes.add(tmp); batchEdges.add(e);
++                        }
+                     }
+                 }
+             }
+ 
+             itr.remove();
+         }
++        if (batchRoutes != null && !batchRoutes.isEmpty()) {
++            int[] a = new int[batchRoutes.size()], b = new int[a.length];
++            for (int i = 0; i < a.length; ++i) { a[i] = batchRoutes.get(i).getListTC(); b[i] = batchEdges.get(i).getTC(); }
++            int[] conditions = NDD.andBatchOwned(a, b);
++            int delivered = 0;
++            try {
++                for (; delivered < conditions.length; ++delivered)
++                    NDDBgpExecutor.propagatePrepared(batchRoutes.get(delivered), batchEdges.get(delivered), conditions[delivered]);
++            } finally { for (int i = delivered + 1; i < conditions.length; ++i) NDD.deref(conditions[i]); }
++        }
+     }
+ 
+     public void rrFinalRound() {
+diff --git a/src/main/java/controlplane/process/bgp/NDDBgpTopology.java b/src/main/java/controlplane/process/bgp/NDDBgpTopology.java
+index fa49008..003a7cd 100644
+--- a/src/main/java/controlplane/process/bgp/NDDBgpTopology.java
++++ b/src/main/java/controlplane/process/bgp/NDDBgpTopology.java
+@@ -1,6 +1,6 @@
+ package controlplane.process.bgp;
+ 
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ import multimap.HashBasedTable;
+ import multimap.Table;
+ import controlplane.process.bgp.*;
+diff --git a/src/main/java/controlplane/process/ospf/NDDOspfEdge.java b/src/main/java/controlplane/process/ospf/NDDOspfEdge.java
+index cf5532d..7a4e920 100644
+--- a/src/main/java/controlplane/process/ospf/NDDOspfEdge.java
++++ b/src/main/java/controlplane/process/ospf/NDDOspfEdge.java
+@@ -1,6 +1,6 @@
+ package controlplane.process.ospf;
+ 
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ 
+ public class NDDOspfEdge {
+     NDDOspfNeighborConfig src;
+diff --git a/src/main/java/controlplane/process/ospf/NDDOspfExecutor.java b/src/main/java/controlplane/process/ospf/NDDOspfExecutor.java
+index 09e34b1..9be969f 100644
+--- a/src/main/java/controlplane/process/ospf/NDDOspfExecutor.java
++++ b/src/main/java/controlplane/process/ospf/NDDOspfExecutor.java
+@@ -1,6 +1,6 @@
+ package controlplane.process.ospf;
+ 
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ import main.Configuration;
+ import controlplane.route.NDDOspfRoute;
+ import controlplane.route.OspfRoute;
+diff --git a/src/main/java/controlplane/process/ospf/NDDOspfProcess.java b/src/main/java/controlplane/process/ospf/NDDOspfProcess.java
+index f7498fe..9c027c2 100644
+--- a/src/main/java/controlplane/process/ospf/NDDOspfProcess.java
++++ b/src/main/java/controlplane/process/ospf/NDDOspfProcess.java
+@@ -1,6 +1,6 @@
+ package controlplane.process.ospf;
+ 
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ import controlplane.network.NDDPort;
+ import controlplane.network.NDDRouter;
+ import controlplane.network.Port;
+diff --git a/src/main/java/controlplane/process/ospf/NDDOspfTopology.java b/src/main/java/controlplane/process/ospf/NDDOspfTopology.java
+index 247b22e..009fd5d 100644
+--- a/src/main/java/controlplane/process/ospf/NDDOspfTopology.java
++++ b/src/main/java/controlplane/process/ospf/NDDOspfTopology.java
+@@ -4,7 +4,7 @@ import multimap.HashBasedTable;
+ import multimap.Table;
+ import controlplane.network.NDDPort;
+ import controlplane.network.Port;
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ 
+ public class NDDOspfTopology {
+     public Table<NDDOspfProcess, NDDOspfProcess, NDDOspfEdge> edges;
+diff --git a/src/main/java/controlplane/rib/NDDRib.java b/src/main/java/controlplane/rib/NDDRib.java
+index 4dc1669..f0dc176 100644
+--- a/src/main/java/controlplane/rib/NDDRib.java
++++ b/src/main/java/controlplane/rib/NDDRib.java
+@@ -1,6 +1,6 @@
+ package controlplane.rib;
+ 
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ import multimap.HashBasedTable;
+ import multimap.HashMultimap;
+ import multimap.ImmutableList;
+diff --git a/src/main/java/controlplane/route/NDDBgpRoute.java b/src/main/java/controlplane/route/NDDBgpRoute.java
+index 09aa5bd..5a239a0 100644
+--- a/src/main/java/controlplane/route/NDDBgpRoute.java
++++ b/src/main/java/controlplane/route/NDDBgpRoute.java
+@@ -1,6 +1,6 @@
+ package controlplane.route;
+ 
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ import controlplane.network.NDDPort;
+ import controlplane.network.Port;
+ import datamodel.ipv4.Ip;
+diff --git a/src/main/java/controlplane/route/NDDConnectedRoute.java b/src/main/java/controlplane/route/NDDConnectedRoute.java
+index f583411..3eca7e7 100644
+--- a/src/main/java/controlplane/route/NDDConnectedRoute.java
++++ b/src/main/java/controlplane/route/NDDConnectedRoute.java
+@@ -1,6 +1,6 @@
+ package controlplane.route;
+ 
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ 
+ import controlplane.network.NDDPort;
+ import datamodel.ipv4.Ip;
+diff --git a/src/main/java/controlplane/route/NDDDynamicRoute.java b/src/main/java/controlplane/route/NDDDynamicRoute.java
+index c52ea03..d162d97 100644
+--- a/src/main/java/controlplane/route/NDDDynamicRoute.java
++++ b/src/main/java/controlplane/route/NDDDynamicRoute.java
+@@ -1,6 +1,6 @@
+ package controlplane.route;
+ 
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ import controlplane.network.NDDPort;
+ import controlplane.network.Port;
+ import datamodel.ipv4.Ip;
+@@ -51,13 +51,9 @@ public abstract class NDDDynamicRoute extends NDDRoute{
+         NDD.deref(_listTCOld);
+         _listTCOld = _listTC;
+         _listTC = tc;
+-        // Fast path: identical IDs mean identical logical NDDs — no GC epoch crossing.
+-        // Slow path (IDs differ): use logical equivalence via diff because after NDD GC
+-        // the same logical NDD may be assigned a new integer ID, making ID comparison
+-        // unreliable across GC epochs.
+-        _dirty = (_listTCOld != _listTC)
+-                && (!NDD.isFalse(NDD.diff(_listTCOld, _listTC))
+-                        || !NDD.isFalse(NDD.diff(_listTC, _listTCOld)));
++        // Native retained roots have stable canonical identity across GC;
++        // the Java path keeps the legacy semantic difference checks.
++        _dirty = !NDD.equivalent(_listTCOld, _listTC);
+     }
+ 
+     @Override
+diff --git a/src/main/java/controlplane/route/NDDLocalRoute.java b/src/main/java/controlplane/route/NDDLocalRoute.java
+index a96e7eb..0e362c6 100644
+--- a/src/main/java/controlplane/route/NDDLocalRoute.java
++++ b/src/main/java/controlplane/route/NDDLocalRoute.java
+@@ -1,6 +1,6 @@
+ package controlplane.route;
+ 
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ 
+ import controlplane.network.NDDPort;
+ import datamodel.ipv4.Ip;
+diff --git a/src/main/java/controlplane/route/NDDOspfRoute.java b/src/main/java/controlplane/route/NDDOspfRoute.java
+index 6d99d05..6fceb93 100644
+--- a/src/main/java/controlplane/route/NDDOspfRoute.java
++++ b/src/main/java/controlplane/route/NDDOspfRoute.java
+@@ -3,7 +3,7 @@ package controlplane.route;
+ import java.util.Comparator;
+ import java.util.Objects;
+ 
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ import org.jetbrains.annotations.NotNull;
+ 
+ import controlplane.network.NDDPort;
+diff --git a/src/main/java/controlplane/route/NDDResolvedBgpRoute.java b/src/main/java/controlplane/route/NDDResolvedBgpRoute.java
+index 2262127..a8c6eed 100644
+--- a/src/main/java/controlplane/route/NDDResolvedBgpRoute.java
++++ b/src/main/java/controlplane/route/NDDResolvedBgpRoute.java
+@@ -8,7 +8,7 @@ import datamodel.list.NDDSortedMultiList;
+ import datamodel.list.NDDSortedMultiListItem;
+ import datamodel.list.SortedMultiList;
+ import datamodel.list.SortedMultiListItem;
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ import org.jetbrains.annotations.NotNull;
+ 
+ import java.util.Comparator;
+diff --git a/src/main/java/controlplane/route/NDDResolvedStaticRoute.java b/src/main/java/controlplane/route/NDDResolvedStaticRoute.java
+index f0f44f8..2570cb8 100644
+--- a/src/main/java/controlplane/route/NDDResolvedStaticRoute.java
++++ b/src/main/java/controlplane/route/NDDResolvedStaticRoute.java
+@@ -1,6 +1,6 @@
+ package controlplane.route;
+ 
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ import java.util.List;
+ import java.util.stream.Collectors;
+ 
+diff --git a/src/main/java/controlplane/route/NDDRoute.java b/src/main/java/controlplane/route/NDDRoute.java
+index 9595eff..c0854a5 100644
+--- a/src/main/java/controlplane/route/NDDRoute.java
++++ b/src/main/java/controlplane/route/NDDRoute.java
+@@ -1,6 +1,6 @@
+ package controlplane.route;
+ 
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ import controlplane.network.NDDPort;
+ import controlplane.network.Port;
+ import datamodel.ipv4.Ip;
+diff --git a/src/main/java/controlplane/route/NDDStaticRoute.java b/src/main/java/controlplane/route/NDDStaticRoute.java
+index bd14f0d..64017cf 100644
+--- a/src/main/java/controlplane/route/NDDStaticRoute.java
++++ b/src/main/java/controlplane/route/NDDStaticRoute.java
+@@ -1,6 +1,6 @@
+ package controlplane.route;
+ 
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ 
+ import controlplane.network.NDDPort;
+ import datamodel.ipv4.Ip;
+diff --git a/src/main/java/controlplane/route/builder/NDDRouteBuilder.java b/src/main/java/controlplane/route/builder/NDDRouteBuilder.java
+index 2c866a1..4f4a0cd 100644
+--- a/src/main/java/controlplane/route/builder/NDDRouteBuilder.java
++++ b/src/main/java/controlplane/route/builder/NDDRouteBuilder.java
+@@ -1,6 +1,6 @@
+ package controlplane.route.builder;
+ 
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ import bdd.BDDManager;
+ import controlplane.network.NDDPort;
+ import controlplane.network.Port;
+diff --git a/src/main/java/datamodel/list/NDDSortedMultiList.java b/src/main/java/datamodel/list/NDDSortedMultiList.java
+index 99c6a87..3e18f1a 100644
+--- a/src/main/java/datamodel/list/NDDSortedMultiList.java
++++ b/src/main/java/datamodel/list/NDDSortedMultiList.java
+@@ -1,6 +1,6 @@
+ package datamodel.list;
+ 
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ import java.util.ArrayList;
+ import java.util.Iterator;
+ import java.util.stream.Collectors;
+@@ -67,11 +67,9 @@ public class NDDSortedMultiList extends ArrayList<ArrayList<NDDSortedMultiListIt
+             if (iList.get(i).equals(entry)) {
+                 int oldTC = iList.get(i).getArriveTC();
+                 int newTC = entry.getArriveTC();
+-                // Fast path: same ID → same logical NDD, no update needed.
+-                // Slow path: IDs differ after NDD GC — use logical diff to decide.
+-                boolean tcChanged = (oldTC != newTC)
+-                        && (!NDD.isFalse(NDD.diff(oldTC, newTC))
+-                                || !NDD.isFalse(NDD.diff(newTC, oldTC)));
++                // Native retained roots use canonical identity; Java preserves
++                // the legacy semantic comparison across GC epochs.
++                boolean tcChanged = !NDD.equivalent(oldTC, newTC);
+                 if (tcChanged) {
+                     iList.set(i, entry);
+                     updateIdx(o, i);
+diff --git a/src/main/java/datamodel/list/NDDSortedMultiListItem.java b/src/main/java/datamodel/list/NDDSortedMultiListItem.java
+index 26892e5..5566844 100644
+--- a/src/main/java/datamodel/list/NDDSortedMultiListItem.java
++++ b/src/main/java/datamodel/list/NDDSortedMultiListItem.java
+@@ -1,6 +1,6 @@
+ package datamodel.list;
+ 
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ 
+ public interface NDDSortedMultiListItem extends Comparable<NDDSortedMultiListItem> {
+     void setList(NDDSortedMultiList list);
+diff --git a/src/main/java/datamodel/property/NDDProperty.java b/src/main/java/datamodel/property/NDDProperty.java
+index 9b8078a..0339d98 100644
+--- a/src/main/java/datamodel/property/NDDProperty.java
++++ b/src/main/java/datamodel/property/NDDProperty.java
+@@ -1,6 +1,6 @@
+ package datamodel.property;
+ 
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ import com.fasterxml.jackson.annotation.JsonGetter;
+ import com.fasterxml.jackson.annotation.JsonIgnore;
+ import com.fasterxml.jackson.annotation.JsonProperty;
+diff --git a/src/main/java/dataplane/acl/NDDACLRule.java b/src/main/java/dataplane/acl/NDDACLRule.java
+index db2b355..5d95165 100644
+--- a/src/main/java/dataplane/acl/NDDACLRule.java
++++ b/src/main/java/dataplane/acl/NDDACLRule.java
+@@ -1,6 +1,6 @@
+ package dataplane.acl;
+ 
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ import bdd.BDDManager;
+ import jdd.bdd.BDD;
+ 
+diff --git a/src/main/java/dataplane/analysis/NDDDPAnalyzer.java b/src/main/java/dataplane/analysis/NDDDPAnalyzer.java
+index 816105a..51fa2ca 100644
+--- a/src/main/java/dataplane/analysis/NDDDPAnalyzer.java
++++ b/src/main/java/dataplane/analysis/NDDDPAnalyzer.java
+@@ -1,6 +1,6 @@
+ package dataplane.analysis;
+ 
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ import bdd.NDDTuple;
+ import controlplane.network.*;
+ import datamodel.list.NDDSortedMultiList;
+diff --git a/src/main/java/dataplane/analysis/NDDPropertyChecker.java b/src/main/java/dataplane/analysis/NDDPropertyChecker.java
+index 1ba321d..e3a28fc 100644
+--- a/src/main/java/dataplane/analysis/NDDPropertyChecker.java
++++ b/src/main/java/dataplane/analysis/NDDPropertyChecker.java
+@@ -1,6 +1,6 @@
+ package dataplane.analysis;
+ 
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ import java.util.Collection;
+ import java.util.Map;
+ import java.util.function.Function;
+diff --git a/src/main/java/dataplane/analysis/NDDReachabilityDB.java b/src/main/java/dataplane/analysis/NDDReachabilityDB.java
+index f04f6a0..7488e53 100644
+--- a/src/main/java/dataplane/analysis/NDDReachabilityDB.java
++++ b/src/main/java/dataplane/analysis/NDDReachabilityDB.java
+@@ -1,6 +1,6 @@
+ package dataplane.analysis;
+ 
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ import application.config2spec.NDDConfig2spec;
+ import bdd.NDDTuple;
+ import controlplane.network.NDDPort;
+diff --git a/src/main/java/dataplane/analysis/NDDSpecificationDB.java b/src/main/java/dataplane/analysis/NDDSpecificationDB.java
+index 41dc8b1..e8c91f5 100644
+--- a/src/main/java/dataplane/analysis/NDDSpecificationDB.java
++++ b/src/main/java/dataplane/analysis/NDDSpecificationDB.java
+@@ -1,6 +1,6 @@
+ package dataplane.analysis;
+ 
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ import application.config2spec.NDDConfig2spec;
+ import bdd.*;
+ import multimap.HashBasedTable;
+diff --git a/src/main/java/dataplane/fib/NDDForwardingRule.java b/src/main/java/dataplane/fib/NDDForwardingRule.java
+index 4accef4..04004db 100644
+--- a/src/main/java/dataplane/fib/NDDForwardingRule.java
++++ b/src/main/java/dataplane/fib/NDDForwardingRule.java
+@@ -1,6 +1,6 @@
+ package dataplane.fib;
+ 
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ import datamodel.ipv4.Ip;
+ import controlplane.network.PortName;
+ import controlplane.route.NDDRoute;
+diff --git a/src/main/java/inputparser/NDDStaticRouteParser.java b/src/main/java/inputparser/NDDStaticRouteParser.java
+index d813b4c..b8e9534 100644
+--- a/src/main/java/inputparser/NDDStaticRouteParser.java
++++ b/src/main/java/inputparser/NDDStaticRouteParser.java
+@@ -1,6 +1,6 @@
+ package inputparser;
+ 
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ import com.google.gson.JsonArray;
+ import com.google.gson.JsonObject;
+ import controlplane.network.NDDRouter;
+diff --git a/src/main/java/main/Configuration.java b/src/main/java/main/Configuration.java
+index 1e71f92..4d2a2fb 100644
+--- a/src/main/java/main/Configuration.java
++++ b/src/main/java/main/Configuration.java
+@@ -2,7 +2,7 @@ package main;
+ 
+ import java.util.Locale;
+ 
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ 
+ import util.CombinationUtil;
+ 
+diff --git a/src/main/java/util/NDDUtil.java b/src/main/java/util/NDDUtil.java
+index 4fc68c3..fd65176 100644
+--- a/src/main/java/util/NDDUtil.java
++++ b/src/main/java/util/NDDUtil.java
+@@ -1,6 +1,6 @@
+ package util;
+ 
+-import org.ants.jndd.diagram.NDD;
++import sre.ndd.NDD;
+ import bdd.BDDManager;
+ import jdd.bdd.BDD;

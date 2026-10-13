@@ -1,0 +1,821 @@
+diff --git a/README.md b/README.md
+index a427d6b..05cb8fe 100644
+--- a/README.md
++++ b/README.md
+@@ -13,6 +13,12 @@ results for this workload and configuration, rather than guarantees for other ap
+ - [Implementation report and complete experiment index (中文)](doc/parallel-implementation.md)
+ - [Final five-round C/JNI/Java benchmark](results/parallel_ndd_20261011_aligned_final/README.md)
+ - [Correctness and sanitizer validation](results/parallel_ndd_20261011_aligned_validation/README.md)
++- [SRE migration and full BCDD benchmark](results/sre_parallel_20261011_final/README.md)
++
++The N-Queens figures above use their archived sources, before the SRE migration
++and the Java BCDD terminal-normalization correction. The SRE report records its
++own updated sources, variable order and capacities; historical measurements
++are kept separately.
+ 
+ ## What is parallelized?
+ 
+@@ -57,9 +63,9 @@ are confined to a build-local copy; versions and licenses are in [NOTICE](native
+ 
+ | Backend | Label representation | Field width |
+ |---|---|---:|
+-| BDD | Plain C BDD, without complemented edges | 1–64 bits |
+-| BCDD | Sylvan complemented-edge BDD | 1–64 bits |
+-| ZDD | Ordinary set-family ZDD with explicit powerset universe | 1–64 bits |
++| BDD | Plain C BDD, without complemented edges | 1–4096 bits |
++| BCDD | Sylvan complemented-edge BDD | 1–4096 bits |
++| ZDD | Ordinary set-family ZDD with explicit powerset universe | 1–4096 bits |
+ | BITSET | Two 64-bit words | 1–7 bits |
+ 
+ Each width-`w` field has a Boolean domain of `2^w` values. Fields can mix backends;
+diff --git a/native/README.md b/native/README.md
+index a316f56..e8d0e9a 100644
+--- a/native/README.md
++++ b/native/README.md
+@@ -70,8 +70,10 @@ try (ParallelNDD e = new ParallelNDD(new ParallelNDDConfig(6),
+ }
+ ```
+ 
+-Fields and bits are zero-based; bit 0 is most significant. `value` uses unsigned
+-long values (all bit patterns allowed at width 64). Label variables are shared
++Fields and bits are zero-based; bit 0 is most significant. BDD/BCDD/ZDD fields
++support widths 1–4096; BITSET remains limited to 1–7. `value` and `evaluate` use
++unsigned long values, zero-extended when a field is wider than 64 bits. Construct
++arbitrary wide constraints with `literal`. Label variables are shared
+ and right-aligned within each backend. ZDD universe is an explicit powerset,
+ not its TRUE leaf. BITSET covers up to 128 assignments and divides out unused
+ prefix bits when narrower fields share its variable pool.
+@@ -97,6 +99,24 @@ chunk 2, spawn depth 4, combined cache 262,144 entries, GC interval 128, and a
+ cache comparison selected the larger cache for the default. At N=12, 65,536
+ entries can save about 6 MiB with similar time. These are N-Queens defaults,
+ not universal optima.
++
++For migration from legacy Java BDD/BCDD, the full configuration constructor has
++an additional `reverseLabelOrder` boolean. Set it to `true` to use legacy
++LSB-first label order and its shared creation-number variable pool. Public bit
++indices remain MSB-first. The default remains `false`; historical N-Queens
++results use that default. Variable order changes diagram size and performance,
++so comparisons must record it. Cached scalar `apply` calls now return from the
++native admission path without another top-level Lace RUN; cache misses still
++enter Lace. A miss can therefore be counted both by admission and recursion.
++
++Adapters can use `snapshot` (owned targets and opaque field-condition roots),
++`reachable` (a mask over candidate roots), bounded `labelCubes`, and
++`minLabelCost`. Close every owned snapshot handle after use. BDD/BCDD cubes
++contain MSB-first bytes with `-1` for don't-care; ZDD/BITSET enumeration can
++produce many cubes and fails explicitly at the requested bound. ZDD cost
++supports counting present elements only. `fingerprint` provides a structural
++64-bit checksum for BDD/BCDD diagrams; matching it is a regression check, not
++a proof of semantic equivalence.
+ `new ParallelNDDConfig(workers, memoryBytes)` changes the budget; the full
+ constructor exposes independent NDD/label/batch switches and tuning settings.
+ Use a larger budget for large diagrams. Cache sizes must be powers of two.
+diff --git a/native/include/pndd.h b/native/include/pndd.h
+index d570cc4..1385239 100644
+--- a/native/include/pndd.h
++++ b/native/include/pndd.h
+@@ -17,6 +17,7 @@ typedef struct {
+     int ndd_parallel, label_parallel, batch_parallel;
+     size_t memory_bytes, cache_entries;
+     uint32_t gc_interval;
++    int reverse_labels; /* BDD/BCDD LSB-first compatibility with legacy Java. */
+ } pndd_config;
+ typedef struct {
+     uint64_t nodes_live, nodes_created, labels_live, labels_created;
+@@ -45,6 +46,18 @@ int pndd_apply_batch(pndd_engine *, pndd_op, const pndd_handle *,
+ pndd_handle pndd_reduce(pndd_engine *, pndd_op, const pndd_handle *, size_t, int tree);
+ int pndd_collect(pndd_engine *);
+ pndd_stats pndd_get_stats(pndd_engine *);
++/* Inspection returns owned (target, field-condition) pairs; free the array and
++ * release each handle. Conditions keep backend-specific labels opaque. */
++int pndd_snapshot(pndd_engine *, pndd_handle, uint32_t *field,
++                  size_t *count, pndd_handle **pairs);
++int pndd_reachable(pndd_engine *, const pndd_handle *roots, size_t root_count,
++                   const pndd_handle *candidates, size_t count, unsigned char *mask);
++int pndd_min_label_cost(pndd_engine *, pndd_handle condition, uint32_t field, int costly_value);
++/* Header cubes use -1 for don't-care, 0/1 for a fixed bit, MSB first.
++ * Caller frees cubes; enumeration is bounded by limit. */
++int pndd_label_cubes(pndd_engine *, pndd_handle condition, uint32_t field,
++                     size_t limit, size_t *count, signed char **cubes);
++int pndd_fingerprint(pndd_engine *, pndd_handle, uint64_t *digest);
+ /* Benchmark-only entry: identical solver without per-operation external RUN. */
+ double pndd_nqueens(pndd_engine *, uint32_t n, int compact, int tree);
+ #ifdef __cplusplus
+diff --git a/native/src/jni.c b/native/src/jni.c
+index 16a91c2..7ab41d1 100644
+--- a/native/src/jni.c
++++ b/native/src/jni.c
+@@ -19,7 +19,7 @@ JNIEXPORT jlong JNICALL FN(openNative)(JNIEnv *env, jclass cls, jintArray widths
+     (*env)->GetIntArrayRegion(env, widths, 0, count, w); (*env)->GetIntArrayRegion(env, backends, 0, count, b);
+     if ((*env)->ExceptionCheck(env)) return 0;
+     for (jsize i = 0; i < count; ++i) fields[i] = (pndd_field){(uint32_t)w[i], (pndd_backend)b[i]};
+-    pndd_config c = {(uint32_t)workers, (uint32_t)threshold, (uint32_t)chunk, (uint32_t)depth, flags & 1, flags & 2, flags & 4, (size_t)memory, (size_t)cache, (uint32_t)gc};
++    pndd_config c = {(uint32_t)workers, (uint32_t)threshold, (uint32_t)chunk, (uint32_t)depth, flags & 1, flags & 2, flags & 4, (size_t)memory, (size_t)cache, (uint32_t)gc, flags & 8};
+     pndd_engine *e = pndd_open(&c, fields, (size_t)count); if (!e) error(env, NULL); return (jlong)(uintptr_t)e;
+ }
+ JNIEXPORT void JNICALL FN(closeNative)(JNIEnv *env, jclass cls, jlong e) { (void)env; (void)cls; pndd_close(engine(e)); }
+@@ -67,3 +67,49 @@ JNIEXPORT jlongArray JNICALL FN(statsNative)(JNIEnv *env, jclass cls, jlong e) {
+     jlong values[] = {(jlong)s.nodes_live, (jlong)s.nodes_created, (jlong)s.labels_live, (jlong)s.labels_created, (jlong)s.tasks, (jlong)s.stolen_tasks, (jlong)s.cache_hits, (jlong)s.cache_misses, (jlong)s.collections, (jlong)s.external_runs, (jlong)s.merge_ns, (jlong)s.native_bytes, (jlong)s.peak_native_bytes, (jlong)s.label_collections, (jlong)s.build_ns, (jlong)s.reduce_ns, (jlong)s.count_ns};
+     jlongArray array = (*env)->NewLongArray(env, 17); if (array) (*env)->SetLongArrayRegion(env, array, 0, 17, values); return array;
+ }
++JNIEXPORT jlongArray JNICALL FN(snapshotNative)(JNIEnv *env, jclass cls, jlong ep, jlong a) {
++    (void)cls; pndd_engine *e = engine(ep); uint32_t field; size_t count; pndd_handle *pairs;
++    if (!pndd_snapshot(e, (uint64_t)a, &field, &count, &pairs)) { error(env, e); return NULL; }
++    jlongArray out = (*env)->NewLongArray(env, (jsize)(count * 2 + 1));
++    if (out) {
++        jlong f = field; (*env)->SetLongArrayRegion(env, out, 0, 1, &f);
++        if (count) (*env)->SetLongArrayRegion(env, out, 1, (jsize)(count * 2), (jlong *)pairs);
++    }
++    if ((*env)->ExceptionCheck(env)) for (size_t i = 0; i < count * 2; ++i) pndd_release(e, pairs[i]);
++    free(pairs); return out;
++}
++JNIEXPORT jbooleanArray JNICALL FN(reachableNative)(JNIEnv *env, jclass cls, jlong ep, jlongArray rr, jlongArray cc) {
++    (void)cls; jsize rn, cn; uint64_t *roots = copy(env, rr, &rn); if (!roots) return NULL;
++    uint64_t *candidates = copy(env, cc, &cn); if (!candidates) { free(roots); return NULL; }
++    unsigned char *mask = malloc(cn ? (size_t)cn : 1);
++    if (!mask) { free(roots); free(candidates); oom(env); return NULL; }
++    int ok = pndd_reachable(engine(ep), roots, rn, candidates, cn, mask);
++    free(roots); free(candidates);
++    jbooleanArray out = NULL;
++    if (!ok) error(env, engine(ep));
++    else { out = (*env)->NewBooleanArray(env, cn); if (out) (*env)->SetBooleanArrayRegion(env, out, 0, cn, (jboolean *)mask); }
++    free(mask); return out;
++}
++JNIEXPORT jint JNICALL FN(minLabelCostNative)(JNIEnv *env, jclass cls, jlong ep, jlong a, jint field, jboolean costly) {
++    (void)cls; int result = pndd_min_label_cost(engine(ep), (uint64_t)a, (uint32_t)field, costly);
++    if (result < 0) error(env, engine(ep)); return result;
++}
++JNIEXPORT jobjectArray JNICALL FN(labelCubesNative)(JNIEnv *env, jclass cls, jlong ep, jlong a, jint field, jint width, jint limit) {
++    (void)cls; size_t count; signed char *data;
++    if (!pndd_label_cubes(engine(ep), (uint64_t)a, (uint32_t)field, (size_t)limit, &count, &data)) { error(env, engine(ep)); return NULL; }
++    jclass bytes = (*env)->FindClass(env, "[B");
++    jobjectArray out = bytes ? (*env)->NewObjectArray(env, (jsize)count, bytes, NULL) : NULL;
++    if (out) for (size_t i = 0; i < count && !(*env)->ExceptionCheck(env); ++i) {
++        jbyteArray cube = (*env)->NewByteArray(env, width);
++        if (!cube) break;
++        (*env)->SetByteArrayRegion(env, cube, 0, width, (jbyte *)(data + i * (size_t)width));
++        if (!(*env)->ExceptionCheck(env)) (*env)->SetObjectArrayElement(env, out, (jsize)i, cube);
++        (*env)->DeleteLocalRef(env, cube);
++    }
++    free(data); return out;
++}
++JNIEXPORT jlong JNICALL FN(fingerprintNative)(JNIEnv *env, jclass cls, jlong ep, jlong a) {
++    (void)cls; uint64_t digest = 0;
++    if (!pndd_fingerprint(engine(ep), (uint64_t)a, &digest)) error(env, engine(ep));
++    return (jlong)digest;
++}
+diff --git a/native/src/pndd.c b/native/src/pndd.c
+index 61139b8..76aebfc 100644
+--- a/native/src/pndd.c
++++ b/native/src/pndd.c
+@@ -50,7 +50,7 @@ typedef struct {
+     pndd_field spec;
+     uint32_t start;
+     uint64_t universe;
+-    uint32_t literals[128];
++    uint32_t *literals;
+ } Field;
+ typedef struct { uint64_t label; uint32_t a, b, target; } Job;
+ typedef struct { uint64_t hits, misses, nodes_live, nodes_created, labels_live, labels_created, merge_ns; size_t credit; uint32_t node_next, node_end, cookie_next; char padding[180]; } WorkerStats;
+@@ -134,6 +134,12 @@ static Label *label(uint64_t id) {
+     return b ? b[id % BLOCK] : NULL;
+ }
+ static uint32_t node_field(uint32_t id) { return id < 2 ? (uint32_t)G->field_count : node(id)->field; }
++static int reversed(uint32_t field) {
++    return G->config.reverse_labels && G->fields[field].spec.backend <= PNDD_BCDD;
++}
++static uint32_t label_end(uint32_t field) {
++    return reversed(field) ? G->fields[field].spec.width : G->widths[G->fields[field].spec.backend];
++}
+ static void root_push(RootFrame *r, uint32_t field, void *values, size_t stride, size_t count) {
+     unsigned worker = lace_get_worker()->worker;
+     r->previous = G->roots[worker]; r->values = values;
+@@ -639,16 +645,16 @@ static double label_count(uint32_t field, uint64_t value, uint32_t start) {
+     pndd_backend mode = G->fields[field].spec.backend;
+     if (!value) return 0;
+     if (mode == PNDD_BITSET) return ldexp((double)(__builtin_popcountll(label(value)->low) + __builtin_popcountll(label(value)->high)), -(int)(G->widths[mode] - G->fields[field].spec.width));
+-    uint64_t bits; uint32_t key = 0x200 + mode * 128 + start;
+-    if (cache_get(key, value, 0, &bits)) { double d; memcpy(&d, &bits, 8); return d; }
++    uint64_t bits; uint32_t key = 0x200 + mode * 8192 + start;
++    if (cache_get(key, value, label_end(field), &bits)) { double d; memcpy(&d, &bits, 8); return d; }
+     double count;
+-    if (value == truth(field)) count = mode == PNDD_ZDD ? 1 : ldexp(1.0, (int)(G->widths[mode] - start));
++    if (value == truth(field)) count = mode == PNDD_ZDD ? 1 : ldexp(1.0, (int)(label_end(field) - start));
+     else {
+         uint32_t var = label_var(field, value);
+         count = label_count(field, branch(field, value, var, 0), var + 1) + label_count(field, branch(field, value, var, 1), var + 1);
+         if (mode != PNDD_ZDD) count = ldexp(count, (int)(var - start));
+     }
+-    memcpy(&bits, &count, 8); cache_put(key, value, 0, bits); return count;
++    memcpy(&bits, &count, 8); cache_put(key, value, label_end(field), bits); return count;
+ }
+ static double count_node(uint32_t id, double *memo, unsigned char *seen) {
+     if (id < 2) return (double)id;
+@@ -679,12 +685,14 @@ static int label_matches(uint32_t field, uint64_t value, uint64_t assignment) {
+     }
+     if (mode == PNDD_ZDD) {
+         for (uint32_t var = f->start; var < G->widths[mode]; ++var) {
+-            int bit = (int)((assignment >> (G->widths[mode] - 1 - var)) & 1);
++            uint32_t shift = G->widths[mode] - 1 - var;
++            int bit = shift < 64 ? (int)((assignment >> shift) & 1) : 0;
+             value = branch(field, value, var, bit); if (!value) return 0;
+         }
+     } else while (value && value != truth(field)) {
+         uint32_t var = label_var(field, value);
+-        value = branch(field, value, var, (int)((assignment >> (G->widths[mode] - 1 - var)) & 1));
++        uint32_t shift = reversed(field) ? var : label_end(field) - 1 - var;
++        value = branch(field, value, var, shift < 64 ? (int)((assignment >> shift) & 1) : 0);
+     }
+     return value == truth(field);
+ }
+@@ -700,8 +708,9 @@ TASK_IMPL_4(uint32_t, construct, uint32_t, field, uint32_t, bit, uint64_t, value
+                 if (assignment < 64) low |= UINT64_C(1) << assignment; else high |= UINT64_C(1) << (assignment - 64);
+             }
+         current = plain_make(LABEL_BITS, low, high);
+-    } else for (uint32_t v = G->widths[mode]; v > f->start; --v) {
+-        int positive = (int)((value >> (G->widths[mode] - v)) & 1);
++    } else for (uint32_t v = label_end(field); v > f->start; --v) {
++        uint32_t shift = reversed(field) ? v - 1 : label_end(field) - v;
++        int positive = shift < 64 ? (int)((value >> shift) & 1) : 0;
+         current = make_label(field, v - 1, positive ? 0 : current, positive ? current : 0);
+         if (current == PNDD_INVALID) break;
+     }
+@@ -721,7 +730,7 @@ VOID_TASK_IMPL_0(initialize_fields) {
+         }
+         for (uint32_t bit = 0; bit < field->spec.width && !atomic_load(&G->failure); ++bit) for (unsigned positive = 0; positive < 2; ++positive) {
+             uint64_t value = truth(f); RootFrame root; root_push(&root, f, &value, sizeof(value), 1);
+-            uint32_t variable = field->start + bit;
++            uint32_t variable = reversed(f) ? field->spec.width - 1 - bit : field->start + bit;
+             if (mode == PNDD_BITSET) {
+                 uint64_t low = 0, high = 0;
+                 for (unsigned a = 0; a < (1u << G->widths[mode]); ++a)
+@@ -738,13 +747,14 @@ VOID_TASK_IMPL_0(initialize_fields) {
+     }
+ }
+ pndd_config pndd_default_config(void) {
+-    return (pndd_config){1, 4, 2, 4, 1, 0, 1, 512u * 1024 * 1024, 262144, 128};
++    return (pndd_config){1, 4, 2, 4, 1, 0, 1, 512u * 1024 * 1024, 262144, 128, 0};
+ }
+ static void destroy_engine(void) {
+     if (G->sylvan) sylvan_quit();
+     lace_stop();
+     for (uint32_t i = 0; i < G->node_high; ++i) deallocate(node(i));
+     for (uint32_t i = 2; i < G->label_high; ++i) deallocate(label(i));
++    for (size_t i = 0; i < G->field_count; ++i) deallocate(G->fields[i].literals);
+     for (size_t i = 0; i < BLOCKS; ++i) { deallocate(atomic_load(&G->node_blocks[i])); deallocate(atomic_load(&G->label_blocks[i])); }
+     for (size_t i = 0; i < SHARDS; ++i) {
+         deallocate(G->node_unique[i].buckets); deallocate(G->label_unique[i].buckets);
+@@ -761,8 +771,8 @@ pndd_engine *pndd_open(const pndd_config *requested, const pndd_field *fields, s
+         !c.cache_entries || c.cache_entries > SIZE_MAX / sizeof(Cache) || (c.cache_entries & (c.cache_entries - 1)) || !c.task_threshold || !c.chunk_size || c.spawn_depth > 32) {
+         open_error = "Invalid engine configuration"; pthread_mutex_unlock(&admission); return NULL;
+     }
+-    for (size_t i = 0; i < count; ++i) if (!fields[i].width || fields[i].width > 64 || fields[i].backend > PNDD_BITSET || fields[i].backend < PNDD_BDD || (fields[i].backend == PNDD_BITSET && fields[i].width > 7)) {
+-        open_error = "Field widths must be 1..64 (BITSET: 1..7)"; pthread_mutex_unlock(&admission); return NULL;
++    for (size_t i = 0; i < count; ++i) if (!fields[i].width || fields[i].width > 4096 || fields[i].backend > PNDD_BITSET || fields[i].backend < PNDD_BDD || (fields[i].backend == PNDD_BITSET && fields[i].width > 7)) {
++        open_error = "Field widths must be 1..4096 (BITSET: 1..7)"; pthread_mutex_unlock(&admission); return NULL;
+     }
+     /* The shard locks make the engine over-aligned; calloc only guarantees
+        fundamental alignment. sizeof(pndd_engine) is a multiple of its alignment. */
+@@ -775,12 +785,14 @@ pndd_engine *pndd_open(const pndd_config *requested, const pndd_field *fields, s
+         if (G->widths[fields[i].backend] < fields[i].width) G->widths[fields[i].backend] = fields[i].width;
+         if (fields[i].backend == PNDD_BCDD || fields[i].backend == PNDD_ZDD) G->sylvan = 1;
+     }
+-    for (size_t i = 0; i < count; ++i) G->fields[i].start = G->widths[fields[i].backend] - fields[i].width;
++    for (size_t i = 0; i < count; ++i) G->fields[i].start = reversed((uint32_t)i) ? 0 : G->widths[fields[i].backend] - fields[i].width;
+     G->hard_limit = c.memory_bytes - (G->sylvan ? c.memory_bytes / 4 : 0);
+     G->allocation_limit = G->hard_limit * 4 / 5;
+     /* Include the stable block directory and engine metadata in the budget. */
+     atomic_store(&G->bytes, sizeof(*G)); atomic_store(&G->peak, sizeof(*G));
+     pthread_mutex_init(&G->allocation, NULL);
++    for (size_t i = 0; i < count; ++i)
++        G->fields[i].literals = allocate(fields[i].width * 2 * sizeof(uint32_t));
+     for (size_t i = 0; i < SHARDS; ++i) {
+         atomic_flag_clear(&G->node_unique[i].lock.flag); atomic_flag_clear(&G->label_unique[i].lock.flag); atomic_flag_clear(&G->cache_locks[i].flag);
+         G->node_unique[i].size = G->label_unique[i].size = 16;
+@@ -826,7 +838,12 @@ pndd_handle pndd_apply(pndd_engine *e, pndd_op op, pndd_handle a, pndd_handle b)
+     if (begin(e)) {
+         uint32_t x = resolve(a), y = resolve(b);
+         if (op > PNDD_NOR || op < PNDD_AND) fail(3);
+-        if (!atomic_load(&G->failure)) { atomic_fetch_add(&G->runs, 1); h = own(RUN(apply_rec, op, x, y, 0)); }
++        if (!atomic_load(&G->failure)) {
++            if ((op == PNDD_AND || op == PNDD_OR) && x > y) { uint32_t t = x; x = y; y = t; }
++            uint64_t cached;
++            if (cache_get(op + 1, x, y, &cached)) h = own((uint32_t)cached);
++            else { atomic_fetch_add(&G->runs, 1); h = own(RUN(apply_rec, op, x, y, 0)); }
++        }
+     }
+     pthread_mutex_unlock(&admission); return h;
+ }
+@@ -957,6 +974,188 @@ pndd_stats pndd_get_stats(pndd_engine *e) {
+ }
+ /* Benchmark construction matches NDDSolution.java: row ORs, four independent
+  * implication folds per cell, then c&d, b&c, a&b and fixed row/cell left-fold. */
++VOID_TASK_DECL_2(snapshot_task, uint32_t, pndd_handle *);
++VOID_TASK_IMPL_2(snapshot_task, uint32_t, id, pndd_handle *, out) {
++    Node *n = node(id);
++    for (size_t i = 0; i < n->count && !atomic_load(&G->failure); ++i) {
++        out[i * 2] = own(n->edges[i].target);
++        Edge edge = {n->edges[i].label, 1};
++        out[i * 2 + 1] = own(make_node(n->field, &edge, 1));
++    }
++}
++int pndd_snapshot(pndd_engine *e, pndd_handle handle, uint32_t *field,
++                  size_t *count, pndd_handle **pairs) {
++    pthread_mutex_lock(&admission); int ok = 0; *count = 0; *pairs = NULL;
++    if (begin(e)) {
++        uint32_t id = resolve(handle);
++        if (id != INVALID_ID) {
++            Node *n = node(id); *field = n->field; size_t size = n->count;
++            pndd_handle *out = malloc(size ? size * 2 * sizeof(*out) : 1);
++            if (!out) fail(1);
++            else {
++                for (size_t i = 0; i < size * 2; ++i) out[i] = PNDD_INVALID;
++                if (size) { atomic_fetch_add(&G->runs, 1); RUN(snapshot_task, id, out); }
++                if (atomic_load(&G->failure)) {
++                    for (size_t i = 0; i < size * 2; ++i)
++                        if (out[i] != PNDD_INVALID) --node((uint32_t)out[i])->refs;
++                    free(out);
++                } else { *count = size; *pairs = out; ok = 1; }
++            }
++        }
++    }
++    pthread_mutex_unlock(&admission); return ok;
++}
++int pndd_reachable(pndd_engine *e, const pndd_handle *roots, size_t root_count,
++                   const pndd_handle *candidates, size_t count, unsigned char *mask) {
++    pthread_mutex_lock(&admission); int ok = 0;
++    if (begin(e)) {
++        for (uint32_t i = 2; i < G->node_high; ++i) { Node *n = node(i); if (n) n->mark = 0; }
++        for (size_t i = 0; i < root_count; ++i) {
++            uint32_t id = resolve(roots[i]); if (id != INVALID_ID) mark_node(id);
++        }
++        for (size_t i = 0; i < count; ++i) {
++            uint32_t id = resolve(candidates[i]);
++            mask[i] = id != INVALID_ID && (id < 2 || node(id)->mark);
++        }
++        ok = !atomic_load(&G->failure);
++    }
++    pthread_mutex_unlock(&admission); return ok;
++}
++static uint64_t condition_label(uint32_t id, uint32_t field) {
++    if (id < 2) return id ? G->fields[field].universe : 0;
++    Node *n = node(id);
++    if (n->field != field || n->count != 1 || n->edges[0].target != 1) { fail(3); return 0; }
++    return n->edges[0].label;
++}
++static int minimum_label_cost(uint32_t field, uint64_t value, int costly) {
++    const int infinity = INT_MAX / 4;
++    if (!value) return infinity;
++    if (value == truth(field)) return 0;
++    pndd_backend mode = G->fields[field].spec.backend;
++    if (mode == PNDD_BITSET) {
++        Label *l = label(value); int best = infinity;
++        unsigned mask = (1u << G->fields[field].spec.width) - 1;
++        for (unsigned a = 0; a < (1u << G->widths[mode]); ++a) {
++            if ((a < 64 ? l->low >> a : l->high >> (a - 64)) & 1) {
++                int cost = __builtin_popcount(costly ? (a & mask) : ((~a) & mask));
++                if (cost < best) best = cost;
++            }
++        }
++        return best;
++    }
++    uint32_t key = 0x20000 + mode * 2 + !!costly; uint64_t cached;
++    if (cache_get(key, value, 0, &cached)) return (int)cached;
++    uint32_t var = label_var(field, value);
++    int low = minimum_label_cost(field, branch(field, value, var, 0), costly);
++    int high = minimum_label_cost(field, branch(field, value, var, 1), costly);
++    if (low < infinity && !costly) ++low;
++    if (high < infinity && costly) ++high;
++    int result = low < high ? low : high;
++    cache_put(key, value, 0, (uint64_t)result); return result;
++}
++int pndd_min_label_cost(pndd_engine *e, pndd_handle handle, uint32_t field, int costly) {
++    pthread_mutex_lock(&admission); int result = -1;
++    if (begin(e)) {
++        uint32_t id = resolve(handle);
++        if (field >= G->field_count || (G->fields[field].spec.backend == PNDD_ZDD && !costly)) fail(3);
++        if (!atomic_load(&G->failure)) result = minimum_label_cost(field, condition_label(id, field), costly);
++        if (atomic_load(&G->failure)) result = -1;
++    }
++    pthread_mutex_unlock(&admission); return result;
++}
++typedef struct {
++    signed char *bits, *data; size_t count, capacity, limit; uint32_t field, width;
++} Cubes;
++static void emit_cube(Cubes *c) {
++    if (c->count >= c->limit) { fail(3); return; }
++    if (c->count == c->capacity) {
++        size_t capacity = c->capacity ? c->capacity * 2 : 16;
++        if (capacity > c->limit) capacity = c->limit;
++        signed char *data = realloc(c->data, capacity * c->width);
++        if (!data) { fail(1); return; }
++        c->data = data; c->capacity = capacity;
++    }
++    memcpy(c->data + c->count++ * c->width, c->bits, c->width);
++}
++static void enumerate_cubes(Cubes *c, uint64_t value) {
++    if (!value || atomic_load(&G->failure)) return;
++    if (value == truth(c->field)) { emit_cube(c); return; }
++    uint32_t var = label_var(c->field, value);
++    uint32_t bit = reversed(c->field) ? c->width - 1 - var : var - G->fields[c->field].start;
++    if (bit >= c->width) { fail(3); return; }
++    for (int high = 0; high <= 1; ++high) {
++        c->bits[bit] = (signed char)high;
++        enumerate_cubes(c, branch(c->field, value, var, high));
++    }
++    c->bits[bit] = G->fields[c->field].spec.backend == PNDD_ZDD ? 0 : -1;
++}
++int pndd_label_cubes(pndd_engine *e, pndd_handle handle, uint32_t field,
++                     size_t limit, size_t *count, signed char **cubes) {
++    pthread_mutex_lock(&admission); int ok = 0; *count = 0; *cubes = NULL;
++    if (begin(e)) {
++        uint32_t id = resolve(handle);
++        if (field >= G->field_count || !limit || limit > 65536) fail(3);
++        if (!atomic_load(&G->failure)) {
++            uint64_t value = condition_label(id, field);
++            Cubes c = {0}; c.field = field; c.width = G->fields[field].spec.width; c.limit = limit;
++            c.bits = malloc(c.width);
++            if (!c.bits) fail(1);
++            else {
++                memset(c.bits, G->fields[field].spec.backend == PNDD_ZDD ? 0 : -1, c.width);
++                if (id == 1) { memset(c.bits, -1, c.width); emit_cube(&c); }
++                else if (G->fields[field].spec.backend == PNDD_BITSET) {
++                    Label *l = value ? label(value) : NULL;
++                    for (unsigned a = 0; l && a < (1u << c.width); ++a) {
++                        if ((a < 64 ? l->low >> a : l->high >> (a - 64)) & 1) {
++                            for (unsigned bit = 0; bit < c.width; ++bit) c.bits[bit] = (a >> (c.width - bit - 1)) & 1;
++                            emit_cube(&c);
++                        }
++                    }
++                } else enumerate_cubes(&c, value);
++                free(c.bits);
++            }
++            if (atomic_load(&G->failure)) free(c.data);
++            else { *count = c.count; *cubes = c.data; ok = 1; }
++        }
++    }
++    pthread_mutex_unlock(&admission); return ok;
++}
++
++static uint64_t rotate(uint64_t value, unsigned n) { return (value << n) | (value >> (64 - n)); }
++static uint64_t fingerprint_label(uint32_t field, uint64_t value) {
++    if (!value) return mix(0xf00);
++    if (value == truth(field)) return mix(0xf01);
++    uint32_t key = 0x30000 + G->fields[field].spec.backend; uint64_t result;
++    if (cache_get(key, value, 0, &result)) return result;
++    uint32_t var = label_var(field, value);
++    if (var == UINT32_MAX) { fail(3); return 0; }
++    uint64_t low = fingerprint_label(field, branch(field, value, var, 0));
++    uint64_t high = fingerprint_label(field, branch(field, value, var, 1));
++    result = mix(var ^ rotate(low, 13) ^ rotate(high, 37) ^ UINT64_C(0xabcdef1234567890));
++    cache_put(key, value, 0, result); return result;
++}
++static uint64_t fingerprint_node(uint32_t id) {
++    if (id < 2) return mix(0xf00 + id);
++    uint64_t result;
++    if (cache_get(0x40000, id, 0, &result)) return result;
++    Node *n = node(id); uint64_t sum = 0;
++    for (size_t i = 0; i < n->count; ++i) {
++        uint64_t l = fingerprint_label(n->field, n->edges[i].label);
++        uint64_t t = fingerprint_node(n->edges[i].target);
++        sum += mix(l ^ rotate(t, 7));
++    }
++    result = mix(sum ^ ((uint64_t)n->field << 32) ^ n->count);
++    cache_put(0x40000, id, 0, result); return result;
++}
++int pndd_fingerprint(pndd_engine *e, pndd_handle handle, uint64_t *digest) {
++    pthread_mutex_lock(&admission); int ok = 0;
++    if (begin(e)) {
++        uint32_t id = resolve(handle);
++        if (!atomic_load(&G->failure)) { *digest = fingerprint_node(id); ok = !atomic_load(&G->failure); }
++    }
++    pthread_mutex_unlock(&admission); return ok;
++}
++
+ static uint32_t queen_lit(uint32_t field, uint32_t bit, int positive) { return G->fields[field].literals[bit * 2 + !!positive]; }
+ TASK_DECL_3(uint32_t, queen_cell, uint32_t, uint32_t, uint32_t);
+ TASK_IMPL_3(uint32_t, queen_cell, uint32_t, row, uint32_t, col, uint32_t, n) {
+diff --git a/native/tests/test_pndd.c b/native/tests/test_pndd.c
+index 3451ece..ba6793b 100644
+--- a/native/tests/test_pndd.c
++++ b/native/tests/test_pndd.c
+@@ -169,6 +169,35 @@ static void enormous_domain(unsigned workers) {
+     assert(pndd_collect(e)); assert(pndd_satcount(e, root) == 1);
+     pndd_release(e, root); pndd_release(e, empty); pndd_release(e, all); pndd_close(e);
+ }
++static void wide_fields_and_inspection(unsigned workers) {
++    for (int reverse = 0; reverse <= 1; ++reverse) for (int backend = PNDD_BDD; backend <= PNDD_ZDD; ++backend) {
++        pndd_field fields[] = {{108, backend}, {2, backend}};
++        pndd_config c = pndd_default_config(); c.workers = workers; c.reverse_labels = reverse;
++        pndd_engine *e = pndd_open(&c, fields, 2); assert(e);
++        pndd_handle a = pndd_literal(e, 0, 0, 1), b = pndd_literal(e, 0, 107, 0);
++        pndd_handle root = pndd_apply(e, PNDD_AND, a, b), dead = pndd_not(e, root);
++        assert(pndd_satcount(e, root) == ldexp(1, 108));
++        pndd_handle candidates[] = {a, b, root, dead}; unsigned char live[4];
++        assert(pndd_reachable(e, &root, 1, candidates, 4, live));
++        assert(live[2] && !live[0] && !live[1] && !live[3]);
++        uint32_t field; size_t count; pndd_handle *pairs;
++        assert(pndd_snapshot(e, root, &field, &count, &pairs)); assert(field == 0 && count == 1);
++        assert(pndd_min_label_cost(e, pairs[1], 0, backend == PNDD_ZDD) == 1);
++        if (backend != PNDD_ZDD) {
++            size_t cube_count; signed char *cubes;
++            assert(pndd_label_cubes(e, pairs[1], 0, 16, &cube_count, &cubes));
++            assert(cube_count == 1 && cubes[0] == 1 && cubes[107] == 0);
++            for (unsigned bit = 1; bit < 107; ++bit) assert(cubes[bit] == -1);
++            free(cubes);
++        }
++        pndd_release(e, pairs[0]); pndd_release(e, pairs[1]); free(pairs);
++        pndd_handle value = pndd_value(e, 0, UINT64_MAX);
++        assert(pndd_satcount(e, value) == 4);
++        uint64_t assignment[] = {UINT64_MAX, 0}; assert(pndd_evaluate(e, value, assignment, 2) == 1);
++        pndd_release(e, value); pndd_release(e, a); pndd_release(e, b);
++        pndd_release(e, root); pndd_release(e, dead); assert(pndd_collect(e)); pndd_close(e);
++    }
++}
+ int main(int argc, char **argv) {
+     unsigned workers = argc > 1 ? (unsigned)atoi(argv[1]) : 1;
+     for (int backend = 0; backend < 4; ++backend) exercise(workers, 0, (pndd_backend)backend);
+@@ -184,6 +213,7 @@ int main(int argc, char **argv) {
+     }
+     pressure(workers, PNDD_BCDD); pressure(workers, PNDD_ZDD); memory_failure(workers);
+     label_exhaustion(workers, PNDD_BCDD); label_exhaustion(workers, PNDD_ZDD); single_entry_gc(workers); enormous_domain(workers);
++    wide_fields_and_inspection(workers);
+     printf("all four backends, mixed fields, GC, batch, N-Queens: %u workers OK\n", workers);
+     return 0;
+ }
+diff --git a/src/main/java/org/ants/jndd/bdd/ComplementedBDD.java b/src/main/java/org/ants/jndd/bdd/ComplementedBDD.java
+index 9480885..0575c63 100644
+--- a/src/main/java/org/ants/jndd/bdd/ComplementedBDD.java
++++ b/src/main/java/org/ants/jndd/bdd/ComplementedBDD.java
+@@ -7,7 +7,8 @@ import java.util.Arrays;
+  *
+  * <p>Handles reserve bit zero as a complement flag. Internal node {@code n} has regular handle
+  * {@code n << 1}; terminals remain the conventional handles 0 and 1. The unique-table invariant
+- * requires every internal high child to be regular. Consequently negation is constant time and a
++ * requires every low child (including terminals) to be regular, as in Sylvan.
++ * Consequently negation is constant time and a
+  * function and its complement share every internal node.
+  *
+  * <p>The manager is deliberately self-contained for use as an NDD label backend: nodes are stored
+@@ -366,7 +367,9 @@ public final class ComplementedBDD {
+     private int uniqueMk(int var, int low, int high) {
+         if (low == high) return low;
+ 
+-        boolean complementResult = isInternalComplemented(high);
++        // Include the complemented TRUE terminal in normalization. Keeping low
++        // edges regular also leaves positive variable literals uncomplemented.
++        boolean complementResult = (low & 1) != 0;
+         if (complementResult) {
+             low ^= 1;
+             high ^= 1;
+diff --git a/src/main/java/org/ants/jndd/diagram/NDD.java b/src/main/java/org/ants/jndd/diagram/NDD.java
+index 4ba700d..8be118c 100644
+--- a/src/main/java/org/ants/jndd/diagram/NDD.java
++++ b/src/main/java/org/ants/jndd/diagram/NDD.java
+@@ -710,6 +710,8 @@ public class NDD {
+      */
+     public static int ref(int nodeId) { return nodeTable.ref(nodeId); }
+ 
++    public static int getReferenceCount(int nodeId) { return nodeTable.getReferenceCount(nodeId); }
++
+     /**
+      * Decrement reference count of a node.
+      *
+diff --git a/src/main/java/org/ants/jndd/nodetable/NodeTable.java b/src/main/java/org/ants/jndd/nodetable/NodeTable.java
+index 3d941f1..801c0aa 100644
+--- a/src/main/java/org/ants/jndd/nodetable/NodeTable.java
++++ b/src/main/java/org/ants/jndd/nodetable/NodeTable.java
+@@ -618,6 +618,10 @@ public class NodeTable {
+         return nodeId;
+     }
+ 
++    public int getReferenceCount(int nodeId) {
++        return nodeId <= 1 ? Integer.MAX_VALUE : refCount[nodeId];
++    }
++
+     /**
+      * Mark a node as permanently referenced (e.g. variable nodes), so it is never collected.
+      *
+diff --git a/src/main/java/org/ants/jndd/parallel/ParallelNDD.java b/src/main/java/org/ants/jndd/parallel/ParallelNDD.java
+index 9e610a1..e1f0997 100644
+--- a/src/main/java/org/ants/jndd/parallel/ParallelNDD.java
++++ b/src/main/java/org/ants/jndd/parallel/ParallelNDD.java
+@@ -16,8 +16,8 @@ public final class ParallelNDD implements AutoCloseable {
+         public final Backend backend;
+         public Field(int width, Backend backend) {
+             this.backend = Objects.requireNonNull(backend, "backend");
+-            if (width < 1 || width > 64 || (backend == Backend.BITSET && width > 7))
+-                throw new IllegalArgumentException("Width must be 1..64 (BITSET: 1..7)");
++            if (width < 1 || width > 4096 || (backend == Backend.BITSET && width > 7))
++                throw new IllegalArgumentException("Width must be 1..4096 (BITSET: 1..7)");
+             this.width = width;
+         }
+     }
+@@ -59,7 +59,7 @@ public final class ParallelNDD implements AutoCloseable {
+         }
+         synchronized (ParallelNDD.class) {
+             if (active != null) throw new IllegalStateException("Only one active native engine is supported");
+-            int flags = (config.nddParallel ? 1 : 0) | (config.labelParallel ? 2 : 0) | (config.batchParallel ? 4 : 0);
++            int flags = (config.nddParallel ? 1 : 0) | (config.labelParallel ? 2 : 0) | (config.batchParallel ? 4 : 0) | (config.reverseLabelOrder ? 8 : 0);
+             nativeEngine = openNative(widths, backends, config.workers, config.memoryBytes,
+                     config.cacheEntries, config.taskThreshold, config.chunkSize,
+                     config.spawnDepth, flags, config.gcInterval);
+@@ -91,7 +91,8 @@ public final class ParallelNDD implements AutoCloseable {
+         if (bit < 0 || bit >= fields[field].width) throw new IllegalArgumentException("Invalid bit index");
+         return wrap(literalNative(nativeEngine, field, bit, positive));
+     }
+-    /** Values are unsigned; all long bit patterns are valid for width 64. */
++    /** Values are unsigned; fields wider than 64 use zero extension. Use literals
++     * to constrain arbitrary bits of a wide field. */
+     public synchronized NDDNode value(int field, long value) {
+         checkOpen(); checkField(field);
+         if (fields[field].width < 64 && (value < 0 || (value >>> fields[field].width) != 0))
+@@ -150,6 +151,63 @@ public final class ParallelNDD implements AutoCloseable {
+     }
+     public synchronized void collect() { checkOpen(); collectNative(nativeEngine); }
+     public synchronized Stats stats() { checkOpen(); return new Stats(statsNative(nativeEngine)); }
++
++    /** Owned child roots and field conditions. A condition expresses just its
++     * edge label, with a TRUE target, and hides the backend's raw handle. */
++    public static final class Snapshot implements AutoCloseable {
++        public final int field;
++        public final NDDNode[] targets, conditions;
++        Snapshot(int field, NDDNode[] targets, NDDNode[] conditions) {
++            this.field = field; this.targets = targets; this.conditions = conditions;
++        }
++        @Override public void close() {
++            for (NDDNode node : targets) node.close();
++            for (NDDNode node : conditions) node.close();
++        }
++    }
++    public synchronized Snapshot snapshot(NDDNode root) {
++        long[] data = snapshotNative(nativeEngine, handle(root));
++        try {
++            int count = (data.length - 1) / 2;
++            NDDNode[] targets = new NDDNode[count], labels = new NDDNode[count];
++            for (int i = 0; i < count; ++i) {
++                targets[i] = new NDDNode(this, data[i * 2 + 1]);
++                labels[i] = new NDDNode(this, data[i * 2 + 2]);
++            }
++            return new Snapshot((int)data[0], targets, labels);
++        } catch (OutOfMemoryError failure) {
++            for (int i = 1; i < data.length; ++i) releaseNative(nativeEngine, data[i]);
++            throw failure;
++        }
++    }
++    /** Tests graph reachability without changing ownership. Used by adapters
++     * that retain borrowed integer handles while external roots remain alive. */
++    public synchronized boolean[] reachable(NDDNode[] roots, NDDNode[] candidates) {
++        checkOpen();
++        long[] rr = new long[roots.length], cc = new long[candidates.length];
++        for (int i = 0; i < rr.length; ++i) rr[i] = handle(roots[i]);
++        for (int i = 0; i < cc.length; ++i) cc[i] = handle(candidates[i]);
++        return reachableNative(nativeEngine, rr, cc);
++    }
++    public synchronized int minLabelCost(NDDNode condition, int field, boolean costlyValue) {
++        checkField(field);
++        if (fields[field].backend == Backend.ZDD && !costlyValue)
++            throw new UnsupportedOperationException("ZDD cost supports counting present elements only");
++        return minLabelCostNative(nativeEngine, handle(condition), field, costlyValue);
++    }
++    /** Enumerates bounded MSB-first label cubes; -1 denotes a don't-care bit. */
++    public synchronized byte[][] labelCubes(NDDNode condition, int field, int limit) {
++        checkField(field);
++        if (limit < 1 || limit > 65536) throw new IllegalArgumentException("Cube limit must be 1..65536");
++        return labelCubesNative(nativeEngine, handle(condition), field, fields[field].width, limit);
++    }
++    /** Structural 64-bit checksum for diagrams with BDD/BCDD labels, using
++     * shared variable indices and an edge-order independent combination. */
++    public synchronized long fingerprint(NDDNode root) {
++        for (Field field : fields) if (field.backend != Backend.BDD && field.backend != Backend.BCDD)
++            throw new UnsupportedOperationException("Fingerprint supports BDD/BCDD fields");
++        return fingerprintNative(nativeEngine, handle(root));
++    }
+     @Override public synchronized void close() {
+         if (!closed) {
+             synchronized (ParallelNDD.class) {
+@@ -175,4 +233,9 @@ public final class ParallelNDD implements AutoCloseable {
+     private static native long reduceNative(long engine, int op, long[] values, boolean tree);
+     private static native void collectNative(long engine);
+     private static native long[] statsNative(long engine);
++    private static native long[] snapshotNative(long engine, long root);
++    private static native boolean[] reachableNative(long engine, long[] roots, long[] candidates);
++    private static native int minLabelCostNative(long engine, long condition, int field, boolean costlyValue);
++    private static native byte[][] labelCubesNative(long engine, long condition, int field, int width, int limit);
++    private static native long fingerprintNative(long engine, long root);
+ }
+diff --git a/src/main/java/org/ants/jndd/parallel/ParallelNDDConfig.java b/src/main/java/org/ants/jndd/parallel/ParallelNDDConfig.java
+index 746bcb7..195fe53 100644
+--- a/src/main/java/org/ants/jndd/parallel/ParallelNDDConfig.java
++++ b/src/main/java/org/ants/jndd/parallel/ParallelNDDConfig.java
+@@ -5,6 +5,7 @@ public final class ParallelNDDConfig {
+     public final int workers, cacheEntries, taskThreshold, chunkSize, spawnDepth, gcInterval;
+     public final long memoryBytes;
+     public final boolean nddParallel, labelParallel, batchParallel;
++    public final boolean reverseLabelOrder;
+ 
+     public ParallelNDDConfig(int workers) {
+         this(workers, 512L << 20);
+@@ -17,6 +18,12 @@ public final class ParallelNDDConfig {
+     public ParallelNDDConfig(int workers, long memoryBytes, int cacheEntries,
+             int taskThreshold, int chunkSize, int spawnDepth, int gcInterval,
+             boolean nddParallel, boolean labelParallel, boolean batchParallel) {
++        this(workers, memoryBytes, cacheEntries, taskThreshold, chunkSize, spawnDepth,
++                gcInterval, nddParallel, labelParallel, batchParallel, false);
++    }
++    public ParallelNDDConfig(int workers, long memoryBytes, int cacheEntries,
++            int taskThreshold, int chunkSize, int spawnDepth, int gcInterval,
++            boolean nddParallel, boolean labelParallel, boolean batchParallel, boolean reverseLabelOrder) {
+         if (workers < 1 || workers > 256 || memoryBytes < (4L << 20)
+                 || cacheEntries < 1 || (cacheEntries & (cacheEntries - 1)) != 0
+                 || taskThreshold < 1 || chunkSize < 1 || spawnDepth < 0 || spawnDepth > 32
+@@ -33,5 +40,6 @@ public final class ParallelNDDConfig {
+         this.nddParallel = nddParallel;
+         this.labelParallel = labelParallel;
+         this.batchParallel = batchParallel;
++        this.reverseLabelOrder = reverseLabelOrder;
+     }
+ }
+diff --git a/src/test/java/org/ants/jndd/bdd/ComplementedBDDTest.java b/src/test/java/org/ants/jndd/bdd/ComplementedBDDTest.java
+index c656bfa..4497465 100644
+--- a/src/test/java/org/ants/jndd/bdd/ComplementedBDDTest.java
++++ b/src/test/java/org/ants/jndd/bdd/ComplementedBDDTest.java
+@@ -6,6 +6,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
+ import org.junit.jupiter.api.Test;
+ 
+ class ComplementedBDDTest {
++    @Test
++    void complementedTerminalsPreserveCanonicalIdentity() {
++        ComplementedBDD bdd = new ComplementedBDD(512, 256);
++        int x = bdd.createVar(), y = bdd.createVar();
++        int left = bdd.ref(bdd.and(bdd.not(x), y));
++        int right = bdd.ref(bdd.and(bdd.not(x), bdd.not(y)));
++        int rebuilt = bdd.ref(bdd.or(left, right));
++        assertEquals(bdd.not(x), rebuilt);
++        assertEquals(x, bdd.not(rebuilt));
++        bdd.gc(); assertEquals(bdd.not(x), bdd.or(left, right));
++        bdd.deref(left); bdd.deref(right); bdd.deref(rebuilt);
++    }
+     @Test
+     void complementedOperationsMatchTruthTablesAndSatCount() {
+         ComplementedBDD bdd = new ComplementedBDD(512, 256);
+diff --git a/src/test/java/org/ants/jndd/parallel/ParallelNDDTest.java b/src/test/java/org/ants/jndd/parallel/ParallelNDDTest.java
+index be95191..8153d63 100644
+--- a/src/test/java/org/ants/jndd/parallel/ParallelNDDTest.java
++++ b/src/test/java/org/ants/jndd/parallel/ParallelNDDTest.java
+@@ -8,6 +8,55 @@ import static org.junit.jupiter.api.Assertions.*;
+ 
+ @EnabledIfSystemProperty(named = "pndd.tests", matches = "true")
+ class ParallelNDDTest {
++    @Test void emptyReachabilityRejectsClosedEngine() {
++        ParallelNDD closed = new ParallelNDD(new ParallelNDDConfig(1),
++                new ParallelNDD.Field(1, ParallelNDD.Backend.BCDD));
++        closed.close();
++        try (ParallelNDD replacement = new ParallelNDD(new ParallelNDDConfig(1),
++                new ParallelNDD.Field(1, ParallelNDD.Backend.BCDD))) {
++            assertThrows(IllegalStateException.class,
++                    () -> closed.reachable(new NDDNode[0], new NDDNode[0]));
++            assertEquals(0, replacement.reachable(new NDDNode[0], new NDDNode[0]).length);
++        }
++    }
++    @Test void cachedScalarApplyAvoidsExternalRunAndSurvivesCollection() {
++        ParallelNDDConfig c = new ParallelNDDConfig(2, 64L << 20, 4096, 4, 2, 4, 0, true, false, true);
++        try (ParallelNDD e = new ParallelNDD(c, new ParallelNDD.Field(4, ParallelNDD.Backend.BCDD));
++             NDDNode a = e.literal(0, 0, true); NDDNode b = e.literal(0, 1, true);
++             NDDNode first = e.and(a, b)) {
++            long runs = e.stats().externalRuns;
++            try (NDDNode second = e.and(a, b)) {
++                assertEquals(first, second); assertEquals(runs, e.stats().externalRuns);
++            }
++            e.collect(); runs = e.stats().externalRuns;
++            try (NDDNode third = e.and(a, b)) {
++                assertEquals(first, third); assertEquals(runs + 1, e.stats().externalRuns);
++            }
++        }
++    }
++    @Test void wideFieldsInspectionAndBothVariableOrders() {
++        for (boolean reverse : new boolean[]{false, true})
++            for (ParallelNDD.Backend mode : new ParallelNDD.Backend[]{ParallelNDD.Backend.BDD, ParallelNDD.Backend.BCDD}) {
++                ParallelNDDConfig config = new ParallelNDDConfig(2, 64L << 20, 4096, 2, 1, 4, 1, true, true, true, reverse);
++                try (ParallelNDD e = new ParallelNDD(config, new ParallelNDD.Field(108, mode), new ParallelNDD.Field(2, mode));
++                     NDDNode a = e.literal(0, 0, true); NDDNode b = e.literal(0, 107, false);
++                     NDDNode root = e.and(a, b); NDDNode dead = e.not(root);
++                     NDDNode value = e.value(0, -1L)) {
++                    assertEquals(Math.scalb(1.0, 108), e.satCount(root));
++                    assertEquals(4.0, e.satCount(value)); assertTrue(e.evaluate(value, -1L, 0));
++                    assertArrayEquals(new boolean[]{false, false, true, false},
++                            e.reachable(new NDDNode[]{root}, new NDDNode[]{a, b, root, dead}));
++                    try (ParallelNDD.Snapshot s = e.snapshot(root)) {
++                        assertEquals(0, s.field); assertEquals(1, s.targets.length);
++                        assertEquals(1, e.minLabelCost(s.conditions[0], 0, false));
++                        byte[][] cubes = e.labelCubes(s.conditions[0], 0, 16);
++                        assertEquals(1, cubes.length); assertEquals(1, cubes[0][0]); assertEquals(0, cubes[0][107]);
++                        for (int bit = 1; bit < 107; ++bit) assertEquals(-1, cubes[0][bit]);
++                        e.collect(); assertEquals(e.fingerprint(root), e.fingerprint(s.conditions[0]));
++                    }
++                }
++            }
++    }
+     private static NDD.LabelMode legacyMode(ParallelNDD.Backend b) {
+         return b == ParallelNDD.Backend.BCDD ? NDD.LabelMode.COMPLEMENTED_BDD : NDD.LabelMode.valueOf(b.name());
+     }

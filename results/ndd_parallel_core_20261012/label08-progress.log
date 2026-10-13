@@ -1,0 +1,142 @@
+01 fattree08-mf3-native1-r1: ok total=7.558793694s wall=7.888s RSS=740.0MiB
+01 fattree08-mf3-native6-r1: ok total=5.680710503s wall=5.978s RSS=728.2MiB
+01 fattree08-mf3-native6-r2: ok total=5.773951865s wall=6.128s RSS=742.9MiB
+01 fattree08-mf3-native1-r2: ok total=7.262394434s wall=7.580s RSS=741.3MiB
+[
+  {
+    "size": 8,
+    "variant": "labelgrain",
+    "workers": 1,
+    "samples": 2,
+    "spf_fwd": 0.5153671915,
+    "native_merge_seconds": 1.6733322775000001,
+    "spf_acl": 0.00048806650000000006,
+    "timed_peak_rss_mib": 725.5859375,
+    "reachability_csv_rows": 0,
+    "label_nodes_alive_zdd": 0,
+    "native_stolen_tasks": 0,
+    "src_rib_dump": 0.1339475565,
+    "native_collections": 0,
+    "ndd_nodes_created": 1560741,
+    "wall_seconds": 7.73415368149972,
+    "wall_seconds_range": [
+      7.580340129999968,
+      7.887967232999472
+    ],
+    "ndd_test_plan": 1,
+    "total": 7.410594064,
+    "total_range": [
+      7.262394434,
+      7.558793694
+    ],
+    "ndd_native_budget_mib": 3072,
+    "label_nodes_alive_bdd": 0,
+    "spf_reachability": 1.9099907805,
+    "label_nodes_alive_bcdd": 1085073,
+    "native_external_runs": 200990,
+    "native_priority_list_requests": 6549,
+    "native_bytes": 311742648,
+    "spf": 2.4278041545000004,
+    "native_cache_misses": 21564352,
+    "native_tasks": 0,
+    "native_cache_hits": 46978097,
+    "src_compute": 4.379166348,
+    "src_compute_range": [
+      4.27815232,
+      4.480180376
+    ],
+    "mean_cpu_cores": 1.8568603922043185,
+    "semantic_condition_rows": 64120,
+    "peak_rss_mib": 740.62109375,
+    "peak_rss_mib_range": [
+      739.98046875,
+      741.26171875
+    ],
+    "exit": 7.76745e-05,
+    "verification_seconds": 0.157181407,
+    "ndd_nodes_alive": 1560741,
+    "label_nodes_created_bdd": 0,
+    "label_nodes_created_bcdd": 1085071,
+    "native_peak_bytes": 311754048,
+    "mine": 0.002071634,
+    "rib_rows": 32,
+    "native_label_collections": 0,
+    "label_nodes_alive_total": 1085073,
+    "cpu_seconds": 14.3573135,
+    "label_nodes_created_zdd": 0,
+    "bgp_routes": 30828,
+    "src": 4.513808007,
+    "init": 0.38365979149999996,
+    "adapter_collections": 0,
+    "native_priority_list_batches": 342,
+    "self_scaling": 1.0
+  },
+  {
+    "size": 8,
+    "variant": "labelgrain",
+    "workers": 6,
+    "samples": 2,
+    "spf_fwd": 0.6629279565,
+    "native_merge_seconds": 2.1001043265,
+    "spf_acl": 0.0005437915,
+    "timed_peak_rss_mib": 720.90625,
+    "reachability_csv_rows": 0,
+    "label_nodes_alive_zdd": 0,
+    "native_stolen_tasks": 42152.5,
+    "src_rib_dump": 0.13549185549999998,
+    "native_collections": 0,
+    "ndd_nodes_created": 1560741,
+    "wall_seconds": 6.05320807399994,
+    "wall_seconds_range": [
+      5.978145564000442,
+      6.128270583999438
+    ],
+    "ndd_test_plan": 1,
+    "total": 5.7273311840000005,
+    "total_range": [
+      5.680710503,
+      5.773951865
+    ],
+    "ndd_native_budget_mib": 3072,
+    "label_nodes_alive_bdd": 0,
+    "spf_reachability": 1.2480634295000002,
+    "label_nodes_alive_bcdd": 1092781,
+    "native_external_runs": 200999.5,
+    "native_priority_list_requests": 6549,
+    "native_bytes": 314673516.5,
+    "spf": 1.9136918569999999,
+    "native_cache_misses": 23509083,
+    "native_tasks": 376819.5,
+    "native_cache_hits": 47482993.5,
+    "src_compute": 3.226195155,
+    "src_compute_range": [
+      3.217170193,
+      3.235220117
+    ],
+    "mean_cpu_cores": 3.0583899873603224,
+    "semantic_condition_rows": 64120,
+    "peak_rss_mib": 735.578125,
+    "peak_rss_mib_range": [
+      728.234375,
+      742.921875
+    ],
+    "exit": 8.87735e-05,
+    "verification_seconds": 0.156838867,
+    "ndd_nodes_alive": 1560741,
+    "label_nodes_created_bdd": 0,
+    "label_nodes_created_bcdd": 1092779,
+    "native_peak_bytes": 314709548.5,
+    "mine": 0.001951806,
+    "rib_rows": 32,
+    "native_label_collections": 0,
+    "label_nodes_alive_total": 1092781,
+    "cpu_seconds": 18.5104695,
+    "label_nodes_created_zdd": 0,
+    "bgp_routes": 30828,
+    "src": 3.3624073699999997,
+    "init": 0.385705494,
+    "adapter_collections": 0,
+    "native_priority_list_batches": 342,
+    "self_scaling": 1.2939000427812521
+  }
+]

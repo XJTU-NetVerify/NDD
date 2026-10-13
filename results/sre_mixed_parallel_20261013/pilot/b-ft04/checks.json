@@ -1,0 +1,17 @@
+[
+  {
+    "size": 4,
+    "mf": 1,
+    "all_ok": false,
+    "bgp_routes": false,
+    "ndd_field_layout": false,
+    "link_variable_order_hash": false,
+    "link_polarity": false,
+    "semantic_condition_rows": true,
+    "semantic_condition_sha256": true,
+    "rib_rows": false,
+    "rib_sha256": false,
+    "reachability_csv_rows": true,
+    "reachability_csv_sha256": false
+  }
+]

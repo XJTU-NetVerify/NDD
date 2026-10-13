@@ -1,0 +1,27 @@
+{
+  "ndd_commit": "6f70a73fb6f86732ad741cea8ec75076254fe449",
+  "files": {
+    "pndd-flags.make": "db48b922b9c9ac233104f15e68f754a7968d56f99019ee99d52a202caac47e63",
+    "ndd-sources.tar.gz": "6e85ea52ae69572ae36a0d8fe478f3071150bfb1dda9a4b3d7d4bfc400ddc838",
+    "libpnddjni.so": "c541b4344540b0b34a1ffc39f5edaf9c1c277fc28e6ab2010a386e796a29be18",
+    "lace-flags.make": "2cc8a187804c937403c6930e39e4fa17bd9f548c326f2b6ba26cedc05247aa7d",
+    "pndd_nqueens": "6d732e4e62f79649ddc428ef569f4388d2d9c8c56efb44b2737b851953f115f1",
+    "ndd.diff": "6711cbe8eaca0d1ddcb1c6d1574f33f36c8433645e8361ecd62ace5251166932",
+    "pndd.c": "254ec5c9e8d3a6facf34ba625b9efe518921611aa4e6466a71d89f01cefd2a5a",
+    "timed-rootcache.so": "a928cd2c142ff2254bf96b8b3670f7ef9cd679e5ea1874b738c2a7176abdcc96",
+    "CMakeCache.txt": "dd983b7422425514ca332e9204be9c0f3b0a614f74a9fb8f793a9ee5fb2436f5",
+    "timed-CMakeCache.txt": "a715ccec717c6fd5567d5fe5618b7a492eac5918e0c112b69fcc0247ce31e4e4",
+    "timed-lace.c": "8a5192194acdb1c6412987caf5bcff4ad2d3d2af750de95b94134f14c5cb7274",
+    "final-lace.c": "f7f82da5c43fb40aec8aad89b1a8077d63b4f5c0a373b00726c45a4876cb77a5"
+  },
+  "java_workload": "../sre_priority_batch_20261012/final/ndd.jar and sre-classes, unchanged",
+  "defaults": [
+    "PNDD_OPTIMISTIC_CACHE",
+    "PNDD_ROOT_AFFINITY"
+  ],
+  "experimental_default_off": [
+    "PNDD_BATCH_GRAIN",
+    "PNDD_PENDING_PARTITION",
+    "PNDD_LABEL_GRAIN"
+  ]
+}

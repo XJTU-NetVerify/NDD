@@ -1,0 +1,8 @@
+1/8 hashgc1 r1: ok total=19.676044712s
+2/8 hashcount6 r1: ok total=24.58248866s
+3/8 hashcount1 r1: ok total=22.974899033s
+4/8 hashgc6 r1: ok total=21.759064827s
+5/8 hashgc6 r2: ok total=22.037045245s
+6/8 hashcount1 r2: ok total=23.106350738s
+7/8 hashgc1 r2: ok total=19.882272972s
+8/8 hashcount6 r2: ok total=24.963952801s

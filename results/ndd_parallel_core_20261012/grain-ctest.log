@@ -1,0 +1,16 @@
+Internal ctest changing into directory: /home/cheney/NDD/native/build-par-grain
+Test project /home/cheney/NDD/native/build-par-grain
+    Start 1: pndd_correctness_1
+1/5 Test #1: pndd_correctness_1 ...............   Passed    0.86 sec
+    Start 2: pndd_correctness_2
+2/5 Test #2: pndd_correctness_2 ...............   Passed    4.94 sec
+    Start 3: pndd_correctness_4
+3/5 Test #3: pndd_correctness_4 ...............   Passed   12.63 sec
+    Start 4: pndd_correctness_6
+4/5 Test #4: pndd_correctness_6 ...............   Passed   13.47 sec
+    Start 5: pndd_cache_collision_6
+5/5 Test #5: pndd_cache_collision_6 ...........   Passed   13.73 sec
+
+100% tests passed, 0 tests failed out of 5
+
+Total Test time (real) =  45.64 sec

@@ -1,0 +1,8 @@
+01 fattree12-mf2-native1-r1: ok total=25.788154218s wall=26.493s RSS=1963.7MiB
+02 fattree12-mf2-native2-r1: ok total=23.942127164s wall=24.678s RSS=1946.0MiB
+03 fattree12-mf2-java-r1: ok total=22.313938214s wall=22.882s RSS=3011.9MiB
+04 fattree12-mf2-native6-r1: ok total=25.21555642s wall=25.958s RSS=2023.7MiB
+05 fattree12-mf2-native2-r2: ok total=21.818740295s wall=22.508s RSS=2119.1MiB
+06 fattree12-mf2-native1-r2: ok total=24.568534745s wall=25.300s RSS=2372.6MiB
+07 fattree12-mf2-java-r2: ok total=21.919944553s wall=22.426s RSS=3023.7MiB
+08 fattree12-mf2-native6-r2: ok total=25.190913165s wall=25.949s RSS=2170.2MiB

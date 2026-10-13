@@ -1,0 +1,120 @@
+{
+  "all_ok": true,
+  "sre_runs": 14,
+  "nqueens_runs": 8,
+  "same_measured_binaries": true,
+  "rows": [
+    {
+      "experiment": "labels-off",
+      "size": 8,
+      "mf": 3,
+      "engine": "native1",
+      "repeat": 1,
+      "matches_frozen": true
+    },
+    {
+      "experiment": "labels-off",
+      "size": 8,
+      "mf": 3,
+      "engine": "native6",
+      "repeat": 1,
+      "matches_frozen": true
+    },
+    {
+      "experiment": "labels-off",
+      "size": 8,
+      "mf": 3,
+      "engine": "native1",
+      "repeat": 2,
+      "matches_frozen": true
+    },
+    {
+      "experiment": "labels-off",
+      "size": 8,
+      "mf": 3,
+      "engine": "native6",
+      "repeat": 2,
+      "matches_frozen": true
+    },
+    {
+      "experiment": "labels-on",
+      "size": 8,
+      "mf": 3,
+      "engine": "native1",
+      "repeat": 1,
+      "matches_frozen": true
+    },
+    {
+      "experiment": "labels-on",
+      "size": 8,
+      "mf": 3,
+      "engine": "native6",
+      "repeat": 1,
+      "matches_frozen": true
+    },
+    {
+      "experiment": "labels-on",
+      "size": 8,
+      "mf": 3,
+      "engine": "native1",
+      "repeat": 2,
+      "matches_frozen": true
+    },
+    {
+      "experiment": "labels-on",
+      "size": 8,
+      "mf": 3,
+      "engine": "native6",
+      "repeat": 2,
+      "matches_frozen": true
+    },
+    {
+      "experiment": "gc40",
+      "size": 12,
+      "mf": 3,
+      "engine": "native1",
+      "repeat": 1,
+      "matches_frozen": true
+    },
+    {
+      "experiment": "gc40",
+      "size": 12,
+      "mf": 3,
+      "engine": "native6",
+      "repeat": 1,
+      "matches_frozen": true
+    },
+    {
+      "experiment": "gc40",
+      "size": 12,
+      "mf": 3,
+      "engine": "native1",
+      "repeat": 2,
+      "matches_frozen": true
+    },
+    {
+      "experiment": "gc40",
+      "size": 12,
+      "mf": 3,
+      "engine": "native6",
+      "repeat": 2,
+      "matches_frozen": true
+    },
+    {
+      "experiment": "gc40-labels-on",
+      "size": 12,
+      "mf": 3,
+      "engine": "native6",
+      "repeat": 1,
+      "matches_frozen": true
+    },
+    {
+      "experiment": "gc40-labels-on",
+      "size": 12,
+      "mf": 3,
+      "engine": "native6",
+      "repeat": 2,
+      "matches_frozen": true
+    }
+  ]
+}

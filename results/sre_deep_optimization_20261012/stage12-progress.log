@@ -1,0 +1,8 @@
+01 fattree08-mf3-native1-r1: ok total=7.995102195s wall=8.335s RSS=614.0MiB
+02 fattree08-mf3-native2-r1: ok total=7.655342963s wall=7.995s RSS=621.9MiB
+03 fattree08-mf3-java-r1: ok total=7.832980071s wall=8.211s RSS=1243.6MiB
+04 fattree08-mf3-native6-r1: ok total=8.875601813s wall=9.211s RSS=618.5MiB
+05 fattree08-mf3-native2-r2: ok total=7.66021225s wall=7.984s RSS=618.5MiB
+06 fattree08-mf3-native1-r2: ok total=7.852833849s wall=8.196s RSS=619.2MiB
+07 fattree08-mf3-java-r2: ok total=7.371521147s wall=7.688s RSS=874.2MiB
+08 fattree08-mf3-native6-r2: ok total=8.642013106s wall=8.986s RSS=688.9MiB

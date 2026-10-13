@@ -1,0 +1,16 @@
+1/16 hashcount6 r1: ok total=7.580078028s cpu=2.69 RSS=431.4
+2/16 hashopt1 r1: ok total=6.630716337s cpu=1.92 RSS=588.2
+3/16 base1 r1: ok total=9.559400575s cpu=2.12 RSS=419.0
+4/16 hash6 r1: ok total=8.624621771s cpu=2.62 RSS=426.3
+5/16 hash1 r1: ok total=7.245193822s cpu=2.01 RSS=443.8
+6/16 hashcount1 r1: ok total=6.136170639s cpu=1.94 RSS=440.5
+7/16 base6 r1: ok total=12.965364847s cpu=2.18 RSS=424.1
+8/16 hashopt6 r1: ok total=8.073217751s cpu=2.65 RSS=574.6
+9/16 base1 r2: ok total=10.149840868s cpu=2.01 RSS=412.7
+10/16 hashopt1 r2: ok total=6.563787212s cpu=1.94 RSS=591.5
+11/16 hashcount1 r2: ok total=6.101500822s cpu=2.00 RSS=444.1
+12/16 hashopt6 r2: ok total=8.098611862s cpu=2.62 RSS=573.9
+13/16 hash6 r2: ok total=8.861538102s cpu=2.54 RSS=425.8
+14/16 base6 r2: ok total=13.734735728s cpu=2.24 RSS=423.4
+15/16 hashcount6 r2: ok total=7.745137364s cpu=2.74 RSS=427.6
+16/16 hash1 r2: ok total=7.603467539s cpu=1.97 RSS=445.8

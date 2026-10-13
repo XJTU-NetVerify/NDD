@@ -1,0 +1,10 @@
+1/10 base6 r1: ok total=39.346428055s cpu=1.84 RSS=568.1
+2/10 base1 r1: ok total=36.222269969s cpu=1.70 RSS=707.6
+3/10 java r1: ok total=7.567948999s cpu=1.53 RSS=879.5
+4/10 hashcount1 r1: ok total=23.346390439s cpu=1.51 RSS=502.0
+5/10 hashcount6 r1: ok total=24.823139243s cpu=2.24 RSS=677.6
+6/10 hashcount1 r2: ok total=23.410728278s cpu=1.52 RSS=601.5
+7/10 java r2: ok total=7.690767325s cpu=1.52 RSS=859.7
+8/10 base6 r2: ok total=41.335447461s cpu=1.86 RSS=668.3
+9/10 base1 r2: ok total=38.574269506s cpu=1.67 RSS=550.4
+10/10 hashcount6 r2: ok total=24.832813893s cpu=2.24 RSS=757.7

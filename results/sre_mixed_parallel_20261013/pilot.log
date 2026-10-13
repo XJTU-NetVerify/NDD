@@ -1,0 +1,25 @@
+BEGIN profile=A fattree04
+01 fattree04-mf1-native6-r1: error total=Nones wall=0.204s RSS=68.4MiB
+02 fattree04-mf1-java-r1: error total=0.281230292s wall=0.357s RSS=123.6MiB
+03 fattree04-mf1-native1-r1: error total=Nones wall=0.204s RSS=71.5MiB
+04 fattree04-mf1-java-r2: error total=0.281797751s wall=0.357s RSS=122.1MiB
+05 fattree04-mf1-native1-r2: error total=Nones wall=0.203s RSS=76.6MiB
+06 fattree04-mf1-native6-r2: error total=Nones wall=0.203s RSS=66.3MiB
+One or more runs failed or semantic checks differ; inspect checks.json and logs.
+BEGIN profile=B fattree04
+01 fattree04-mf1-native6-r1: error total=Nones wall=0.204s RSS=77.7MiB
+02 fattree04-mf1-java-r1: error total=0.262755628s wall=0.352s RSS=94.1MiB
+03 fattree04-mf1-native1-r1: error total=Nones wall=0.201s RSS=76.9MiB
+04 fattree04-mf1-java-r2: error total=0.264876792s wall=0.352s RSS=121.4MiB
+05 fattree04-mf1-native1-r2: error total=Nones wall=0.201s RSS=78.7MiB
+06 fattree04-mf1-native6-r2: error total=Nones wall=0.201s RSS=77.4MiB
+One or more runs failed or semantic checks differ; inspect checks.json and logs.
+BEGIN profile=D fattree04
+01 fattree04-mf1-native6-r1: ok total=0.320477114s wall=0.402s RSS=126.6MiB
+02 fattree04-mf1-java-r1: error total=0.268606475s wall=0.352s RSS=104.9MiB
+03 fattree04-mf1-native1-r1: ok total=0.280670603s wall=0.352s RSS=116.4MiB
+04 fattree04-mf1-java-r2: error total=0.265795331s wall=0.352s RSS=105.7MiB
+05 fattree04-mf1-native1-r2: ok total=0.284734885s wall=0.356s RSS=121.9MiB
+06 fattree04-mf1-native6-r2: ok total=0.309764028s wall=0.408s RSS=131.1MiB
+One or more runs failed or semantic checks differ; inspect checks.json and logs.
+Completed 18 fresh processes; failures: 14

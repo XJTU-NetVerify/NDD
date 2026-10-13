@@ -17,6 +17,7 @@ typedef struct {
     int ndd_parallel, label_parallel, batch_parallel;
     size_t memory_bytes, cache_entries;
     uint32_t gc_interval;
+    int reverse_labels; /* BDD/BCDD LSB-first compatibility with legacy Java. */
 } pndd_config;
 typedef struct {
     uint64_t nodes_live, nodes_created, labels_live, labels_created;
@@ -42,9 +43,44 @@ double pndd_satcount(pndd_engine *, pndd_handle);
 int pndd_evaluate(pndd_engine *, pndd_handle, const uint64_t *, size_t);
 int pndd_apply_batch(pndd_engine *, pndd_op, const pndd_handle *,
                      const pndd_handle *, size_t, pndd_handle *);
+/* Ordered priority groups, exclusive ends. Results correspond to [start,count).
+ * Each result is budget & input[i], excluding all earlier groups; without
+ * PNDD_PRIORITY_MULTIPATH, earlier inputs in the same group are excluded too.
+ * PNDD_PRIORITY_INTERSECT_FIRST changes evaluation order, preserving semantics.
+ * Inputs are borrowed, outputs are owned; one top-level Lace RUN per batch. */
+enum { PNDD_PRIORITY_MULTIPATH = 1, PNDD_PRIORITY_INTERSECT_FIRST = 2 };
+int pndd_priority_select(pndd_engine *, pndd_handle budget, const pndd_handle *,
+                         size_t count, const uint32_t *ends, size_t groups,
+                         size_t start, int flags, pndd_handle *out);
+/* Independent complete lists, one admission/RUN. Arrays remain borrowed until
+ * return. Output arrays must not overlap. Each out has count-start slots,
+ * each receiving one owned reference.
+ * Failure returns no owned outputs, including when a later list is invalid. */
+typedef struct {
+    pndd_handle budget;
+    const pndd_handle *input;
+    size_t count;
+    const uint32_t *ends;
+    size_t groups, start;
+    int flags;
+    pndd_handle *out;
+} pndd_priority_request;
+int pndd_priority_batch(pndd_engine *, const pndd_priority_request *, size_t);
 pndd_handle pndd_reduce(pndd_engine *, pndd_op, const pndd_handle *, size_t, int tree);
 int pndd_collect(pndd_engine *);
 pndd_stats pndd_get_stats(pndd_engine *);
+/* Inspection returns owned (target, field-condition) pairs; free the array and
+ * release each handle. Conditions keep backend-specific labels opaque. */
+int pndd_snapshot(pndd_engine *, pndd_handle, uint32_t *field,
+                  size_t *count, pndd_handle **pairs);
+int pndd_reachable(pndd_engine *, const pndd_handle *roots, size_t root_count,
+                   const pndd_handle *candidates, size_t count, unsigned char *mask);
+int pndd_min_label_cost(pndd_engine *, pndd_handle condition, uint32_t field, int costly_value);
+/* Header cubes use -1 for don't-care, 0/1 for a fixed bit, MSB first.
+ * Caller frees cubes; enumeration is bounded by limit. */
+int pndd_label_cubes(pndd_engine *, pndd_handle condition, uint32_t field,
+                     size_t limit, size_t *count, signed char **cubes);
+int pndd_fingerprint(pndd_engine *, pndd_handle, uint64_t *digest);
 /* Benchmark-only entry: identical solver without per-operation external RUN. */
 double pndd_nqueens(pndd_engine *, uint32_t n, int compact, int tree);
 #ifdef __cplusplus

@@ -1,0 +1,14 @@
+ndd_backend_profile:ALL_BCDD
+ndd_domain_order:HEADER_LINK
+ndd_test_plan:1
+ndd_backend_capacity:COMPLEMENTED_BDD=11000000/8388608
+ndd_engine:native
+ndd_workers:1
+ndd_native_budget_mib:3072
+ndd_label_order:legacy-lsb-first
+ndd_parallel:true
+ndd_label_parallel:false
+ndd_field_layout:0:dstIP:32:COMPLEMENTED_BDD,1:srcIP:32:COMPLEMENTED_BDD,2:dstPort:16:COMPLEMENTED_BDD,3:srcPort:16:COMPLEMENTED_BDD,4:protocol:8:COMPLEMENTED_BDD,5:link0:108:COMPLEMENTED_BDD,6:link1:108:COMPLEMENTED_BDD,7:link2:108:COMPLEMENTED_BDD,8:link3:108:COMPLEMENTED_BDD,9:link4:108:COMPLEMENTED_BDD,10:link5:108:COMPLEMENTED_BDD,11:link6:108:COMPLEMENTED_BDD,12:link7:108:COMPLEMENTED_BDD
+link_variable_order_hash:d77d8a117d51b8c3
+link_polarity:1=up
+init:1.14515528

@@ -1,0 +1,36 @@
+[  3%] Building C object _deps/lace-build/CMakeFiles/lace.dir/src/lace.c.o
+[  7%] Building C object _deps/lace-build/CMakeFiles/lace14.dir/src/lace14.c.o
+[ 10%] Linking C static library liblace14.a
+[ 14%] Linking C static library liblace.a
+[ 14%] Built target lace14
+[ 14%] Built target lace
+[ 17%] Building C object sylvan-build/src/CMakeFiles/sylvan.dir/sha2.c.o
+[ 21%] Building C object sylvan-build/src/CMakeFiles/sylvan.dir/sylvan_bdd.c.o
+[ 25%] Building C object sylvan-build/src/CMakeFiles/sylvan.dir/sylvan_common.c.o
+[ 28%] Building C object sylvan-build/src/CMakeFiles/sylvan.dir/sylvan_cache.c.o
+[ 32%] Building C object sylvan-build/src/CMakeFiles/sylvan.dir/sylvan_hash.c.o
+[ 35%] Building C object sylvan-build/src/CMakeFiles/sylvan.dir/sylvan_ldd.c.o
+[ 39%] Building C object sylvan-build/src/CMakeFiles/sylvan.dir/sylvan_mt.c.o
+[ 42%] Building C object sylvan-build/src/CMakeFiles/sylvan.dir/sylvan_mtbdd.c.o
+[ 46%] Building C object sylvan-build/src/CMakeFiles/sylvan.dir/sylvan_refs.c.o
+[ 50%] Building C object sylvan-build/src/CMakeFiles/sylvan.dir/sylvan_sl.c.o
+[ 53%] Building C object sylvan-build/src/CMakeFiles/sylvan.dir/sylvan_stats.c.o
+[ 57%] Building C object sylvan-build/src/CMakeFiles/sylvan.dir/sylvan_table.c.o
+[ 60%] Building C object sylvan-build/src/CMakeFiles/sylvan.dir/sylvan_zdd.c.o
+[ 64%] Linking C static library libsylvan.a
+[ 64%] Built target sylvan
+[ 67%] Building C object CMakeFiles/pndd.dir/src/pndd.c.o
+[ 71%] Linking C static library libpndd.a
+[ 71%] Built target pndd
+[ 75%] Building C object CMakeFiles/pnddjni.dir/src/jni.c.o
+[ 82%] Building C object CMakeFiles/pndd_nqueens.dir/bench/nqueens.c.o
+[ 82%] Building C object CMakeFiles/pndd_entry.dir/bench/entry.c.o
+[ 85%] Building C object CMakeFiles/pndd_test.dir/tests/test_pndd.c.o
+[ 89%] Linking C executable pndd_entry
+[ 92%] Linking C executable pndd_nqueens
+[ 92%] Built target pndd_entry
+[ 96%] Linking C shared library libpnddjni.so
+[ 96%] Built target pndd_nqueens
+[100%] Linking C executable pndd_test
+[100%] Built target pnddjni
+[100%] Built target pndd_test

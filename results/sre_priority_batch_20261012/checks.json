@@ -1,0 +1,220 @@
+{
+  "valid": true,
+  "runs": 44,
+  "fields": [
+    "bgp_routes",
+    "ndd_field_layout",
+    "link_variable_order_hash",
+    "link_polarity",
+    "semantic_condition_rows",
+    "semantic_condition_sha256",
+    "rib_rows",
+    "rib_sha256",
+    "reachability_csv_rows",
+    "reachability_csv_sha256"
+  ],
+  "cases": [
+    {
+      "phase": "first08-on",
+      "runs": 6,
+      "complete": true,
+      "expected_case": true,
+      "all_ok": true,
+      "same_outputs": true,
+      "golden_outputs": true
+    },
+    {
+      "phase": "first08-off",
+      "runs": 4,
+      "complete": true,
+      "expected_case": true,
+      "all_ok": true,
+      "same_outputs": true,
+      "golden_outputs": true
+    },
+    {
+      "phase": "first08-old",
+      "runs": 4,
+      "complete": true,
+      "expected_case": true,
+      "all_ok": true,
+      "same_outputs": true,
+      "golden_outputs": true
+    },
+    {
+      "phase": "large12-on",
+      "runs": 8,
+      "complete": true,
+      "expected_case": true,
+      "all_ok": true,
+      "same_outputs": true,
+      "golden_outputs": true
+    },
+    {
+      "phase": "large12-off",
+      "runs": 4,
+      "complete": true,
+      "expected_case": true,
+      "all_ok": true,
+      "same_outputs": true,
+      "golden_outputs": true
+    },
+    {
+      "phase": "large12-old",
+      "runs": 4,
+      "complete": true,
+      "expected_case": true,
+      "all_ok": true,
+      "same_outputs": true,
+      "golden_outputs": true
+    },
+    {
+      "phase": "regression",
+      "size": 12,
+      "mf": 1,
+      "repeat": 1,
+      "all_ok": true,
+      "golden_outputs": true
+    },
+    {
+      "phase": "regression",
+      "size": 12,
+      "mf": 2,
+      "repeat": 1,
+      "all_ok": true,
+      "golden_outputs": true
+    },
+    {
+      "phase": "regression",
+      "size": 12,
+      "mf": 1,
+      "repeat": 2,
+      "all_ok": true,
+      "golden_outputs": true
+    },
+    {
+      "phase": "regression",
+      "size": 12,
+      "mf": 2,
+      "repeat": 2,
+      "all_ok": true,
+      "golden_outputs": true
+    },
+    {
+      "phase": "regression",
+      "size": 4,
+      "mf": 3,
+      "repeat": 1,
+      "all_ok": true,
+      "golden_outputs": true
+    },
+    {
+      "phase": "regression",
+      "size": 4,
+      "mf": 1,
+      "repeat": 1,
+      "all_ok": true,
+      "golden_outputs": true
+    },
+    {
+      "phase": "regression",
+      "size": 4,
+      "mf": 2,
+      "repeat": 1,
+      "all_ok": true,
+      "golden_outputs": true
+    },
+    {
+      "phase": "regression",
+      "size": 4,
+      "mf": 1,
+      "repeat": 2,
+      "all_ok": true,
+      "golden_outputs": true
+    },
+    {
+      "phase": "regression",
+      "size": 4,
+      "mf": 2,
+      "repeat": 2,
+      "all_ok": true,
+      "golden_outputs": true
+    },
+    {
+      "phase": "regression",
+      "size": 4,
+      "mf": 3,
+      "repeat": 2,
+      "all_ok": true,
+      "golden_outputs": true
+    },
+    {
+      "phase": "regression",
+      "size": 8,
+      "mf": 1,
+      "repeat": 1,
+      "all_ok": true,
+      "golden_outputs": true
+    },
+    {
+      "phase": "regression",
+      "size": 8,
+      "mf": 2,
+      "repeat": 1,
+      "all_ok": true,
+      "golden_outputs": true
+    },
+    {
+      "phase": "regression",
+      "size": 8,
+      "mf": 1,
+      "repeat": 2,
+      "all_ok": true,
+      "golden_outputs": true
+    },
+    {
+      "phase": "regression",
+      "size": 8,
+      "mf": 2,
+      "repeat": 2,
+      "all_ok": true,
+      "golden_outputs": true
+    },
+    {
+      "phase": "regression",
+      "complete": true
+    }
+  ],
+  "controls": [
+    {
+      "case": "first08",
+      "same_build_on_off": true,
+      "same_capacity_and_flags": true,
+      "same_inputs": true,
+      "same_affinity": true,
+      "same_java_control": true,
+      "old_has_frozen_classpath": true
+    },
+    {
+      "case": "large12",
+      "same_build_on_off": true,
+      "same_capacity_and_flags": true,
+      "same_inputs": true,
+      "same_affinity": true,
+      "same_java_control": true,
+      "old_has_frozen_classpath": true
+    }
+  ],
+  "interruptions": [
+    {
+      "directory": "large12-off",
+      "completed_samples": 2,
+      "unfinished_logs": [
+        "logs/fattree12-mf3-native1-r2.log"
+      ],
+      "reason": "Benchmark process was no longer running after chat turn transition. Completed samples preserved; missing repetition runs in a new directory."
+    }
+  ],
+  "golden": "/home/cheney/NDD/results/sre_deep_optimization_20261012/final-runs.csv",
+  "golden_sha256": "264fdac9341bccd609b37d2820bf248abd091b88cf7def4ef4fa7e792cc64b44"
+}

@@ -1,0 +1,11 @@
+{
+  "executable": "/home/cheney/NDD/native/build-par-final/pndd_nqueens",
+  "sha256": "6d732e4e62f79649ddc428ef569f4388d2d9c8c56efb44b2737b851953f115f1",
+  "cpus": "0,2,4,6,8,10",
+  "memory_mib": 3072,
+  "cache_entries": 262144,
+  "encoding": "original",
+  "tree": false,
+  "label_parallel": false,
+  "repeats": 2
+}

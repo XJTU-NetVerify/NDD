@@ -1,0 +1,18 @@
+{
+  "runs": 89,
+  "phases": [
+    "profile",
+    "matrix",
+    "hash",
+    "countnode",
+    "confirm",
+    "largeprofile",
+    "larger",
+    "gc",
+    "postparallel"
+  ],
+  "all_successful": true,
+  "all_semantic_checks_passed": true,
+  "all_phase_rib_outputs_match": true,
+  "separate_jfr_runs_excluded": 1
+}

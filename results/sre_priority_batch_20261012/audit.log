@@ -1,0 +1,180 @@
+{
+  "valid": true,
+  "runs": 44,
+  "checks": [
+    {
+      "phase": "first08-on",
+      "runs": 6,
+      "complete": true,
+      "expected_case": true,
+      "all_ok": true,
+      "same_outputs": true,
+      "golden_outputs": true
+    },
+    {
+      "phase": "first08-off",
+      "runs": 4,
+      "complete": true,
+      "expected_case": true,
+      "all_ok": true,
+      "same_outputs": true,
+      "golden_outputs": true
+    },
+    {
+      "phase": "first08-old",
+      "runs": 4,
+      "complete": true,
+      "expected_case": true,
+      "all_ok": true,
+      "same_outputs": true,
+      "golden_outputs": true
+    },
+    {
+      "phase": "large12-on",
+      "runs": 8,
+      "complete": true,
+      "expected_case": true,
+      "all_ok": true,
+      "same_outputs": true,
+      "golden_outputs": true
+    },
+    {
+      "phase": "large12-off",
+      "runs": 4,
+      "complete": true,
+      "expected_case": true,
+      "all_ok": true,
+      "same_outputs": true,
+      "golden_outputs": true
+    },
+    {
+      "phase": "large12-old",
+      "runs": 4,
+      "complete": true,
+      "expected_case": true,
+      "all_ok": true,
+      "same_outputs": true,
+      "golden_outputs": true
+    },
+    {
+      "phase": "regression",
+      "size": 12,
+      "mf": 1,
+      "repeat": 1,
+      "all_ok": true,
+      "golden_outputs": true
+    },
+    {
+      "phase": "regression",
+      "size": 12,
+      "mf": 2,
+      "repeat": 1,
+      "all_ok": true,
+      "golden_outputs": true
+    },
+    {
+      "phase": "regression",
+      "size": 12,
+      "mf": 1,
+      "repeat": 2,
+      "all_ok": true,
+      "golden_outputs": true
+    },
+    {
+      "phase": "regression",
+      "size": 12,
+      "mf": 2,
+      "repeat": 2,
+      "all_ok": true,
+      "golden_outputs": true
+    },
+    {
+      "phase": "regression",
+      "size": 4,
+      "mf": 3,
+      "repeat": 1,
+      "all_ok": true,
+      "golden_outputs": true
+    },
+    {
+      "phase": "regression",
+      "size": 4,
+      "mf": 1,
+      "repeat": 1,
+      "all_ok": true,
+      "golden_outputs": true
+    },
+    {
+      "phase": "regression",
+      "size": 4,
+      "mf": 2,
+      "repeat": 1,
+      "all_ok": true,
+      "golden_outputs": true
+    },
+    {
+      "phase": "regression",
+      "size": 4,
+      "mf": 1,
+      "repeat": 2,
+      "all_ok": true,
+      "golden_outputs": true
+    },
+    {
+      "phase": "regression",
+      "size": 4,
+      "mf": 2,
+      "repeat": 2,
+      "all_ok": true,
+      "golden_outputs": true
+    },
+    {
+      "phase": "regression",
+      "size": 4,
+      "mf": 3,
+      "repeat": 2,
+      "all_ok": true,
+      "golden_outputs": true
+    },
+    {
+      "phase": "regression",
+      "size": 8,
+      "mf": 1,
+      "repeat": 1,
+      "all_ok": true,
+      "golden_outputs": true
+    },
+    {
+      "phase": "regression",
+      "size": 8,
+      "mf": 2,
+      "repeat": 1,
+      "all_ok": true,
+      "golden_outputs": true
+    },
+    {
+      "phase": "regression",
+      "size": 8,
+      "mf": 1,
+      "repeat": 2,
+      "all_ok": true,
+      "golden_outputs": true
+    },
+    {
+      "phase": "regression",
+      "size": 8,
+      "mf": 2,
+      "repeat": 2,
+      "all_ok": true,
+      "golden_outputs": true
+    },
+    {
+      "phase": "regression",
+      "complete": true
+    }
+  ]
+}
+| 输入 | Java s | 旧 native1 s | 旧 native6 s | 新 native1 s | 新 native2 s | 新 native6 s | 自身 1/6 | Java/新 6 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| 08/MF3 | 8.088 | 7.721 | 7.882 | 7.412 | — | 6.188 | 1.198× | 1.307× |
+| 12/MF3 | 323.948 | 113.812 | 113.107 | 121.398 | 82.430 | 68.434 | 1.774× | 4.734× |
