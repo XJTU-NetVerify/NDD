@@ -1,9 +1,14 @@
-# MTNDD 模块
+# 旧 MTPNDD 兼容模块与历史数据
 
-本目录来自 `Augists/mtpndd` 的 `a8649f5`，C/Java 包名 `MTPNDD` 保留兼容。
-当前实现、构建、使用与历史数据见 [分支 README](../README.md)。
+推荐使用根README中的 `native/` 共享核心及 `ParallelMTNDD` / `MTNDDNode`。本目录保留 `~/mtpndd` 的原型源码、历史benchmark与旧JNI；它的borrowed API已deprecated，新路径的owned-root/GC保证不适用于旧静态接口。
 
-- [来源和固定依赖](UPSTREAM.json)
-- [完成度及本次修正](docs/STATUS.md)
-- [已有 benchmark 数据与校验](results/upstream-20260422/README.md)
-- [上游原始 README](UPSTREAM_README.md)：历史材料，性能和完成度以分支 README 为准。
+旧模块仍可独立构建：
+
+```sh
+cmake -S mtndd -B mtndd/build -DCMAKE_BUILD_TYPE=Release
+cmake --build mtndd/build -j6
+ctest --test-dir mtndd/build --output-on-failure
+mvn -f mtndd/jni/pom.xml -Dorg.ants.mtpndd.library.path="$PWD/mtndd/build/jni/libmtpnddjni.so" test package
+```
+
+[当前完成度](docs/STATUS.md) / [迁移](docs/MIGRATION.md) / [旧路径审查](docs/status-legacy-20261013.md) / [历史性能](results/upstream-20260422/README.md) / [上游README](UPSTREAM_README.md) / [来源](UPSTREAM.json)。

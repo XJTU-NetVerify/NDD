@@ -3,11 +3,15 @@ package org.ants.mtpndd;
 import java.util.Objects;
 
 /**
+ * @deprecated Compatibility prototype. New code should use owned roots in
+ * {@code org.ants.jndd.parallel.ParallelMTNDD}; this API retains borrowed pointers.
+ *
  * Immutable handle to an MTPNDD node exposed to Java callers.
  *
  * <p>Instances are thin wrappers around native pointers. All node-transforming operations create
  * new {@link MTPNDD} instances; original nodes remain valid after the call.</p>
  */
+@Deprecated
 public final class MTPNDD {
     final long nativePtr;
     final long generation;

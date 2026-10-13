@@ -1,9 +1,9 @@
 name: Native NDD
 on:
   push:
-    branches: [main, parallel]
+    branches: [main, parallel, parallel-MTNDD]
   pull_request:
-    branches: [main, parallel]
+    branches: [main, parallel, parallel-MTNDD]
 permissions:
   contents: read
 jobs:
@@ -28,11 +28,12 @@ jobs:
       - name: Oversubscribed workers and GC
         run: |
           cpus=$(python3 -c 'import os; print(",".join(map(str, sorted(os.sched_getaffinity(0))[:2])))')
-          taskset -c "$cpus" ctest --test-dir native/build -R '^pndd_correctness_6$' --output-on-failure
+          taskset -c "$cpus" ctest --test-dir native/build -R '^(pndd|pmtndd)_correctness_6$' --output-on-failure
       - name: Java integration and legacy regression tests
-        run: mvn --batch-mode --no-transfer-progress -Dpndd.tests=true -Dpndd.library="$PWD/native/build/libpnddjni.so" verify
+        run: mvn --batch-mode --no-transfer-progress -Dpmtndd.library="$PWD/native/build/libpmtnddjni.so" -Dpndd.tests=true -Dpndd.library="$PWD/native/build/libpnddjni.so" verify
       - name: Sanitizers
         run: |
           cmake -S native -B native/build-asan -DCMAKE_BUILD_TYPE=Debug -DPNDD_SANITIZE=ON -DPNDD_BUILD_JNI=OFF
           cmake --build native/build-asan -j2
           ASAN_OPTIONS=detect_leaks=1 native/build-asan/pndd_test 1
+          ASAN_OPTIONS=detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1 ctest --test-dir native/build-asan -R '^pmtndd_' --output-on-failure

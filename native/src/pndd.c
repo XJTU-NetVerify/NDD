@@ -41,6 +41,9 @@ typedef struct Node {
     uint64_t hash;
     uint32_t field, count, next, cookie, refs;
     unsigned char mark;
+#ifdef PNDD_MULTITERMINAL
+    unsigned char numeric_kind, boolean_graph;
+#endif
 #ifdef PNDD_EXPERIMENT_SATCOUNT_CACHE
     /* Relative cardinality is immutable with this node. The admitted count
        path alone writes it; a newly allocated/reused node starts invalid. */
@@ -119,6 +122,9 @@ struct pndd_engine {
     Field fields[MAX_FIELDS];
     uint32_t widths[4];
     int sylvan, pending_gc;
+#ifdef PNDD_MULTITERMINAL
+    int numeric_double;
+#endif
     _Atomic(Node **) node_blocks[BLOCKS];
     _Atomic(Label **) label_blocks[BLOCKS];
     uint32_t node_high, label_high;
@@ -401,6 +407,7 @@ static void parallel_profile_dump(void) {
 static uint64_t cache_hash(uint32_t key, uint64_t a, uint64_t b) { return mix(a ^ mix(b) ^ ((uint64_t)key << 32)); }
 static int cache_is_ndd(uint32_t key) {
     return (key >= 1 && key <= PNDD_NOR + 1) ||
+           (key >= 0x20000 && key < 0x24000) ||
            (key >= 0x10000 && key < 0x10000 + MAX_FIELDS) || key == 0x40000;
 }
 static void clear_operation_caches(void) {
@@ -896,7 +903,13 @@ static uint32_t make_node(uint32_t field, Edge *edges, size_t count) {
     uint32_t id = INVALID_ID;
     if (n) {
         n->hash = h; n->field = field; n->count = (uint32_t)out; n->next = u->buckets[bucket];
-        memcpy(n->edges, edges, out * sizeof(Edge)); id = publish_node(n);
+        memcpy(n->edges, edges, out * sizeof(Edge));
+#ifdef PNDD_MULTITERMINAL
+        n->boolean_graph = 1;
+        for (size_t i = 0; i < out; ++i)
+            if (edges[i].target >= 2 && !node(edges[i].target)->boolean_graph) n->boolean_graph = 0;
+#endif
+        id = publish_node(n);
         if (id != INVALID_ID) { u->buckets[bucket] = id; ++u->count; } else deallocate_node(n);
     }
     spin_unlock(&u->lock); root_pop(&roots); return id;
@@ -1144,7 +1157,7 @@ VOID_TASK_IMPL_0(mark_labels) {
         if (G->fields[f].spec.backend == PNDD_ZDD) CALL(zdd_gc_mark_rec, G->fields[f].universe);
     }
     for (uint32_t id = 2; id < G->node_high; ++id) {
-        Node *n = node(id); if (!n) continue;
+        Node *n = node(id); if (!n || !n->count) continue;
         pndd_backend mode = G->fields[n->field].spec.backend;
         for (size_t i = 0; i < n->count; ++i) {
             if (mode == PNDD_BCDD) CALL(mtbdd_gc_mark_rec, n->edges[i].label);
@@ -1205,6 +1218,7 @@ VOID_TASK_IMPL_0(sweep_nodes) {
         if (!n) { G->free_nodes[G->free_node_count++] = i; continue; }
         Unique *u = &G->node_unique[n->hash % SHARDS]; size_t bucket = (n->hash / SHARDS) & (u->size - 1);
         n->next = u->buckets[bucket]; u->buckets[bucket] = i; ++u->count;
+        if (!n->count) continue;
         pndd_backend mode = G->fields[n->field].spec.backend;
         if (mode == PNDD_BDD || mode == PNDD_BITSET) for (size_t j = 0; j < n->count; ++j) mark_plain(n->edges[j].label, mode == PNDD_BITSET);
     }
@@ -1496,7 +1510,7 @@ pndd_engine *pndd_open(const pndd_config *requested, const pndd_field *fields, s
 void pndd_close(pndd_engine *e) { pthread_mutex_lock(&admission); if (e && e == G) destroy_engine(); pthread_mutex_unlock(&admission); }
 const char *pndd_error(pndd_engine *e) {
     if (!e || e != G) return open_error;
-    switch (atomic_load(&G->failure)) { case 1: return "Native memory budget or label table exhausted"; case 2: return "Released, stale or foreign node handle"; case 3: return "Invalid operation, field, bit or assignment"; default: return "Success"; }
+    switch (atomic_load(&G->failure)) { case 1: return "Native memory budget or label table exhausted"; case 2: return "Released, stale or foreign node handle"; case 3: return "Invalid operation, field, bit or assignment"; case 4: return "Numeric overflow, nonfinite value or zero divisor"; case 5: return "Numeric domain mismatch or non-Boolean operand"; default: return "Success"; }
 }
 pndd_handle pndd_constant(pndd_engine *e, int value) {
     pthread_mutex_lock(&admission); pndd_handle h = begin(e) ? own(!!value) : PNDD_INVALID; pthread_mutex_unlock(&admission); return h;
@@ -2111,3 +2125,7 @@ double pndd_nqueens(pndd_engine *e, uint32_t n, int compact, int tree) {
     }
     pthread_mutex_unlock(&admission); return result;
 }
+
+#ifdef PNDD_MULTITERMINAL
+#include "pmtndd_impl.inc"
+#endif

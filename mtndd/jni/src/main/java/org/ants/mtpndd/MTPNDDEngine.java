@@ -4,11 +4,15 @@ import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
+ * @deprecated Compatibility prototype. New code should use owned roots in
+ * {@code org.ants.jndd.parallel.ParallelMTNDD}; this API retains borrowed pointers.
+ *
  * Runtime façade responsible for loading the native library and managing the global MTPNDD state.
  *
  * <p>The {@link MTPNDD} class models individual nodes. User code should only manipulate nodes while
  * relying on this class for global lifecycle management (initialisation, shutdown, configuration).</p>
  */
+@Deprecated
 public final class MTPNDDEngine {
 
     // ── Timing instrumentation ──

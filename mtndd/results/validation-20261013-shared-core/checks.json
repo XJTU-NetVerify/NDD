@@ -1,0 +1,25 @@
+{
+  "date": "2026-10-13",
+  "java_mtndd_source": "8d343b3e593fe27b8aad84fbf4163c56e5c3d272",
+  "base_parallel_mtndd": "721ab9f3bed0f6a2d6b10dda28920de69d342bc4",
+  "release_ctest": 7,
+  "debug_asan_ubsan_ctest": 7,
+  "final_extended_mt_pressure_tests_each_build": 2,
+  "java": {
+    "tests": 41,
+    "errors": 0,
+    "failures": 0,
+    "skipped": 0
+  },
+  "oversubscribed_workers": 6,
+  "oversubscribed_cpus": 2,
+  "asan_options": "detect_leaks=1",
+  "ubsan_options": "halt_on_error=1",
+  "original_benchmark_hashes_unchanged": true,
+  "new_application_performance_runs": 0,
+  "example_output": [
+    "2/3",
+    "true",
+    "8.0"
+  ]
+}

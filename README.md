@@ -1,28 +1,26 @@
 # Parallel MTNDD
 
-`parallel-MTNDD` 是 NDD 的 **C 核心＋JNI＋Java API 多终端分支**。在 `parallel` 的基础上保留 Boolean NDD 实现，并在 `mtndd/` 导入、完善 `~/mtpndd` 的多终端实现；原 `MTPNDD` C/Java 名称保留兼容。
+`parallel-MTNDD` 是 NDD 的 **C 核心＋JNI＋Java API 多终端分支**。推荐入口为 `org.ants.jndd.parallel.ParallelMTNDD`：使用与并行 Boolean NDD 共用的紧凑manager、四后端和GC基础设施，扩展数值叶子、四则运算、求和消去及融合乘法求和。
 
-目前已具备 fraction/double 叶子、四则运算、求和消去和部分算子的 Lace 并行，属于**可运行的研究原型**。本次修正缓存操作污染、double 消去权重和旧引擎句柄问题，补齐构建与数值测试；四后端 MT、完整 owned-root API、GC 并发边界和真实代数应用评测仍待完成。详见 [完成度报告](mtndd/docs/STATUS.md)。
+本次审查并迁移了 Java [`mtndd`](https://github.com/XJTU-NetVerify/NDD/tree/mtndd) 分支的后端分派、显式universe、数组化存储、BulkBuilder和融合消去设计。新路径已支持BDD/BCDD/ZDD/BITSET及mixed字段、owned roots、协作GC、一次RUN的batch/reduce/dense导入；原 `~/mtpndd` 的C原型位于 `mtndd/`，作为兼容实现和历史数据来源保留。[迁移说明](mtndd/docs/MIGRATION.md) / [能力与边界](mtndd/docs/STATUS.md)。
 
-## 与并行 Boolean NDD 的关系
+## 与 parallel-NDD 的共享与差异
 
-用户所说的 parallel-NDD 对应远端 [`parallel`](https://github.com/XJTU-NetVerify/NDD/tree/parallel) 分支。
+parallel-NDD对应远端 [`parallel`](https://github.com/XJTU-NetVerify/NDD/tree/parallel) 分支。
 
-| 项目 | Boolean parallel-NDD | 本分支 MTNDD |
-|---|---|---|
-| 函数值域 | 0/1 | 0/1、32-bit有理数、IEEE double |
-| 标签后端 | 无补边BDD、BCDD、普通ZDD、BITSET、mixed | 当前仅Sylvan BCDD |
-| 主要运算 | AND/OR/NOT/DIFF、EXIST、计数 | 同类Boolean运算＋PLUS/MINUS/TIMES/DIVIDE、ABSTRACT_PLUS |
-| 并行组织 | NDD内部、一次RUN的batch、可选标签任务 | 内部SPAWN/SYNC、PLUS/TIMES行块；已有batch仍逐操作RUN |
-| Java | `org.ants.jndd.parallel`，实例引擎、owned `NDDNode`、AutoCloseable | `org.ants.mtpndd`，全局引擎、手动ref/deref、代际检查 |
-| 字段编号 | 从0开始 | 从1开始 |
-| 节点/句柄 | 紧凑边存储、不透明64-bit句柄 | 边桶/节点池、JNI封装原生指针 |
+| 项目 | Boolean parallel-NDD | 新 ParallelMTNDD | 旧 MTPNDD兼容路径 |
+|---|---|---|---|
+| 值域 | 0/1 | 精确int64有理数或有限double；0/1共用 | 32-bit fraction/double |
+| 标签后端 | BDD/BCDD/ZDD/BITSET/mixed | 共用全部四后端；BITSET≤7位 | BCDD |
+| 存储/缓存 | 分块ID表、连续边、64-byte单边slab、版本缓存 | 共用同一manager源文件和优化开关；数值叶子单独intern | 边桶/独立leaf table、原始指针 |
+| 并行 | NDD递归、标签、batch共享Lace pool | 共用Boolean内核；数值交集子问题分块；batch/reduce一次RUN | 部分算子并行，batch仍逐操作RUN |
+| Java根管理 | owned NDDNode、AutoCloseable | owned MTNDDNode、AutoCloseable；跨引擎及关闭后检查 | 手动ref/deref的borrowed API，已deprecated |
+| GC | 操作边界NDD回收、运算中协作标签GC | 数值叶子加入同一规范表/GC；预算与失败协议共用 | 原型协议，不能套用新路径保证 |
+| 字段编号 | 从0开始 | 从0开始 | 从1开始 |
 
-**实际共享**：相同的 Sylvan提交 `c8bf561e`、Lace提交 `63d8a5ea`，以及 `native/scripts/prepare_lace.py` 的构建适配和超额worker等待修补。节点规范化、两阶段AND、任务结果引用交接、分片规范表和版本缓存协议具有可复用设计。
+**共用代码**包括 `native/src/pndd.c`、固定Sylvan/Lace提交、构建适配、四后端、分配预算、sharded unique tables、缓存发布、root frames和Lace调度。`pmtndd_impl.inc`仅扩展数值层；保持Boolean核心的任务粒度、缓存和单边存储优化，而不是把Java全局边栈放进多个workers。
 
-**保持独立**：两套节点/缓存/根管理和Java契约，分别构建；没有让两引擎在同一JVM内共享一个worker pool，也没有将Boolean四后端存储自动变成多终端。使用两个引擎时分别放在独立进程。MTNDD未启用Boolean核心的全部性能开关，不能由这些共享项推定性能一致。
-
-源码来源、原始提交和版权见 [UPSTREAM.json](mtndd/UPSTREAM.json)、[NOTICE](mtndd/NOTICE)。原有Boolean源码/API和 [native使用说明](native/README.md) 保留。
+Java的两种新式引擎共用准入门，一次只运行一个引擎/worker pool，关闭后可以切换。旧兼容JNI应在独立进程使用。[来源与授权](native/NOTICE)；旧C导入来源见 [UPSTREAM.json](mtndd/UPSTREAM.json)。
 
 ## 已有 benchmark 数据
 
@@ -54,58 +52,60 @@ parallel变体增加外围约束构造任务，最终组合仍保持顺序折叠
 
 ## 构建与验证
 
-Linux、C11/C++编译器、CMake≥3.23、Python3、Git、JDK11+、Maven。依赖固定提交，由CMake下载；无需手工初始化嵌套子模块。
+Linux、GCC/Clang（C11及`__int128`）、CMake≥3.23、Python3、Git、JDK11+、Maven。固定依赖提交与Boolean分支相同。
 
 ```sh
 git clone --branch parallel-MTNDD https://github.com/XJTU-NetVerify/NDD.git
 cd NDD
 export JAVA_HOME=/path/to/jdk
-cmake -S mtndd -B mtndd/build -DCMAKE_BUILD_TYPE=Release
-cmake --build mtndd/build -j6
-ctest --test-dir mtndd/build --output-on-failure
-mvn -f mtndd/jni/pom.xml \
-  -Dorg.ants.mtpndd.library.path="$PWD/mtndd/build/jni/libmtpnddjni.so" test package
+cmake -S native -B native/build -DCMAKE_BUILD_TYPE=Release
+cmake --build native/build -j6
+ctest --test-dir native/build --output-on-failure
+mvn -DskipTests=false -Dpndd.tests=true \
+  -Dpndd.library="$PWD/native/build/libpnddjni.so" \
+  -Dpmtndd.library="$PWD/native/build/libpmtnddjni.so" verify
 ```
 
-输出：`mtndd/build/mtpndd/libmtpndd.a`、`mtndd/build/jni/libmtpnddjni.so`、`mtndd/jni/target/mtpndd-java-0.1.0-SNAPSHOT.jar`。离线构建可通过 `FETCHCONTENT_SOURCE_DIR_SYLVAN`、`FETCHCONTENT_SOURCE_DIR_LACE` 指向相同提交的本地源码。
-
-Debug检查：
+输出包括 `native/build/libpmtndd.a`、`native/build/libpmtnddjni.so` 和 `target/ndd-1.0.1.jar`。离线可通过 `PNDD_SYLVAN_SOURCE` / `FETCHCONTENT_SOURCE_DIR_LACE` 指向固定提交。Boolean API仍用 `libpnddjni.so`；旧原型单独构建见 [mtndd模块](mtndd/README.md)。
 
 ```sh
-cmake -S mtndd -B mtndd/build-asan -DCMAKE_BUILD_TYPE=Debug \
-  -DMTNDD_SANITIZE=ON -DMTPNDD_BUILD_JNI=OFF
-cmake --build mtndd/build-asan -j6
+cmake -S native -B native/build-asan -DCMAKE_BUILD_TYPE=Debug \
+  -DPNDD_SANITIZE=ON -DPNDD_BUILD_JNI=OFF
+cmake --build native/build-asan -j6
 ASAN_OPTIONS=detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1 \
-  ctest --test-dir mtndd/build-asan --output-on-failure
+  ctest --test-dir native/build-asan --output-on-failure
 ```
 
-本次Release与Debug ASan/UBSan各8项CTest、Java10项通过。包括N-Queens8、转换、有理数/Double、1/6 workers的256赋值四则运算及双字段消去、六线程缓存碰撞和版本耗尽、旧引擎节点拒绝。有限测试不代表所有并发GC边界已验证。[验证记录](mtndd/results/validation-20261013/README.md)。
+测试包含四后端/mixed字段、单/六workers、数值枚举、融合/分离消去、dense导入、频繁GC、运行中Sylvan GC、缓存碰撞、stale ID、预算失败及JNI引用交接。记录见 [shared-core验证](mtndd/results/validation-20261013-shared-core/README.md)。代数应用评测留待后续，历史benchmark保持原样。
 
-## Java数值使用示例
+## Java使用
 
 ```java
-import org.ants.mtpndd.*;
+import org.ants.jndd.parallel.*;
+import static org.ants.jndd.parallel.ParallelMTNDD.*;
 
-MTPNDDEngine.init(MTPNDDConfig.builder().workers(6).build());
-try {
-    int field = MTPNDDEngine.declareField(2); // 四个取值，字段从1开始
-    MTPNDDEngine.generateFields();
-    MTPNDD value = MTPNDDEngine.makeFraction(1, 3).ref();
-    try {
-        MTPNDD sum = MTPNDDEngine.abstractPlus(value, field).ref();
-        try {
-            System.out.println(MTPNDDEngine.getNumer(sum) + "/"
-                    + MTPNDDEngine.getDenom(sum)); // 4/3
-            System.out.println(value.satCount()); // 4，非加权总和
-        } finally { sum.deref(); }
-    } finally { value.deref(); }
-} finally { MTPNDDEngine.shutdown(); }
+try (ParallelMTNDD e = new ParallelMTNDD(new ParallelNDDConfig(6), Domain.RATIONAL,
+        new Field(2, Backend.BCDD), new Field(2, Backend.ZDD));
+     MTNDDNode predicate = e.literal(0, 0, true);
+     MTNDDNode weight = e.fraction(1, 3);
+     MTNDDNode f = e.times(predicate, weight);
+     MTNDDNode sum = e.sumAbstract(f, 0);
+     MTNDDNode fused = e.multiplySumAbstract(predicate, weight, 0)) {
+    System.out.println(e.terminalValue(sum)); // 2/3
+    System.out.println(sum.equals(fused));   // true
+    System.out.println(e.satCount(f));       // 8.0，非零支持赋值数
+    e.collect();                            // 所有尚未close的owned节点保活
+}
 ```
 
-普通标量运算和reduce返回borrowed节点，持久保存必须ref，使用结束deref。`andBatch`的结果已增加引用；`andTo/orTo`会释放左输入的一份引用并返回已引用结果，不能再重复ref；不要将Java包装器留到节点被回收后再使用。当前代际检查仅阻止引擎关闭/重建后的旧句柄，不能检测同代所有失效节点。Boolean操作用于0/1谓词；数值图使用四则运算。fraction/double不自动混用，fraction不是任意精度；double的舍入、NaN和±0规范化按现有位模式约定处理。
+完整示例：[ParallelMTNDDExample](src/main/java/application/examples/ParallelMTNDDExample.java)。运行时指定 `-Dpmtndd.library="$PWD/native/build/libpmtnddjni.so"`。
 
-## 后续方向
+- 每个返回节点持有一份root；运算不消耗输入。`retain()`产生独立root，节点和引擎都用try-with-resources/close释放。忘记close会保留root到引擎关闭，没有自动Cleaner。
+- `applyBatch`一次计算RUN（边界GC另计入`externalRuns`）；`reduce`支持PLUS/TIMES/AND/OR及固定left-fold/平衡树。double归约可能随树形顺序产生舍入差异。
+- `fromArray(double[])` / `fromFractions(long[],long[])`避免逐叶Java包装器，字段0变化最慢、最后字段最快；必须给出全域数组。
+- 数值域按引擎固定。有理数分子/分母受int64限制；溢出、除零及非有限double结果明确失败。不是任意精度，也不包含Java MTNDD的interval或近似聚类策略。
+- `satCount`统计非零支持；加权总和用`sumAbstract`消去所有字段。Boolean操作/EXIST只接受0/1图。
 
-优先完成在途任务与GC根保护压力验证、Java owned roots、一次RUN的数值batch/融合乘法求和，再解耦值域与标签后端并扩展实际代数应用。更详细的能力边界、修正和差异见 [STATUS](mtndd/docs/STATUS.md)。
+GC通过Lace协作停顿协调：NDD只在操作边界回收，运行中的标签GC扫描节点标签和临时root frames。它不是无停顿concurrent mark/sweep。新接口的生命周期与内存边界见 [STATUS](mtndd/docs/STATUS.md)。
 
-Apache-2.0；保留上游版权与许可证。Sylvan/Lace的授权和来源见 [native/NOTICE](native/NOTICE)。
+Apache-2.0；保留上游版权与许可证。

@@ -1,0 +1,20 @@
+Internal ctest changing into directory: /home/cheney/NDD-parallel-MTNDD/native/build-mt-asan
+Test project /home/cheney/NDD-parallel-MTNDD/native/build-mt-asan
+    Start 1: pndd_correctness_1
+1/7 Test #1: pndd_correctness_1 ...............   Passed    3.88 sec
+    Start 2: pndd_correctness_2
+2/7 Test #2: pndd_correctness_2 ...............   Passed    7.13 sec
+    Start 3: pndd_correctness_4
+3/7 Test #3: pndd_correctness_4 ...............   Passed   16.02 sec
+    Start 4: pndd_correctness_6
+4/7 Test #4: pndd_correctness_6 ...............   Passed   17.16 sec
+    Start 5: pndd_cache_collision_6
+5/7 Test #5: pndd_cache_collision_6 ...........   Passed   17.84 sec
+    Start 6: pmtndd_correctness_1
+6/7 Test #6: pmtndd_correctness_1 .............   Passed    2.18 sec
+    Start 7: pmtndd_correctness_6
+7/7 Test #7: pmtndd_correctness_6 .............   Passed    9.19 sec
+
+100% tests passed, 0 tests failed out of 7
+
+Total Test time (real) =  73.41 sec

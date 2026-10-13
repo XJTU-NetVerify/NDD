@@ -19,3 +19,9 @@ completion waits when workers outnumber the available processing units. It
 preserves the pinned dependency checkout and its upstream copyright notices.
 The affinity feature check enables GNU declarations so Linux CPU masks are
 respected when deciding whether the worker pool is oversubscribed.
+
+The MT extension draws backend/universe dispatch, dense import and fused
+multiply-sum abstraction designs from the Java MTNDD branch of XJTU-NetVerify/NDD
+at 8d343b3 (Apache-2.0). It adds numeric terminals and checked arithmetic to the
+shared compact parallel manager rather than copying the Java global edge stack.
+See mtndd/docs/MIGRATION.md for provenance and numerical policy differences.

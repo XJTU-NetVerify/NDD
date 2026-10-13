@@ -35,7 +35,6 @@ public final class ParallelNDD implements AutoCloseable {
         }
     }
 
-    private static ParallelNDD active;
     static {
         String path = System.getProperty("pndd.library");
         if (path == null) System.loadLibrary("pnddjni");
@@ -57,13 +56,13 @@ public final class ParallelNDD implements AutoCloseable {
             widths[i] = this.fields[i].width;
             backends[i] = this.fields[i].backend.ordinal();
         }
-        synchronized (ParallelNDD.class) {
-            if (active != null) throw new IllegalStateException("Only one active native engine is supported");
+        synchronized (NativeEngineAdmission.class) {
+            if (NativeEngineAdmission.active != null) throw new IllegalStateException("Only one active native engine is supported");
             int flags = (config.nddParallel ? 1 : 0) | (config.labelParallel ? 2 : 0) | (config.batchParallel ? 4 : 0) | (config.reverseLabelOrder ? 8 : 0);
             nativeEngine = openNative(widths, backends, config.workers, config.memoryBytes,
                     config.cacheEntries, config.taskThreshold, config.chunkSize,
                     config.spawnDepth, flags, config.gcInterval);
-            active = this;
+            NativeEngineAdmission.active = this;
         }
     }
 
@@ -304,8 +303,8 @@ public final class ParallelNDD implements AutoCloseable {
     }
     @Override public synchronized void close() {
         if (!closed) {
-            synchronized (ParallelNDD.class) {
-                closeNative(nativeEngine); closed = true; active = null;
+            synchronized (NativeEngineAdmission.class) {
+                closeNative(nativeEngine); closed = true; NativeEngineAdmission.active = null;
             }
         }
     }

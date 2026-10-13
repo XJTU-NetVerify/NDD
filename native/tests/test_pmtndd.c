@@ -1,0 +1,194 @@
+#include "pmtndd.h"
+#include <assert.h>
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+static pndd_handle checked(pndd_engine *e, pndd_handle h) {
+    if (h == PNDD_INVALID) fprintf(stderr, "%s\n", pndd_error(e));
+    assert(h != PNDD_INVALID); return h;
+}
+static pndd_handle apply(pndd_engine *e, pmt_op op, pndd_handle a, pndd_handle b) { return checked(e, pmt_apply(e, op, a, b)); }
+static void release(pndd_engine *e, pndd_handle h) { assert(pndd_release(e, h)); }
+static double eval(pndd_engine *e, pndd_handle h, uint64_t a, uint64_t b) {
+    uint64_t assignment[] = {a, b}; pmt_number v;
+    assert(pmt_evaluate(e, h, assignment, 2, &v)); return v.value;
+}
+static void run(unsigned workers, int backend, int mixed, pmt_domain domain) {
+    pndd_config c = pndd_default_config(); c.workers = workers;
+    c.gc_interval = 5; c.cache_entries = 64; c.memory_bytes = 16 * 1024 * 1024;
+    c.task_threshold = 2; c.chunk_size = 1;
+    pndd_field fields[] = {{3, backend}, {2, mixed ? (backend + 1) % 4 : backend}};
+    pndd_engine *e = pmt_open(&c, fields, 2, domain); assert(e);
+    pndd_handle xbit = checked(e, pndd_literal(e, 0, 0, 1)), ybit = checked(e, pndd_literal(e, 1, 1, 0));
+    for (pmt_op op = PMT_AND; op <= PMT_NOR; ++op) {
+        pndd_handle predicate = apply(e, op, xbit, ybit);
+        for (unsigned a = 0; a < 8; ++a) for (unsigned b = 0; b < 4; ++b) {
+            int x = (a & 4) != 0, y = (b & 1) == 0;
+            int expected = op == PMT_AND ? x && y : op == PMT_OR ? x || y : op == PMT_DIFF ? x && !y : op == PMT_XOR ? x != y : op == PMT_IMP ? !x || y : op == PMT_EQUIV ? x == y : op == PMT_NAND ? !(x && y) : !(x || y);
+            assert(eval(e, predicate, a, b) == expected);
+        }
+        release(e, predicate);
+    }
+    pndd_handle xy = apply(e, PMT_AND, xbit, ybit), projected = checked(e, pmt_exist(e, xy, 1));
+    assert(projected == xbit); release(e, projected); release(e, xy); release(e, xbit); release(e, ybit);
+    pndd_handle f = checked(e, pndd_constant(e, 0)), g = checked(e, pndd_constant(e, 0));
+    for (unsigned a = 0; a < 8; ++a) for (unsigned b = 0; b < 4; ++b) {
+        pndd_handle x = checked(e, pndd_value(e, 0, a)), y = checked(e, pndd_value(e, 1, b));
+        pndd_handle cube = apply(e, PMT_AND, x, y); release(e, x); release(e, y);
+        pndd_handle n = domain == PMT_RATIONAL ? checked(e, pmt_fraction(e, a * 4 + b + 1, 2)) : checked(e, pmt_double(e, (a * 4 + b + 1) / 2.0));
+        pndd_handle m = domain == PMT_RATIONAL ? checked(e, pmt_fraction(e, 64 - a * 4 - b, 3)) : checked(e, pmt_double(e, (64 - a * 4 - b) / 3.0));
+        pndd_handle fc = apply(e, PMT_TIMES, cube, n), gc = apply(e, PMT_TIMES, cube, m);
+        pndd_handle nf = apply(e, PMT_PLUS, f, fc), ng = apply(e, PMT_PLUS, g, gc);
+        release(e, f); release(e, g); f = nf; g = ng;
+        release(e, n); release(e, m); release(e, fc); release(e, gc); release(e, cube);
+        assert(pndd_collect(e));
+    }
+    pmt_number dense[32];
+    for (unsigned i = 0; i < 32; ++i) dense[i] = (pmt_number){i + 1, 2, (i + 1) / 2.0, domain};
+    pndd_handle imported = checked(e, pmt_from_array(e, dense, 32)); assert(imported == f); release(e, imported);
+    assert(pmt_from_array(e, dense, 31) == PNDD_INVALID);
+    if (domain == PMT_RATIONAL) {
+        dense[31].denominator = 0; assert(pmt_from_array(e, dense, 32) == PNDD_INVALID);
+        assert(pndd_collect(e));
+    }
+    assert(pmt_multiply_sum(e, f, g, UINT32_MAX) == PNDD_INVALID);
+    assert(pmt_satcount(e, f) == 32);
+    for (pmt_op op = PMT_PLUS; op <= PMT_DIVIDE; ++op) {
+        pndd_handle result = apply(e, op, f, g);
+        assert(pndd_collect(e));
+        for (unsigned a = 0; a < 8; ++a) for (unsigned b = 0; b < 4; ++b) {
+            double x = (a * 4 + b + 1) / 2.0, y = (64 - a * 4 - b) / 3.0;
+            double expected = op == PMT_PLUS ? x + y : op == PMT_MINUS ? x - y : op == PMT_TIMES ? x * y : x / y;
+            assert(fabs(eval(e, result, a, b) - expected) < 1e-11);
+        }
+        release(e, result);
+    }
+    for (unsigned field = 0; field < 2; ++field) {
+        pndd_handle product = apply(e, PMT_TIMES, f, g);
+        pndd_handle separate = checked(e, pmt_sum_abstract(e, product, field));
+        pndd_handle fused = checked(e, pmt_multiply_sum(e, f, g, field));
+        if (domain == PMT_RATIONAL) assert(separate == fused);
+        release(e, product);
+        for (unsigned a = 0; a < 8; ++a) for (unsigned b = 0; b < 4; ++b) {
+            double expected = 0;
+            for (unsigned i = 0; i < (field ? 4u : 8u); ++i) {
+                unsigned k = (field ? a : i) * 4 + (field ? i : b);
+                expected += ((k + 1) / 2.0) * ((64 - k) / 3.0);
+            }
+            assert(fabs(eval(e, fused, a, b) - expected) < 1e-9);
+        }
+        release(e, separate); release(e, fused);
+    }
+    pndd_handle sum = checked(e, pmt_sum_abstract(e, f, 0));
+    pndd_handle total = checked(e, pmt_sum_abstract(e, sum, 1)); pmt_number number;
+    assert(pmt_terminal(e, total, &number) && number.value == 264);
+    release(e, sum); release(e, total);
+    pndd_handle aa[32], bb[32], out[32]; for (unsigned i = 0; i < 32; ++i) { aa[i] = f; bb[i] = g; }
+    uint64_t runs = pndd_get_stats(e).external_runs;
+    /* gc_interval disabled for measuring admission RUN count, not performance. */
+    assert(pmt_apply_batch(e, PMT_PLUS, aa, bb, 32, out));
+    uint64_t after = pndd_get_stats(e).external_runs; assert(after - runs >= 1 && after - runs <= 2);
+    for (unsigned i = 0; i < 32; ++i) release(e, out[i]);
+    pndd_handle l = checked(e, pmt_reduce(e, PMT_PLUS, aa, 32, 0)), t = checked(e, pmt_reduce(e, PMT_PLUS, aa, 32, 1));
+    if (domain == PMT_RATIONAL) assert(l == t);
+    assert(fabs(eval(e, l, 1, 1) - eval(e, t, 1, 1)) < 1e-10);
+    release(e, l); release(e, t);
+    pndd_handle zero = checked(e, pndd_constant(e, 0));
+    assert(pmt_apply(e, PMT_DIVIDE, f, zero) == PNDD_INVALID);
+    /* Batch error after other tasks completed returns no owned partial roots. */
+    bb[31] = zero; assert(!pmt_apply_batch(e, PMT_DIVIDE, aa, bb, 32, out));
+    for (unsigned i = 0; i < 32; ++i) assert(out[i] == PNDD_INVALID);
+    release(e, zero);
+    pndd_handle stale = checked(e, pndd_retain(e, f)); release(e, stale);
+    release(e, f); release(e, g); assert(pndd_collect(e));
+    assert(pndd_retain(e, stale) == PNDD_INVALID);
+    pndd_stats stats = pndd_get_stats(e); assert(stats.collections > 10);
+    if (workers > 1) assert(stats.tasks > 0);
+    pndd_close(e);
+}
+static void pressure(unsigned workers, pndd_backend backend) {
+    pndd_field field = {16, backend}; pndd_config c = pndd_default_config();
+    c.workers = workers; c.memory_bytes = 64u * 1024 * 1024; c.cache_entries = 4096;
+    c.gc_interval = 0; c.label_parallel = 1; c.task_threshold = 2; c.chunk_size = 1;
+    pndd_engine *e = pmt_open(&c, &field, 1, PMT_RATIONAL); assert(e);
+    enum { PREFIXES = 256, SUFFIXES = 128, CASES = PREFIXES * SUFFIXES };
+    pndd_handle prefix[PREFIXES], suffix[SUFFIXES];
+    pndd_handle a[CASES], b[CASES], out[CASES];
+    /* Worker-local allocation regions can grow the table during construction,
+     * leaving enough space for the old adjacent-point OR batch without a GC.
+     * Instead build small sets of half-word cubes, then materialize their full
+     * Cartesian product inside one batch. Its fresh labels outgrow the initial
+     * Sylvan table while remaining within the configured maximum capacity. */
+    for (unsigned half = 0; half < 2; ++half) {
+        unsigned count = half ? SUFFIXES : PREFIXES;
+        pndd_handle *parts = half ? suffix : prefix;
+        for (unsigned value = 0; value < count; ++value) {
+            pndd_handle root = pndd_constant(e, 1);
+            for (unsigned bit = 0; bit < 8; ++bit) {
+                pndd_handle literal = pndd_literal(e, 0, half * 8 + bit, (value >> (7 - bit)) & 1);
+                pndd_handle next = pmt_apply(e, PMT_AND, root, literal);
+                assert(next != PNDD_INVALID);
+                pndd_release(e, root); pndd_release(e, literal); root = next;
+            }
+            parts[value] = root;
+        }
+    }
+    pndd_handle weight = checked(e, pmt_fraction(e, 1, 3));
+    for (unsigned i = 0; i < PREFIXES; ++i) {
+        pndd_handle next = apply(e, PMT_TIMES, prefix[i], weight);
+        release(e, prefix[i]); prefix[i] = next;
+    }
+    release(e, weight);
+    for (unsigned i = 0; i < CASES; ++i) { a[i] = prefix[i / SUFFIXES]; b[i] = suffix[i % SUFFIXES]; }
+    for (unsigned round = 0; round < 2; ++round) {
+        uint64_t before = pndd_get_stats(e).label_collections;
+        assert(pmt_apply_batch(e, PMT_TIMES, a, b, CASES, out));
+        if (round == 0) assert(pndd_get_stats(e).label_collections > before);
+        for (unsigned i = 0; i < CASES; ++i) {
+            assert(pmt_satcount(e, out[i]) == 1);
+            if (round == 0) {
+                uint64_t value = ((uint64_t)(i / SUFFIXES) << 8) | (i % SUFFIXES);
+                pmt_number number; assert(pmt_evaluate(e, out[i], &value, 1, &number));
+                assert(number.numerator == 1 && number.denominator == 3);
+            }
+            assert(pndd_release(e, out[i]));
+        }
+        assert(pndd_collect(e));
+    }
+    for (unsigned i = 0; i < PREFIXES; ++i) pndd_release(e, prefix[i]);
+    for (unsigned i = 0; i < SUFFIXES; ++i) pndd_release(e, suffix[i]);
+    assert(pndd_collect(e)); assert(pndd_get_stats(e).label_collections > 0); pndd_close(e);
+}
+static void boundary_checks(unsigned workers) {
+    pndd_config c = pndd_default_config(); c.workers = workers; c.memory_bytes = 4u << 20; c.cache_entries = 64; c.gc_interval = 0;
+    pndd_field field = {54, PNDD_BCDD}; pndd_engine *e = pmt_open(&c, &field, 1, PMT_RATIONAL); assert(e);
+    pndd_handle zero = checked(e, pndd_value(e, 0, 0)), one = checked(e, pndd_constant(e, 1));
+    pndd_handle complement = apply(e, PMT_DIFF, one, zero);
+    pndd_handle total = checked(e, pmt_sum_abstract(e, complement, 0)); pmt_number result;
+    assert(pmt_terminal(e, total, &result));
+    assert(result.numerator == INT64_C(18014398509481983) && result.denominator == 1);
+    release(e, zero); release(e, one); release(e, complement); release(e, total);
+    pndd_handle scalar = checked(e, pmt_fraction(e, 1, 3));
+    enum { COUNT = 262144 };
+    pndd_handle *inputs = malloc(COUNT * sizeof(*inputs)), *outputs = malloc(COUNT * sizeof(*outputs)); assert(inputs && outputs);
+    for (unsigned i = 0; i < COUNT; ++i) { inputs[i] = scalar; outputs[i] = 0; }
+    assert(!pmt_apply_batch(e, PMT_PLUS, inputs, inputs, COUNT, outputs));
+    for (unsigned i = 0; i < COUNT; ++i) assert(outputs[i] == PNDD_INVALID);
+    assert(pndd_collect(e)); assert(pmt_terminal(e, scalar, &result)); assert(result.numerator == 1 && result.denominator == 3);
+    free(inputs); free(outputs); release(e, scalar); pndd_close(e);
+    field = (pndd_field){1200, PNDD_BCDD}; e = pmt_open(&c, &field, 1, PMT_DOUBLE); assert(e);
+    pndd_handle empty = checked(e, pndd_constant(e, 0));
+    assert(pmt_satcount(e, empty) == 0);
+    pndd_handle abstracted = checked(e, pmt_sum_abstract(e, empty, 0));
+    assert(pmt_terminal(e, abstracted, &result) && result.value == 0);
+    release(e, abstracted); release(e, empty); pndd_close(e);
+}
+int main(int argc, char **argv) {
+    unsigned workers = argc > 1 ? atoi(argv[1]) : 1;
+    for (int backend = 0; backend < 4; ++backend) for (int mixed = 0; mixed < 2; ++mixed)
+        for (pmt_domain domain = PMT_RATIONAL; domain <= PMT_DOUBLE; ++domain) run(workers, backend, mixed, domain);
+    boundary_checks(workers);
+    pressure(workers, PNDD_BCDD); pressure(workers, PNDD_ZDD);
+    puts("MT multi-backend arithmetic, fused contraction, owned roots and GC passed");
+    return 0;
+}

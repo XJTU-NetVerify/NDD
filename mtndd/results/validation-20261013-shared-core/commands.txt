@@ -1,0 +1,17 @@
+# Tools used: GCC 13.3.0, CMake 3.28.4, OpenJDK 17.0.11, Maven 3.9.9 (local cache).
+# Release
+cmake -S native -B native/build-mt -DCMAKE_BUILD_TYPE=Release -DPNDD_SYLVAN_SOURCE=/home/cheney/mtpndd/sylvan -DFETCHCONTENT_SOURCE_DIR_LACE=/home/cheney/mtpndd/build/_deps/lace-src
+cmake --build native/build-mt -j6
+ctest --test-dir native/build-mt --output-on-failure
+# Final numeric changes rerun only affected tests
+ctest --test-dir native/build-mt -R pmtndd --output-on-failure
+# Debug
+cmake -S native -B native/build-mt-asan -DCMAKE_BUILD_TYPE=Debug -DPNDD_SANITIZE=ON -DPNDD_BUILD_JNI=OFF -DPNDD_SYLVAN_SOURCE=/home/cheney/mtpndd/sylvan -DFETCHCONTENT_SOURCE_DIR_LACE=/home/cheney/mtpndd/build/_deps/lace-src
+cmake --build native/build-mt-asan -j6
+ASAN_OPTIONS=detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1 ctest --test-dir native/build-mt-asan --output-on-failure
+ASAN_OPTIONS=detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1 ctest --test-dir native/build-mt-asan -R pmtndd --output-on-failure
+# Java
+mvn -DskipTests=false -Dpndd.tests=true -Dpndd.library=$PWD/native/build-mt/libpnddjni.so -Dpmtndd.library=$PWD/native/build-mt/libpmtnddjni.so verify
+# Oversubscribed: taskset bound to first two CPUs in process affinity
+# Run pmtndd_correctness_6 only, then execute README example
+java -Dpmtndd.library=$PWD/native/build-mt/libpmtnddjni.so -cp target/classes application.examples.ParallelMTNDDExample

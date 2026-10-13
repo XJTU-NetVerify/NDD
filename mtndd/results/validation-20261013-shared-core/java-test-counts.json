@@ -1,0 +1,65 @@
+[
+  {
+    "name": "org.ants.jndd.parallel.NDDNodeHashTest",
+    "tests": "1",
+    "errors": "0",
+    "failures": "0",
+    "skipped": "0"
+  },
+  {
+    "name": "org.ants.jndd.diagram.NDDBitsetBackendTest",
+    "tests": "4",
+    "errors": "0",
+    "failures": "0",
+    "skipped": "0"
+  },
+  {
+    "name": "org.ants.jndd.diagram.NDDManipulationApiTest",
+    "tests": "10",
+    "errors": "0",
+    "failures": "0",
+    "skipped": "0"
+  },
+  {
+    "name": "org.ants.jndd.bdd.ComplementedBDDTest",
+    "tests": "3",
+    "errors": "0",
+    "failures": "0",
+    "skipped": "0"
+  },
+  {
+    "name": "org.ants.jndd.diagram.NDDMixedBackendTest",
+    "tests": "4",
+    "errors": "0",
+    "failures": "0",
+    "skipped": "0"
+  },
+  {
+    "name": "org.ants.jndd.parallel.ParallelMTNDDTest",
+    "tests": "5",
+    "errors": "0",
+    "failures": "0",
+    "skipped": "0"
+  },
+  {
+    "name": "application.examples.ProductConfigurationExampleTest",
+    "tests": "1",
+    "errors": "0",
+    "failures": "0",
+    "skipped": "0"
+  },
+  {
+    "name": "org.ants.jndd.parallel.ParallelNDDTest",
+    "tests": "12",
+    "errors": "0",
+    "failures": "0",
+    "skipped": "0"
+  },
+  {
+    "name": "org.ants.jndd.diagram.LabelDecisionDiagramBackendFactoryTest",
+    "tests": "1",
+    "errors": "0",
+    "failures": "0",
+    "skipped": "0"
+  }
+]

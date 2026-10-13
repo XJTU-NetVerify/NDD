@@ -355,3 +355,13 @@ worker priority-task load. It is OFF for timing comparisons. Experimental
 they coordinate coarse/fine tasks, split unresolved child jobs, and prune cached
 or single-branch label tasks. See the [fixed-workload core scaling report](../results/ndd_parallel_core_20261012/README.md)
 for trials, limitations and the selected defaults.
+
+## Multi-terminal branch
+
+`parallel-MTNDD` additionally builds `libpmtndd.a` and `libpmtnddjni.so` from the
+same compact manager, with the numerical extension in `pmtndd_impl.inc`. Use
+`ParallelMTNDD` / `MTNDDNode`, `-Dpmtndd.library=...`, and `pmtndd.h`. Four backends,
+owned roots, numeric operations, fused multiply/sum abstraction, dense import
+and one-RUN batch/reduce are available. See the [branch README](../README.md)
+and [migration/GC contracts](../mtndd/docs/STATUS.md). The old static MTPNDD JNI
+is a separate compatibility prototype and should run in its own process.
