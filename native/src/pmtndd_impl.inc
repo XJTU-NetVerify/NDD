@@ -300,7 +300,7 @@ pndd_handle pmt_double(pndd_engine *e, double v) {
     pthread_mutex_unlock(&admission); return h;
 }
 static pndd_handle mt_public_apply(pndd_engine *e, pmt_op op, pndd_handle a, pndd_handle b, uint32_t field, int fused) {
-    pthread_mutex_lock(&admission); pndd_handle h = PNDD_INVALID;
+    pthread_mutex_lock(&admission); PROFILE_START; pndd_handle h = PNDD_INVALID;
     if (begin(e)) {
         uint32_t x = resolve(a), y = resolve(b);
         if (op < PMT_AND || op > PMT_DIVIDE || (fused && field >= G->field_count)) fail(3);
@@ -337,18 +337,18 @@ static pndd_handle mt_public_apply(pndd_engine *e, pmt_op op, pndd_handle a, pnd
             else if (!atomic_load(&G->failure)) { atomic_fetch_add(&G->runs,1); h=own(RUN(mt_apply_rec,op,x,y,field,0)); }
         }
     }
-    pthread_mutex_unlock(&admission); return h;
+    PROFILE_END(0); pthread_mutex_unlock(&admission); return h;
 }
 pndd_handle pmt_apply(pndd_engine *e, pmt_op op, pndd_handle a, pndd_handle b) { return mt_public_apply(e, op, a, b, INVALID_ID, 0); }
 pndd_handle pmt_multiply_sum(pndd_engine *e, pndd_handle a, pndd_handle b, uint32_t field) { return mt_public_apply(e, PMT_TIMES, a, b, field, 1); }
 pndd_handle pmt_sum_abstract(pndd_engine *e, pndd_handle a, uint32_t field) {
     /* Retain the Boolean identity under admission without a second RUN. */
-    pthread_mutex_lock(&admission); pndd_handle h = PNDD_INVALID;
+    pthread_mutex_lock(&admission); PROFILE_START; pndd_handle h = PNDD_INVALID;
     if (begin(e)) {
         uint32_t x = resolve(a); if (field >= G->field_count) fail(3);
         if (!atomic_load(&G->failure)) { atomic_fetch_add(&G->runs, 1); h = own(RUN(mt_apply_rec, PMT_TIMES, x, 1, field, 0)); }
     }
-    pthread_mutex_unlock(&admission); return h;
+    PROFILE_END(0); pthread_mutex_unlock(&admission); return h;
 }
 static uint32_t mt_assignment(uint32_t id, const uint64_t *values) {
     while (node_field(id) < G->field_count) {
@@ -451,7 +451,7 @@ VOID_TASK_IMPL_6(mt_batch_rec, Job *, jobs, size_t, count, uint32_t, op, uint32_
         jobs[i].target = CALL(mt_apply_rec, op, jobs[i].a, jobs[i].b, INVALID_ID, 0);
 }
 int pmt_apply_batch(pndd_engine *e, pmt_op op, const pndd_handle *a, const pndd_handle *b, size_t count, pndd_handle *out) {
-    pthread_mutex_lock(&admission); int ok = 0;
+    pthread_mutex_lock(&admission); PROFILE_START; int ok = 0;
     if (begin(e)) {
         if (op < PMT_AND || op > PMT_DIVIDE || (count && (!a || !b || !out)) || count > SIZE_MAX / sizeof(Job)) fail(3);
         if (!atomic_load(&G->failure)) for (size_t i = 0; i < count; ++i) out[i] = PNDD_INVALID;
@@ -472,7 +472,7 @@ int pmt_apply_batch(pndd_engine *e, pmt_op op, const pndd_handle *a, const pndd_
             deallocate(jobs);
         }
     }
-    pthread_mutex_unlock(&admission); return ok;
+    PROFILE_END(0); pthread_mutex_unlock(&admission); return ok;
 }
 TASK_DECL_5(uint32_t, mt_reduce_rec, uint32_t, uint32_t *, size_t, int, uint32_t);
 TASK_IMPL_5(uint32_t, mt_reduce_rec, uint32_t, op, uint32_t *, ids, size_t, count, int, tree, uint32_t, depth) {
@@ -492,7 +492,7 @@ TASK_IMPL_5(uint32_t, mt_reduce_rec, uint32_t, op, uint32_t *, ids, size_t, coun
     return result;
 }
 pndd_handle pmt_reduce(pndd_engine *e, pmt_op op, const pndd_handle *values, size_t count, int tree) {
-    pthread_mutex_lock(&admission); pndd_handle out = PNDD_INVALID;
+    pthread_mutex_lock(&admission); PROFILE_START; pndd_handle out = PNDD_INVALID;
     if (begin(e)) {
         if ((op != PMT_PLUS && op != PMT_TIMES && op != PMT_AND && op != PMT_OR) || (count && !values) || count > SIZE_MAX / sizeof(uint32_t)) fail(3);
         uint32_t *ids = atomic_load(&G->failure) ? NULL : allocate(count * sizeof(uint32_t));
@@ -505,7 +505,7 @@ pndd_handle pmt_reduce(pndd_engine *e, pmt_op op, const pndd_handle *values, siz
             deallocate(ids);
         }
     }
-    pthread_mutex_unlock(&admission); return out;
+    PROFILE_END(0); pthread_mutex_unlock(&admission); return out;
 }
 
 TASK_DECL_3(uint32_t, mt_import_rec, const pmt_number *, size_t, uint32_t);
@@ -626,7 +626,7 @@ VOID_TASK_IMPL_5(mt_contract_batch, Job *, jobs, size_t, count, uint32_t, field,
         jobs[i].target = CALL(mt_apply_rec, PMT_TIMES, jobs[i].a, jobs[i].b, field, 0);
 }
 static int mt_contract_public(pndd_engine *e, const pndd_handle *a, const pndd_handle *b, size_t count, uint32_t field, pndd_handle *out) {
-    pthread_mutex_lock(&admission); int ok = 0;
+    pthread_mutex_lock(&admission); PROFILE_START; int ok = 0;
     if (begin(e)) {
         if (field >= G->field_count || (count && (!a || !out)) || count > SIZE_MAX / sizeof(Job) || (count && (out == a || (b && out == b)))) fail(3);
         if (!atomic_load(&G->failure)) for (size_t i = 0; i < count; ++i) out[i] = PNDD_INVALID;
@@ -644,7 +644,7 @@ static int mt_contract_public(pndd_engine *e, const pndd_handle *a, const pndd_h
             deallocate(jobs);
         }
     }
-    pthread_mutex_unlock(&admission); return ok;
+    PROFILE_END(0); pthread_mutex_unlock(&admission); return ok;
 }
 int pmt_sum_abstract_batch(pndd_engine *e, const pndd_handle *a, size_t count, uint32_t field, pndd_handle *out) {
     return mt_contract_public(e, a, NULL, count, field, out);

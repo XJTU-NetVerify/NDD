@@ -369,6 +369,10 @@ single-worker and oversubscribed pools.
 child-count bins (0–1, 2–3, 4–7, 8–15, 16+). Numeric merge includes recursive
 weighted PLUS during abstraction, so these overlapping worker-time sums are
 diagnostic and must not be presented as exclusive wall-time fractions.
+`PNDD_COST_GRAIN` also resolves numeric identities/cache hits before spawning:
+only unresolved jobs count toward the threshold. Field elimination is never
+skipped by an identity shortcut. Small numeric recursion frames use rooted
+stack arrays, matching the existing Boolean kernel's allocation strategy.
 
 ## Multi-terminal branch
 
