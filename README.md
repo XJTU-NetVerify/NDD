@@ -176,7 +176,7 @@ The earlier MTPNDD C/JNI prototype is retained under [`mtndd/`](mtndd/README.md)
 Its borrowed-pointer Java API is deprecated and should run in a separate
 process. The new API's ownership and GC guarantees do not apply to that prototype.
 
-## LLVF integration additions
+## Batch abstraction and exact queries
 
 `sumAbstractBatch(nodes, field)` and
 `multiplySumAbstractBatch(left, right, field)` return owned arrays in one
@@ -188,7 +188,7 @@ implicit zero regions even when every stored terminal is negative.
 Scalar arithmetic identities, terminal calculations and memo hits return from
 native admission without a computation RUN; a boundary collection may still
 add an external RUN. Division remains strict, including implicit-zero holes.
-The companion LLVF `parallel-mtndd-integration` branch uses its active-group
+The companion LLVF `parallel` branch uses its active-group
 mask to make ECMP denominators nonzero outside the selected group.
 
 The new interfaces and admission path passed the seven native Release cases,
