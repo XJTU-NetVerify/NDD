@@ -356,6 +356,20 @@ they coordinate coarse/fine tasks, split unresolved child jobs, and prune cached
 or single-branch label tasks. See the [fixed-workload core scaling report](../results/ndd_parallel_core_20261012/README.md)
 for trials, limitations and the selected defaults.
 
+LLVF diagnostic extensions include `PNDD_BOOLEAN_TIMES` and
+`PNDD_COORDINATOR_BACKOFF`, both OFF by default: paired LLVF ablations did not
+show a stable improvement. The former specializes Boolean TIMES to AND only
+outside sum abstraction; the latter gives the idle coordinator a dedicated
+admission-counter futex with a bounded wait. Publication changes the futex word
+before waking, and a raced wait returns immediately. The shared wake-one futex
+is retained for helper workers. Idle admission/GC/close regression tests cover
+single-worker and oversubscribed pools.
+
+`PNDD_PROFILE` additionally reports numeric prepare/merge worker-time sums and
+child-count bins (0–1, 2–3, 4–7, 8–15, 16+). Numeric merge includes recursive
+weighted PLUS during abstraction, so these overlapping worker-time sums are
+diagnostic and must not be presented as exclusive wall-time fractions.
+
 ## Multi-terminal branch
 
 `parallel-MTNDD` additionally builds `libpmtndd.a` and `libpmtnddjni.so` from the

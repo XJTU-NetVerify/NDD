@@ -152,6 +152,14 @@ TASK_IMPL_5(uint32_t, mt_apply_rec, uint32_t, op, uint32_t, a, uint32_t, b, uint
     if (atomic_load(&G->failure) || a == INVALID_ID || b == INVALID_ID) return INVALID_ID;
     if ((op == PMT_PLUS || op == PMT_TIMES || op == PMT_AND || op == PMT_OR) && a > b) { uint32_t t = a; a = b; b = t; }
     if (op < PMT_PLUS) return CALL(apply_rec, op, a, b, depth);
+#ifdef PNDD_BOOLEAN_TIMES
+    /* Boolean multiplication is intersection. Reuse the specialized Boolean
+     * recurrence and its cache, but never bypass assignment multiplicities
+     * when a field is being summed out. This also applies inside numeric jobs. */
+    if (op == PMT_TIMES && eliminate == INVALID_ID &&
+            node(a)->boolean_graph && node(b)->boolean_graph)
+        return CALL(apply_rec, PMT_AND, a, b, depth);
+#endif
     if (op == PMT_TIMES && (!a || !b)) return 0;
     if (eliminate == INVALID_ID) {
         if (op == PMT_TIMES && a == 1) return b;
@@ -173,6 +181,9 @@ TASK_IMPL_5(uint32_t, mt_apply_rec, uint32_t, op, uint32_t, a, uint32_t, b, uint
     if (field == G->field_count) {
         uint32_t result = mt_scalar(op, a, b); pndd_cache_put(key, a, b, result); return result;
     }
+#ifdef PNDD_PROFILE
+    uint64_t prepare_start = now_ns();
+#endif
     Edge av = {G->fields[field].universe, a}, bv = {G->fields[field].universe, b};
     const Edge *ae = af == field ? node(a)->edges : &av, *be = bf == field ? node(b)->edges : &bv;
     size_t ac = af == field ? node(a)->count : 1, bc = bf == field ? node(b)->count : 1;
@@ -206,8 +217,17 @@ TASK_IMPL_5(uint32_t, mt_apply_rec, uint32_t, op, uint32_t, a, uint32_t, b, uint
         }
     }
     root_pop(&rr);
+#ifdef PNDD_PROFILE
+    Profile *profile = &worker_stats()->profile;
+    ++profile->numeric_misses; profile->numeric_prepare_ns += now_ns() - prepare_start;
+    profile->numeric_jobs += count;
+    ++profile->numeric_bins[count <= 1 ? 0 : count <= 3 ? 1 : count <= 7 ? 2 : count <= 15 ? 3 : 4];
+#endif
     CALL(mt_jobs, jobs, count, op, field == eliminate ? INVALID_ID : eliminate, depth, __lace_worker->worker);
     uint32_t result = INVALID_ID;
+#ifdef PNDD_PROFILE
+    uint64_t merge_start = now_ns();
+#endif
     if (!atomic_load(&G->failure)) {
         if (field == eliminate) {
             result = 0;
@@ -221,6 +241,9 @@ TASK_IMPL_5(uint32_t, mt_apply_rec, uint32_t, op, uint32_t, a, uint32_t, b, uint
         }
     }
     root_pop(&jr); deallocate(jobs); deallocate(out);
+#ifdef PNDD_PROFILE
+    profile->numeric_merge_ns += now_ns() - merge_start;
+#endif
     pndd_cache_put(key, a, b, result); return result;
 }
 /* Sum abstraction reuses the fused recurrence with the identity factor,
@@ -249,6 +272,10 @@ static pndd_handle mt_public_apply(pndd_engine *e, pmt_op op, pndd_handle a, pnd
         if (!atomic_load(&G->failure) && op < PMT_PLUS &&
                 ((x >= 2 && !node(x)->boolean_graph) || (y >= 2 && !node(y)->boolean_graph))) fail(5);
         if (!atomic_load(&G->failure)) {
+#ifdef PNDD_BOOLEAN_TIMES
+            if (!fused && op == PMT_TIMES && node(x)->boolean_graph && node(y)->boolean_graph)
+                op = PMT_AND;
+#endif
             if ((op == PMT_PLUS || op == PMT_TIMES || op == PMT_AND || op == PMT_OR) && x > y) { uint32_t t=x; x=y; y=t; }
             uint32_t direct=INVALID_ID; uint64_t cached;
             if (op == PMT_TIMES && (!x || !y)) direct=0;

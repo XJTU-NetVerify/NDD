@@ -3,6 +3,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 static pndd_handle checked(pndd_engine *e, pndd_handle h) {
     if (h == PNDD_INVALID) fprintf(stderr, "%s\n", pndd_error(e));
     assert(h != PNDD_INVALID); return h;
@@ -29,7 +30,16 @@ static void run(unsigned workers, int backend, int mixed, pmt_domain domain) {
         }
         release(e, predicate);
     }
-    pndd_handle xy = apply(e, PMT_AND, xbit, ybit), projected = checked(e, pmt_exist(e, xy, 1));
+    pndd_handle xy = apply(e, PMT_AND, xbit, ybit);
+    pndd_handle boolean_product = apply(e, PMT_TIMES, xbit, ybit);
+    assert(boolean_product == xy);
+    pndd_handle fused_boolean = checked(e, pmt_multiply_sum(e, xbit, ybit, 1));
+    pndd_handle separate_boolean = checked(e, pmt_sum_abstract(e, xy, 1));
+    assert(fused_boolean == separate_boolean);
+    /* Two satisfying y assignments: Boolean fusion must retain multiplicity. */
+    assert(eval(e, fused_boolean, 4, 0) == 2);
+    release(e, boolean_product); release(e, fused_boolean); release(e, separate_boolean);
+    pndd_handle projected = checked(e, pmt_exist(e, xy, 1));
     assert(projected == xbit); release(e, projected); release(e, xy); release(e, xbit); release(e, ybit);
     pndd_handle f = checked(e, pndd_constant(e, 0)), g = checked(e, pndd_constant(e, 0));
     for (unsigned a = 0; a < 8; ++a) for (unsigned b = 0; b < 4; ++b) {
@@ -217,11 +227,31 @@ static void application_api_checks(unsigned workers) {
         release(e,high);release(e,half);release(e,weighted);release(e,negative);release(e,partial);pndd_close(e);
     }
 }
+static void idle_admissions(unsigned workers) {
+    pndd_config c=pndd_default_config();c.workers=workers;c.gc_interval=0;
+    c.memory_bytes=16u<<20;c.cache_entries=64;
+    pndd_field field={2,PNDD_BDD};
+    pndd_engine *e=pmt_open(&c,&field,1,PMT_RATIONAL);assert(e);
+    pndd_handle bit=checked(e,pndd_literal(e,0,0,1));
+    struct timespec pause={0,5000000};
+    for(int i=0;i<24;++i) {
+        nanosleep(&pause,NULL); /* force an idle coordinator, including worker=1 */
+        uint64_t runs=pndd_get_stats(e).external_runs;
+        pndd_handle sum=checked(e,pmt_sum_abstract(e,bit,0));pmt_number value;
+        assert(pndd_get_stats(e).external_runs==runs+1);
+        assert(pmt_terminal(e,sum,&value)&&value.numerator==2&&value.denominator==1);
+        release(e,sum);
+        if(i%6==0)assert(pndd_collect(e));
+    }
+    release(e,bit);nanosleep(&pause,NULL);pndd_close(e);
+}
 int main(int argc, char **argv) {
     unsigned workers = argc > 1 ? atoi(argv[1]) : 1;
+    if(argc>2) { idle_admissions(workers); return 0; }
     for (int backend = 0; backend < 4; ++backend) for (int mixed = 0; mixed < 2; ++mixed)
         for (pmt_domain domain = PMT_RATIONAL; domain <= PMT_DOUBLE; ++domain) run(workers, backend, mixed, domain);
     application_api_checks(workers);
+    idle_admissions(workers);
     boundary_checks(workers);
     pressure(workers, PNDD_BCDD); pressure(workers, PNDD_ZDD);
     puts("MT multi-backend arithmetic, fused contraction, owned roots and GC passed");

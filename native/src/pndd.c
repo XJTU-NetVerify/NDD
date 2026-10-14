@@ -25,6 +25,7 @@ typedef struct {
 #ifdef PNDD_PROFILE
 typedef struct {
     uint64_t labels_calls, labels_ns, label_hits, label_misses, prepare_ns, misses, jobs, costly_jobs, bins[5];
+    uint64_t numeric_prepare_ns, numeric_merge_ns, numeric_misses, numeric_jobs, numeric_bins[5];
 } Profile;
 #endif
 
@@ -225,6 +226,9 @@ static void profile_dump(void) {
         p.label_hits += w->label_hits; p.label_misses += w->label_misses;
         p.prepare_ns += w->prepare_ns; p.misses += w->misses;
         p.jobs += w->jobs; p.costly_jobs += w->costly_jobs;
+        p.numeric_prepare_ns += w->numeric_prepare_ns; p.numeric_merge_ns += w->numeric_merge_ns;
+        p.numeric_misses += w->numeric_misses; p.numeric_jobs += w->numeric_jobs;
+        for (int j = 0; j < 5; ++j) p.numeric_bins[j] += w->numeric_bins[j];
         for (int j = 0; j < 5; ++j) p.bins[j] += w->bins[j];
     }
     const char *names[] = {"apply", "count", "snapshot", "reachable", "gc", "mincost", "exist", "evaluate"};
@@ -232,6 +236,8 @@ static void profile_dump(void) {
         fprintf(stderr, "profile_%s_calls:%llu\nprofile_%s_seconds:%.9f\n", names[i], (unsigned long long)G->profile_calls[i], names[i], G->profile_ns[i] / 1e9);
     fprintf(stderr, "profile_label_calls:%llu\nprofile_label_worker_seconds:%.9f\nprofile_prepare_worker_seconds:%.9f\nprofile_ndd_misses:%llu\nprofile_jobs:%llu\nprofile_costly_jobs:%llu\n", (unsigned long long)p.labels_calls, p.labels_ns / 1e9, p.prepare_ns / 1e9, (unsigned long long)p.misses, (unsigned long long)p.jobs, (unsigned long long)p.costly_jobs);
     for (int i = 0; i < 5; ++i) fprintf(stderr, "profile_job_bin_%d:%llu\n", i, (unsigned long long)p.bins[i]);
+    fprintf(stderr, "profile_numeric_prepare_worker_seconds:%.9f\nprofile_numeric_merge_worker_seconds:%.9f\nprofile_numeric_misses:%llu\nprofile_numeric_jobs:%llu\n", p.numeric_prepare_ns / 1e9, p.numeric_merge_ns / 1e9, (unsigned long long)p.numeric_misses, (unsigned long long)p.numeric_jobs);
+    for (int i = 0; i < 5; ++i) fprintf(stderr, "profile_numeric_job_bin_%d:%llu\n", i, (unsigned long long)p.numeric_bins[i]);
     fprintf(stderr, "profile_label_cache_hits:%llu\nprofile_label_cache_misses:%llu\n", (unsigned long long)p.label_hits, (unsigned long long)p.label_misses);
 }
 #else

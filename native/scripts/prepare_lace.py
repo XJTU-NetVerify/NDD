@@ -44,17 +44,33 @@ old = '''#if LACE_BACKOFF
 if s.count(old) != 1:
     raise SystemExit('Pinned Lace idle policy has changed')
 s = s.replace(old, '''#if defined(PNDD_ROOT_AFFINITY)
-        /* A shared wake-one futex could wake the wrong worker. Keep the
-           coordinator polling cooperatively; its normal steal/newframe loop
-           and quit check are retained. Single-worker Lace already polls. */
         if (worker_id == 0) {
+#if defined(PNDD_COORDINATOR_BACKOFF)
+            /* Only the coordinator waits on this word. Publication changes
+               its value before waking, so a raced wait returns EAGAIN.
+               The bounded wait retains quit/newframe progress as well. */
+            if (n == 1) ++idle_count;
+            if (idle_count > LACE_IDLE_STAGE1_LIMIT)
+                lace_futex_wait(&external_task_count, 0, LACE_IDLE_FUTEX_TIMEOUT_MIN);
+            else lace_cpu_yield();
+#else
             lace_cpu_yield();
+#endif
             if (atomic_load_explicit(quit, memory_order_relaxed)) break;
             continue;
         }
 #endif
 #if LACE_BACKOFF
         // Progressive idle: pause → yield → futex sleep''')
+old = 'lace_futex_wake_one(&wake_futex);\n\n    for (int spin = 0; spin < 256; spin++)'
+if s.count(old) != 1:
+    raise SystemExit('Pinned Lace external wake site has changed')
+s = s.replace(old, '''lace_futex_wake_one(&wake_futex);
+#if defined(PNDD_ROOT_AFFINITY) && defined(PNDD_COORDINATOR_BACKOFF)
+    lace_futex_wake_one(&external_task_count);
+#endif
+
+    for (int spin = 0; spin < 256; spin++)''')
 p.write_text('/* PNDD adaptation: bounded sleep in oversubscribed GC waits. */\n' + s)
 # sched_getaffinity is a GNU extension. The upstream check omits its feature
 # macro and falls back to the host CPU count, ignoring taskset/container masks.
