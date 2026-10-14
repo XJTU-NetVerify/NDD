@@ -227,17 +227,48 @@ TASK_IMPL_5(uint32_t, mt_apply_rec, uint32_t, op, uint32_t, a, uint32_t, b, uint
     if (cap > SIZE_MAX / sizeof(Job) || cap > SIZE_MAX / sizeof(Edge)) { fail(1); return INVALID_ID; }
     Job small_jobs[8]; Edge small_out[8];
     int heap = cap > 8;
-    Job *jobs = heap ? allocate(cap * sizeof(Job)) : small_jobs;
-    Edge *out = heap ? allocate(cap * sizeof(Edge)) : small_out;
-    if (!jobs || !out) { if (heap) { deallocate(jobs); deallocate(out); } return INVALID_ID; }
-    RootFrame jr; root_push(&jr, field, jobs, sizeof(Job), 0);
-    uint64_t residual[2] = {0, 0}; RootFrame rr; root_push(&rr, field, residual, sizeof(uint64_t), 2);
+    Job *jobs = NULL; Edge *out = NULL;
+    /* Empty job frame precedes the coverage frame, preserving LIFO roots
+       while deciding whether a quadratic job buffer is needed at all. */
+    RootFrame jr; root_push(&jr, field, NULL, sizeof(Job), 0);
+    uint64_t residual[4] = {0, 0, 0, 0}; RootFrame rr; root_push(&rr, field, residual, sizeof(uint64_t), 4);
     if (op != PMT_TIMES) {
-        residual[0] = coverage(field, ae, ac);
-        residual[0] = labels(field, PNDD_DIFF, G->fields[field].universe, residual[0]);
-        residual[1] = coverage(field, be, bc);
-        residual[1] = labels(field, PNDD_DIFF, G->fields[field].universe, residual[1]);
+        residual[2] = coverage(field, ae, ac);
+        residual[3] = coverage(field, be, bc);
+#ifdef PNDD_NUMERIC_DISJOINT
+        if (op == PMT_PLUS && eliminate == INVALID_ID &&
+                !labels(field, PNDD_AND, residual[2], residual[3]) && !atomic_load(&G->failure)) {
+            /* Disjoint field supports imply disjoint full assignments.
+               Every omitted arithmetic job would be x+0 or 0+y. */
+            size_t count = ac + bc; int linear_heap = count > 8;
+            out = linear_heap ? allocate(count * sizeof(Edge)) : small_out;
+            if (!out) { root_pop(&rr); root_pop(&jr); return INVALID_ID; }
+            for(size_t i=0;i<ac;++i)out[i]=ae[i];
+            for(size_t i=0;i<bc;++i)out[ac+i]=be[i];
+#ifdef PNDD_PROFILE
+            Profile *profile=&worker_stats()->profile;
+            ++profile->numeric_misses; ++profile->numeric_disjoint_hits;
+            profile->numeric_prepare_ns += now_ns()-prepare_start;
+            uint64_t merge_start=now_ns();
+#endif
+            RootFrame er;root_push(&er,field,out,sizeof(Edge),count);
+            uint32_t result=make_node(field,out,count);
+            root_pop(&er);root_pop(&rr);root_pop(&jr);
+            if(linear_heap)deallocate(out);
+#ifdef PNDD_PROFILE
+            profile->numeric_merge_ns += now_ns()-merge_start;
+#endif
+            pndd_cache_put(key,a,b,result);return result;
+        }
+#endif
+        residual[0] = labels(field, PNDD_DIFF, G->fields[field].universe, residual[2]);
+        residual[1] = labels(field, PNDD_DIFF, G->fields[field].universe, residual[3]);
     }
+    if (atomic_load(&G->failure)) { root_pop(&rr);root_pop(&jr);return INVALID_ID; }
+    jobs = heap ? allocate(cap * sizeof(Job)) : small_jobs;
+    out = heap ? allocate(cap * sizeof(Edge)) : small_out;
+    if (!jobs || !out) { root_pop(&rr);root_pop(&jr);if (heap) { deallocate(jobs); deallocate(out); } return INVALID_ID; }
+    jr.values=jobs;
     size_t count = 0;
     for (size_t i = 0; i < ac + (op != PMT_TIMES) && !atomic_load(&G->failure); ++i) {
         Edge x = i < ac ? ae[i] : (Edge){residual[0], 0};

@@ -373,6 +373,13 @@ diagnostic and must not be presented as exclusive wall-time fractions.
 only unresolved jobs count toward the threshold. Field elimination is never
 skipped by an identity shortcut. Small numeric recursion frames use rooted
 stack arrays, matching the existing Boolean kernel's allocation strategy.
+`PNDD_NUMERIC_DISJOINT=ON` checks the field coverage already needed by PLUS.
+When the two covers do not intersect, it joins their edges directly, skipping
+Cartesian label intersections and arithmetic identities. This uses linear
+scratch space and is disabled for field elimination. Both covers and output
+edges remain rooted across label GC; generic overlapping PLUS is unchanged.
+The regression suite joins two 1,024-edge disjoint diagrams within 16 MiB,
+where the original Cartesian scratch alone required over 40 MiB.
 
 ## Multi-terminal branch
 

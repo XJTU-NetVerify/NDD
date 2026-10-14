@@ -270,6 +270,29 @@ static void disjoint_numeric_jobs(unsigned workers) {
     release(e,total);release(e,sum);release(e,a);release(e,b);release(e,hi);release(e,lo);release(e,half);release(e,third);
     pndd_close(e);
 }
+static void disjoint_linear_budget(unsigned workers) {
+#ifdef PNDD_NUMERIC_DISJOINT
+    pndd_config c=pndd_default_config();c.workers=workers;c.gc_interval=0;
+    c.memory_bytes=16u<<20;c.cache_entries=64;
+    pndd_field field={11,PNDD_BDD};
+    pndd_engine *e=pmt_open(&c,&field,1,PMT_RATIONAL);assert(e);
+    pmt_number values[2048];
+    for(unsigned i=0;i<2048;++i)values[i]=(pmt_number){i<1024?i+1:0,1,0,PMT_RATIONAL};
+    pndd_handle left=checked(e,pmt_from_array(e,values,2048));
+    for(unsigned i=0;i<2048;++i)values[i].numerator=i>=1024?i+1:0;
+    pndd_handle right=checked(e,pmt_from_array(e,values,2048));
+    /* The old Cartesian scratch exceeds 40 MiB; a linear union fits 16 MiB. */
+    pndd_handle sum=apply(e,PMT_PLUS,left,right);pmt_number value;
+    uint64_t assignment[]={1023};
+    assert(pmt_evaluate(e,sum,assignment,1,&value)&&value.numerator==1024&&value.denominator==1);
+    assignment[0]=1024;
+    assert(pmt_evaluate(e,sum,assignment,1,&value)&&value.numerator==1025&&value.denominator==1);
+    assert(pndd_collect(e));assert(pmt_max_terminal(e,sum,&value)&&value.numerator==2048);
+    release(e,left);release(e,right);release(e,sum);pndd_close(e);
+#else
+    (void)workers;
+#endif
+}
 int main(int argc, char **argv) {
     unsigned workers = argc > 1 ? atoi(argv[1]) : 1;
     if(argc>2) { idle_admissions(workers); return 0; }
@@ -278,6 +301,7 @@ int main(int argc, char **argv) {
     application_api_checks(workers);
     idle_admissions(workers);
     disjoint_numeric_jobs(workers);
+    disjoint_linear_budget(workers);
     boundary_checks(workers);
     pressure(workers, PNDD_BCDD); pressure(workers, PNDD_ZDD);
     puts("MT multi-backend arithmetic, fused contraction, owned roots and GC passed");
