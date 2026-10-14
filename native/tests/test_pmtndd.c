@@ -183,10 +183,38 @@ static void boundary_checks(unsigned workers) {
     assert(pmt_terminal(e, abstracted, &result) && result.value == 0);
     release(e, abstracted); release(e, empty); pndd_close(e);
 }
+static void application_api_checks(unsigned workers) {
+    pndd_config c=pndd_default_config();c.workers=workers;c.memory_bytes=16u<<20;c.cache_entries=64;
+    for (int backend=0;backend<4;++backend) for(int reverse=0;reverse<2;++reverse) {
+        c.reverse_labels=reverse;
+        pndd_field fields[]={{backend==PNDD_BITSET?7:70,backend},{2,backend}};
+        pndd_engine *e=pmt_open(&c,fields,2,PMT_RATIONAL);assert(e);
+        pndd_handle high=checked(e,pndd_literal(e,0,0,1)),half=checked(e,pmt_fraction(e,1,2));
+        pndd_handle weighted=apply(e,PMT_TIMES,high,half),negative=checked(e,pmt_fraction(e,-1,3));
+        pndd_handle partial=apply(e,PMT_TIMES,high,negative);pmt_number value;
+        assert(pmt_max_terminal(e,partial,&value)&&value.numerator==0);
+        assert(pmt_max_terminal(e,negative,&value)&&value.numerator==-1&&value.denominator==3);
+        assert(pmt_max_terminal(e,weighted,&value)&&value.numerator==1&&value.denominator==2);
+        unsigned char bits[72]={0};size_t size=fields[0].width+2;
+        assert(pmt_evaluate_bits(e,weighted,bits,size,&value)&&value.numerator==0);
+        bits[0]=1;assert(pmt_evaluate_bits(e,weighted,bits,size,&value)&&value.numerator==1&&value.denominator==2);
+        bits[0]=2;assert(!pmt_evaluate_bits(e,weighted,bits,size,&value));bits[0]=1;
+        pndd_handle a[]={weighted,partial},b[]={half,half},out[2];
+        uint64_t runs=pndd_get_stats(e).external_runs;
+        assert(pmt_sum_abstract_batch(e,a,2,1,out));assert(pndd_get_stats(e).external_runs==runs+1);
+        for(unsigned i=0;i<2;++i){pndd_handle scalar=checked(e,pmt_sum_abstract(e,a[i],1));assert(out[i]==scalar);release(e,scalar);release(e,out[i]);}
+        assert(pmt_multiply_sum_batch(e,a,b,2,1,out));
+        for(unsigned i=0;i<2;++i){pndd_handle scalar=checked(e,pmt_multiply_sum(e,a[i],b[i],1));assert(out[i]==scalar);release(e,scalar);release(e,out[i]);}
+        assert(pmt_sum_abstract_batch(e,NULL,0,1,NULL));
+        if(backend!=PNDD_BITSET){assert(!pmt_sum_abstract_batch(e,a,2,0,out));assert(out[0]==PNDD_INVALID&&out[1]==PNDD_INVALID);assert(pndd_collect(e));assert(pmt_evaluate_bits(e,weighted,bits,size,&value));}
+        release(e,high);release(e,half);release(e,weighted);release(e,negative);release(e,partial);pndd_close(e);
+    }
+}
 int main(int argc, char **argv) {
     unsigned workers = argc > 1 ? atoi(argv[1]) : 1;
     for (int backend = 0; backend < 4; ++backend) for (int mixed = 0; mixed < 2; ++mixed)
         for (pmt_domain domain = PMT_RATIONAL; domain <= PMT_DOUBLE; ++domain) run(workers, backend, mixed, domain);
+    application_api_checks(workers);
     boundary_checks(workers);
     pressure(workers, PNDD_BCDD); pressure(workers, PNDD_ZDD);
     puts("MT multi-backend arithmetic, fused contraction, owned roots and GC passed");

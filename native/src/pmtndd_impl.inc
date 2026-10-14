@@ -248,7 +248,32 @@ static pndd_handle mt_public_apply(pndd_engine *e, pmt_op op, pndd_handle a, pnd
         if (op < PMT_AND || op > PMT_DIVIDE || (fused && field >= G->field_count)) fail(3);
         if (!atomic_load(&G->failure) && op < PMT_PLUS &&
                 ((x >= 2 && !node(x)->boolean_graph) || (y >= 2 && !node(y)->boolean_graph))) fail(5);
-        if (!atomic_load(&G->failure)) { atomic_fetch_add(&G->runs, 1); h = own(RUN(mt_apply_rec, op, x, y, field, 0)); }
+        if (!atomic_load(&G->failure)) {
+            if ((op == PMT_PLUS || op == PMT_TIMES || op == PMT_AND || op == PMT_OR) && x > y) { uint32_t t=x; x=y; y=t; }
+            uint32_t direct=INVALID_ID; uint64_t cached;
+            if (op == PMT_TIMES && (!x || !y)) direct=0;
+            if (!fused) {
+                if (op == PMT_TIMES && x == 1) direct=y;
+                if (op == PMT_TIMES && y == 1) direct=x;
+                if (op == PMT_PLUS && !x) direct=y;
+                if ((op == PMT_PLUS || op == PMT_MINUS) && !y) direct=x;
+                if (op == PMT_MINUS && x == y) direct=0;
+                if (op == PMT_DIVIDE && y == 1) direct=x;
+                if (op == PMT_AND && !x) direct=0;
+                if (op == PMT_AND && x == 1) direct=y;
+                if ((op == PMT_AND || op == PMT_OR) && x == y) direct=x;
+                if (op == PMT_OR && !x) direct=y;
+                if (op == PMT_OR && y == 1) direct=1;
+                if (op == PMT_DIFF && (!x || x == y)) direct=0;
+                if (op == PMT_DIFF && !y) direct=x;
+                if (node_field(x) == G->field_count && node_field(y) == G->field_count)
+                    direct=mt_scalar(op,x,y);
+            }
+            uint32_t key=op < PMT_PLUS ? op+1 : fused ? 0x21000+field*16+op : 0x20000+op;
+            if (direct != INVALID_ID) h=own(direct);
+            else if (!atomic_load(&G->failure) && pndd_cache_get(key,x,y,&cached)) h=own((uint32_t)cached);
+            else if (!atomic_load(&G->failure)) { atomic_fetch_add(&G->runs,1); h=own(RUN(mt_apply_rec,op,x,y,field,0)); }
+        }
     }
     pthread_mutex_unlock(&admission); return h;
 }
@@ -452,4 +477,117 @@ pndd_handle pmt_from_array(pndd_engine *e, const pmt_number *values, size_t coun
         if (!atomic_load(&G->failure)) { atomic_fetch_add(&G->runs, 1); out = own(RUN(mt_import_rec, values, count, 0)); }
     }
     pthread_mutex_unlock(&admission); return out;
+}
+
+static int mt_matches_bits(uint32_t field, uint64_t value, const unsigned char *bits) {
+    Field *f = &G->fields[field]; pndd_backend mode = f->spec.backend;
+    if (mode == PNDD_BITSET) {
+        uint64_t assignment = 0;
+        for (uint32_t i = 0; i < f->spec.width; ++i) assignment = (assignment << 1) | bits[i];
+        return label_matches(field, value, assignment);
+    }
+    if (mode == PNDD_ZDD) {
+        for (uint32_t var = f->start; var < label_end(field); ++var) {
+            value = branch(field, value, var, bits[var - f->start]);
+            if (!value) return 0;
+        }
+    } else while (value && value != truth(field)) {
+        uint32_t var = label_var(field, value);
+        uint32_t bit = reversed(field) ? f->spec.width - 1 - var : var - f->start;
+        value = branch(field, value, var, bits[bit]);
+    }
+    return value == truth(field);
+}
+int pmt_evaluate_bits(pndd_engine *e, pndd_handle handle, const unsigned char *bits, size_t count, pmt_number *out) {
+    pthread_mutex_lock(&admission); int ok = 0;
+    if (begin(e)) {
+        size_t offsets[257] = {0};
+        for (uint32_t f = 0; f < G->field_count; ++f) offsets[f + 1] = offsets[f] + G->fields[f].spec.width;
+        if (!bits || !out || count != offsets[G->field_count]) fail(3);
+        else for (size_t i = 0; i < count; ++i) if (bits[i] > 1) { fail(3); break; }
+        uint32_t id = resolve(handle);
+        if (!atomic_load(&G->failure)) {
+            while (node_field(id) < G->field_count) {
+                Node *n = node(id); uint32_t next = 0;
+                for (size_t i = 0; i < n->count; ++i)
+                    if (mt_matches_bits(n->field, n->edges[i].label, bits + offsets[n->field])) { next = n->edges[i].target; break; }
+                id = next;
+            }
+            *out = mt_number(id); ok = 1;
+        }
+    }
+    pthread_mutex_unlock(&admission); return ok;
+}
+static int mt_greater(uint32_t a, uint32_t b) {
+    pmt_number x = mt_number(a), y = mt_number(b);
+    return G->numeric_double ? x.value > y.value : (__int128)x.numerator * y.denominator > (__int128)y.numerator * x.denominator;
+}
+TASK_DECL_2(uint32_t, mt_max_rec, uint32_t, uint32_t *);
+TASK_IMPL_2(uint32_t, mt_max_rec, uint32_t, id, uint32_t *, memo) {
+    if (node_field(id) == G->field_count) return id;
+    if (memo[id] != INVALID_ID) return memo[id];
+    Node *n = node(id); uint32_t result = INVALID_ID;
+    for (size_t i = 0; i < n->count; ++i) {
+        uint32_t v = CALL(mt_max_rec, n->edges[i].target, memo);
+        if (result == INVALID_ID || mt_greater(v, result)) result = v;
+    }
+    /* Missing labels represent zero, including for an all-negative diagram. */
+    uint64_t cover = coverage(n->field, n->edges, n->count);
+    if (cover != G->fields[n->field].universe && (result == INVALID_ID || mt_greater(0, result))) result = 0;
+    memo[id] = result; return result;
+}
+int pmt_max_terminal(pndd_engine *e, pndd_handle handle, pmt_number *out) {
+    pthread_mutex_lock(&admission); int ok = 0;
+    if (begin(e)) {
+        uint32_t id = resolve(handle);
+        if (!out) fail(3);
+        uint32_t *memo = atomic_load(&G->failure) ? NULL : allocate((size_t)G->node_high * sizeof(uint32_t));
+        if (memo) {
+            memset(memo, 255, (size_t)G->node_high * sizeof(uint32_t));
+            atomic_fetch_add(&G->runs, 1); uint32_t result = RUN(mt_max_rec, id, memo);
+            if (!atomic_load(&G->failure)) { *out = mt_number(result); ok = 1; }
+            deallocate(memo);
+        }
+    }
+    pthread_mutex_unlock(&admission); return ok;
+}
+VOID_TASK_DECL_5(mt_contract_batch, Job *, size_t, uint32_t, uint32_t, uint32_t);
+VOID_TASK_IMPL_5(mt_contract_batch, Job *, jobs, size_t, count, uint32_t, field, uint32_t, depth, uint32_t, owner) {
+    if (__lace_worker->worker != owner) atomic_fetch_add(&G->stolen, 1);
+    if (atomic_load(&G->failure)) return;
+    if (G->config.batch_parallel && count > G->config.chunk_size && depth < G->config.spawn_depth) {
+        size_t half = count / 2; atomic_fetch_add(&G->tasks, 1);
+        SPAWN(mt_contract_batch, jobs, half, field, depth + 1, __lace_worker->worker);
+        CALL(mt_contract_batch, jobs + half, count - half, field, depth + 1, __lace_worker->worker);
+        SYNC(mt_contract_batch);
+    } else for (size_t i = 0; i < count && !atomic_load(&G->failure); ++i)
+        jobs[i].target = CALL(mt_apply_rec, PMT_TIMES, jobs[i].a, jobs[i].b, field, 0);
+}
+static int mt_contract_public(pndd_engine *e, const pndd_handle *a, const pndd_handle *b, size_t count, uint32_t field, pndd_handle *out) {
+    pthread_mutex_lock(&admission); int ok = 0;
+    if (begin(e)) {
+        if (field >= G->field_count || (count && (!a || !out)) || count > SIZE_MAX / sizeof(Job) || (count && (out == a || (b && out == b)))) fail(3);
+        if (!atomic_load(&G->failure)) for (size_t i = 0; i < count; ++i) out[i] = PNDD_INVALID;
+        if (!count && !atomic_load(&G->failure)) ok = 1;
+        Job *jobs = !count || atomic_load(&G->failure) ? NULL : allocate(count * sizeof(Job));
+        if (jobs) {
+            for (size_t i = 0; i < count; ++i) jobs[i] = (Job){0, resolve(a[i]), b ? resolve(b[i]) : 1, INVALID_ID};
+            if (!atomic_load(&G->failure)) { atomic_fetch_add(&G->runs, 1); RUN(mt_contract_batch, jobs, count, field, 0, 0); }
+            if (!atomic_load(&G->failure)) {
+                size_t i = 0;
+                for (; i < count; ++i) { out[i] = own(jobs[i].target); if (out[i] == PNDD_INVALID) break; }
+                if (i == count) ok = 1;
+                else for (size_t j = 0; j < i; ++j) { --node(jobs[j].target)->refs; out[j] = PNDD_INVALID; }
+            }
+            deallocate(jobs);
+        }
+    }
+    pthread_mutex_unlock(&admission); return ok;
+}
+int pmt_sum_abstract_batch(pndd_engine *e, const pndd_handle *a, size_t count, uint32_t field, pndd_handle *out) {
+    return mt_contract_public(e, a, NULL, count, field, out);
+}
+int pmt_multiply_sum_batch(pndd_engine *e, const pndd_handle *a, const pndd_handle *b, size_t count, uint32_t field, pndd_handle *out) {
+    if (count && !b) { pthread_mutex_lock(&admission); if (begin(e)) fail(3); pthread_mutex_unlock(&admission); return 0; }
+    return mt_contract_public(e, a, b, count, field, out);
 }

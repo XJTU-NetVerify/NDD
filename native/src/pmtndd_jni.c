@@ -97,3 +97,32 @@ JNIEXPORT jlong JNICALL FN(importNative)(JNIEnv *env, jclass cls, jlong e, jdoub
     }
     pndd_handle h = pmt_from_array(engine(e), values, count); free(values); return checked(env, engine(e), h);
 }
+
+JNIEXPORT jlongArray JNICALL FN(evaluateBitsNative)(JNIEnv *env, jclass cls, jlong e, jlong a, jbyteArray array) {
+    (void)cls; jsize count = (*env)->GetArrayLength(env, array);
+    unsigned char *bits = malloc(count ? (size_t)count : 1);
+    if (!bits) { oom(env); return NULL; }
+    (*env)->GetByteArrayRegion(env, array, 0, count, (jbyte *)bits);
+    if ((*env)->ExceptionCheck(env)) { free(bits); return NULL; }
+    pmt_number v; int ok = pmt_evaluate_bits(engine(e), a, bits, count, &v); free(bits);
+    if (!ok) { error(env, engine(e)); return NULL; } return number_array(env, v);
+}
+JNIEXPORT jlongArray JNICALL FN(maxNative)(JNIEnv *env, jclass cls, jlong e, jlong a) {
+    (void)cls; pmt_number v;
+    if (!pmt_max_terminal(engine(e), a, &v)) { error(env, engine(e)); return NULL; }
+    return number_array(env, v);
+}
+JNIEXPORT jlongArray JNICALL FN(contractBatchNative)(JNIEnv *env, jclass cls, jlong e, jlongArray aa, jlongArray bb, jint field) {
+    (void)cls; jsize count, other = 0; uint64_t *a = copy(env, aa, &count), *b = NULL;
+    if (!a) return NULL;
+    if (bb) { b = copy(env, bb, &other); if (!b) { free(a); return NULL; } }
+    uint64_t *out = malloc(count ? (size_t)count * sizeof(uint64_t) : 1);
+    if (!out) { free(a); free(b); oom(env); return NULL; }
+    int ok = b ? count == other && pmt_multiply_sum_batch(engine(e), a, b, count, field, out) : pmt_sum_abstract_batch(engine(e), a, count, field, out);
+    free(a); free(b);
+    if (!ok) { free(out); error(env, engine(e)); return NULL; }
+    jlongArray result = (*env)->NewLongArray(env, count);
+    if (result) (*env)->SetLongArrayRegion(env, result, 0, count, (jlong *)out);
+    if (!result || (*env)->ExceptionCheck(env)) for (jsize i = 0; i < count; ++i) pndd_release(engine(e), out[i]);
+    free(out); return result;
+}

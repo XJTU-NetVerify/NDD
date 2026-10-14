@@ -111,10 +111,10 @@ floating-point reductions may differ with evaluation order. See
 | Construction | `constant`, `literal`, `value`, `fraction`, `number` |
 | Boolean operations | `apply`, `and`, `or`, `not`, `diff`, `exist` |
 | Arithmetic | `plus`, `minus`, `times`, `divide` |
-| Abstraction | `sumAbstract`, `multiplySumAbstract` |
+| Abstraction | `sumAbstract`, `multiplySumAbstract`, `sumAbstractBatch`, `multiplySumAbstractBatch` |
 | Batch operations | `applyBatch`, `reduce` |
 | Dense import | `fromArray`, `fromFractions` |
-| Inspection | `evaluate`, `terminalValue`, `satCount`, `stats` |
+| Inspection | `evaluate`, `evaluateBits`, `terminalValue`, `maxTerminal`, `satCount`, `stats` |
 | Lifetime | `retain`, `close`, `collect` |
 
 Boolean operations and `exist` accept only diagrams with values `0` and `1`.
@@ -175,6 +175,25 @@ choices and semantic differences.
 The earlier MTPNDD C/JNI prototype is retained under [`mtndd/`](mtndd/README.md).
 Its borrowed-pointer Java API is deprecated and should run in a separate
 process. The new API's ownership and GC guarantees do not apply to that prototype.
+
+## LLVF integration additions
+
+`sumAbstractBatch(nodes, field)` and
+`multiplySumAbstractBatch(left, right, field)` return owned arrays in one
+computation RUN, with no partially owned output on failure. `evaluateBits`
+accepts one MSB-first Boolean array per field, including fields wider than 64
+bits. `maxTerminal` returns the exact maximum over assignments, accounting for
+implicit zero regions even when every stored terminal is negative.
+
+Scalar arithmetic identities, terminal calculations and memo hits return from
+native admission without a computation RUN; a boundary collection may still
+add an external RUN. Division remains strict, including implicit-zero holes.
+The companion LLVF `parallel-mtndd-integration` branch uses its active-group
+mask to make ECMP denominators nonzero outside the selected group.
+
+The new interfaces and admission path passed the seven native Release cases,
+ASan/UBSan numeric rechecks, and 43 Java tests. These checks do not establish
+application speedup; LLVF carries separate fixed-input, paired-process reports.
 
 ## Benchmark
 

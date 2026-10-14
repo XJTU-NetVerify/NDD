@@ -214,6 +214,40 @@ public final class ParallelMTNDD implements AutoCloseable {
             }
         }
     }
+    /** Exact maximum over assignments, including implicit zero regions. */
+    public synchronized Number maxTerminal(MTNDDNode node) { return new Number(maxNative(nativeEngine, handle(node))); }
+    public synchronized Number evaluateBits(MTNDDNode node, boolean[][] values) {
+        Objects.requireNonNull(values, "values");
+        if (values.length != fields.length) throw new IllegalArgumentException("One bit array per field required");
+        int count = 0;
+        for (int f = 0; f < fields.length; ++f) {
+            if (values[f] == null || values[f].length != fields[f].width) throw new IllegalArgumentException("Field bit width mismatch");
+            count += values[f].length;
+        }
+        byte[] bits = new byte[count]; int i = 0;
+        for (boolean[] field : values) for (boolean bit : field) bits[i++] = (byte)(bit ? 1 : 0);
+        return new Number(evaluateBitsNative(nativeEngine, handle(node), bits));
+    }
+    public synchronized MTNDDNode[] sumAbstractBatch(MTNDDNode[] nodes, int field) { return contractBatch(nodes, null, field); }
+    public synchronized MTNDDNode[] multiplySumAbstractBatch(MTNDDNode[] left, MTNDDNode[] right, int field) {
+        Objects.requireNonNull(right, "right"); return contractBatch(left, right, field);
+    }
+    private MTNDDNode[] contractBatch(MTNDDNode[] left, MTNDDNode[] right, int field) {
+        checkOpen(); checkField(field); Objects.requireNonNull(left, "left");
+        if (right != null && left.length != right.length) throw new IllegalArgumentException("Batch lengths differ");
+        long[] a = new long[left.length], b = right == null ? null : new long[left.length];
+        for (int i = 0; i < a.length; ++i) { a[i] = handle(left[i]); if (b != null) b[i] = handle(right[i]); }
+        MTNDDNode[] result = new MTNDDNode[a.length];
+        long[] owned = contractBatchNative(nativeEngine, a, b, field); int i = 0;
+        try { for (; i < result.length; ++i) result[i] = new MTNDDNode(this, owned[i]); return result; }
+        catch (OutOfMemoryError error) {
+            for (int j = 0; j < i; ++j) result[j].close();
+            for (; i < owned.length; ++i) releaseNative(nativeEngine, owned[i]); throw error;
+        }
+    }
+    private static native long[] maxNative(long engine, long node);
+    private static native long[] evaluateBitsNative(long engine, long node, byte[] bits);
+    private static native long[] contractBatchNative(long engine, long[] left, long[] right, int field);
     private static native long openNative(int[] widths, int[] backends, int workers, long memory,
             int cache, int threshold, int chunk, int depth, int flags, int gcInterval, int domain);
     private static native void closeNative(long engine);

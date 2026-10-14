@@ -111,4 +111,41 @@ class ParallelMTNDDTest {
             assertThrows(IllegalStateException.class, () -> new ParallelMTNDD(config(1), Domain.RATIONAL, new Field(2, Backend.BDD)));
         }
     }
+    @Test void applicationQueriesAndContractionBatches() {
+        for (int workers : new int[]{1,6}) for (Backend backend : Backend.values()) {
+            int width=backend==Backend.BITSET?7:70;
+            ParallelNDDConfig cfg=new ParallelNDDConfig(workers,16L<<20,64,2,1,4,0,true,false,true,true);
+            try (ParallelMTNDD e=new ParallelMTNDD(cfg,Domain.RATIONAL,new Field(width,backend),new Field(2,backend));
+                 MTNDDNode high=e.literal(0,0,true); MTNDDNode half=e.fraction(1,2);
+                 MTNDDNode weighted=e.times(high,half); MTNDDNode negative=e.fraction(-1,3);
+                 MTNDDNode partial=e.times(high,negative)) {
+                boolean[][] bits={new boolean[width],new boolean[2]};
+                assertEquals("0/1",e.evaluateBits(weighted,bits).toString());bits[0][0]=true;
+                assertEquals("1/2",e.evaluateBits(weighted,bits).toString());
+                assertEquals("0/1",e.maxTerminal(partial).toString());assertEquals("-1/3",e.maxTerminal(negative).toString());
+                MTNDDNode[] a={weighted,partial},b={half,half};long runs=e.stats().externalRuns;
+                MTNDDNode[] sum=e.sumAbstractBatch(a,1);assertEquals(runs+1,e.stats().externalRuns);
+                MTNDDNode[] fused=e.multiplySumAbstractBatch(a,b,1);
+                for(int i=0;i<2;++i)try(MTNDDNode scalar=e.sumAbstract(a[i],1);MTNDDNode contraction=e.multiplySumAbstract(a[i],b[i],1)){
+                    assertEquals(scalar,sum[i]);assertEquals(contraction,fused[i]);sum[i].close();fused[i].close();
+                }
+                assertEquals(0,e.sumAbstractBatch(new MTNDDNode[0],1).length);
+                assertThrows(IllegalArgumentException.class,()->e.evaluateBits(high,new boolean[][]{new boolean[1]}));
+                if(width==70){assertThrows(ArithmeticException.class,()->e.sumAbstractBatch(a,0));e.collect();assertEquals("1/2",e.evaluateBits(weighted,bits).toString());}
+            }
+        }
+    }
+    @Test void admittedScalarIdentityAndCacheHitsAvoidRun() {
+        try(ParallelMTNDD e=new ParallelMTNDD(new ParallelNDDConfig(6,16L<<20,262144,2,1,4,0,true,true,true),Domain.RATIONAL,new Field(3,Backend.BDD));
+            MTNDDNode x=e.literal(0,0,true);MTNDDNode y=e.literal(0,1,true);MTNDDNode one=e.constant(true);
+            MTNDDNode half=e.fraction(1,2);MTNDDNode weighted=e.times(x,half)) {
+            long before=e.stats().externalRuns;
+            try(MTNDDNode identity=e.times(weighted,one)){assertEquals(weighted,identity);assertEquals(before,e.stats().externalRuns);}
+            try(MTNDDNode first=e.plus(x,y)){
+                before=e.stats().externalRuns;
+                try(MTNDDNode cached=e.plus(y,x)){assertEquals(first,cached);assertEquals(before,e.stats().externalRuns);}
+            }
+            assertThrows(ArithmeticException.class,()->e.divide(x,x));
+        }
+    }
 }

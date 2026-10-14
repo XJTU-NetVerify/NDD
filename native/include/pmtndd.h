@@ -30,6 +30,11 @@ int pmt_apply_batch(pndd_engine *, pmt_op, const pndd_handle *, const pndd_handl
  * no wrapper/root per terminal; input is borrowed for the whole call. */
 pndd_handle pmt_from_array(pndd_engine *, const pmt_number *, size_t);
 pndd_handle pmt_reduce(pndd_engine *, pmt_op, const pndd_handle *, size_t, int);
+/* Flattened MSB-first bits, one byte per bit, fields concatenated. */
+int pmt_evaluate_bits(pndd_engine *, pndd_handle, const unsigned char *, size_t, pmt_number *);
+int pmt_max_terminal(pndd_engine *, pndd_handle, pmt_number *);
+int pmt_sum_abstract_batch(pndd_engine *, const pndd_handle *, size_t, uint32_t, pndd_handle *);
+int pmt_multiply_sum_batch(pndd_engine *, const pndd_handle *, const pndd_handle *, size_t, uint32_t, pndd_handle *);
 #ifdef __cplusplus
 }
 #endif
