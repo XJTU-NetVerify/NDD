@@ -104,7 +104,7 @@ static void run(unsigned workers, int backend, int mixed, pmt_domain domain) {
     uint64_t runs = pndd_get_stats(e).external_runs;
     /* gc_interval disabled for measuring admission RUN count, not performance. */
     assert(pmt_apply_batch(e, PMT_PLUS, aa, bb, 32, out));
-    uint64_t after = pndd_get_stats(e).external_runs; assert(after - runs >= 1 && after - runs <= 2);
+    uint64_t after = pndd_get_stats(e).external_runs; assert(after - runs <= 2);
     for (unsigned i = 0; i < 32; ++i) release(e, out[i]);
     pndd_handle l = checked(e, pmt_reduce(e, PMT_PLUS, aa, 32, 0)), t = checked(e, pmt_reduce(e, PMT_PLUS, aa, 32, 1));
     if (domain == PMT_RATIONAL) assert(l == t);
@@ -260,6 +260,25 @@ static void disjoint_numeric_jobs(unsigned workers) {
 #else
     (void)tasks;
 #endif
+    pndd_handle aa[64],bb[64],out[64];for(unsigned i=0;i<64;++i){aa[i]=a;bb[i]=b;}
+    uint64_t runs=pndd_get_stats(e).external_runs;
+    assert(pmt_apply_batch(e,PMT_PLUS,aa,bb,64,out));
+#ifdef PNDD_MT_BATCH_PREFLIGHT
+    assert(pndd_get_stats(e).external_runs==runs);
+#else
+    (void)runs;
+#endif
+    for(unsigned i=0;i<64;++i){assert(out[i]==sum);release(e,out[i]);}
+    bb[63]=hi;tasks=pndd_get_stats(e).tasks;runs=pndd_get_stats(e).external_runs;
+    assert(pmt_apply_batch(e,PMT_PLUS,aa,bb,64,out));
+#ifdef PNDD_MT_BATCH_PREFLIGHT
+    assert(pndd_get_stats(e).external_runs==runs+1);
+    assert(pndd_get_stats(e).tasks==tasks); /* one uncached item, preserve positions */
+#endif
+    uint64_t at_hi[]={2};pmt_number last;
+    assert(pmt_evaluate(e,out[63],at_hi,1,&last)&&last.numerator==3&&last.denominator==2);
+    for(unsigned i=0;i<63;++i)assert(out[i]==sum);
+    for(unsigned i=0;i<64;++i)release(e,out[i]);
     uint64_t values[]={0};pmt_number value;
     assert(pmt_evaluate(e,sum,values,1,&value)&&value.numerator==1&&value.denominator==3);
     values[0]=2;

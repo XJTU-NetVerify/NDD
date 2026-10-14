@@ -380,6 +380,12 @@ scratch space and is disabled for field elimination. Both covers and output
 edges remain rooted across label GC; generic overlapping PLUS is unchanged.
 The regression suite joins two 1,024-edge disjoint diagrams within 16 MiB,
 where the original Cartesian scratch alone required over 40 MiB.
+`PNDD_MT_BATCH_PREFLIGHT` is another OFF-by-default ablation: it probes scalar
+identities and the shared operation cache before dispatch, acquires independent
+owned outputs on an all-hit batch, and splits only unresolved items while
+preserving output positions. Real LLVF trials did not show a stable benefit.
+Thus a batch guarantees one API admission, not an unconditional worker RUN;
+strict division failures still roll back the entire output array.
 
 ## Multi-terminal branch
 

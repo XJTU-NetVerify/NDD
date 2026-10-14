@@ -468,18 +468,46 @@ pndd_handle pmt_exist(pndd_engine *e, pndd_handle h, uint32_t field) {
     }
     pthread_mutex_unlock(&admission); return out;
 }
+#ifdef PNDD_MT_BATCH_PREFLIGHT
+static uint32_t mt_batch_preflight(uint32_t op, uint32_t a, uint32_t b) {
+#ifdef PNDD_BOOLEAN_TIMES
+    if(op==PMT_TIMES && node(a)->boolean_graph && node(b)->boolean_graph)op=PMT_AND;
+#endif
+    if((op==PMT_PLUS || op==PMT_TIMES || op==PMT_AND || op==PMT_OR) && a>b){uint32_t t=a;a=b;b=t;}
+    if(op==PMT_TIMES){if(!a||!b)return 0;if(a==1)return b;if(b==1)return a;}
+    if(op==PMT_PLUS && !a)return b;
+    if((op==PMT_PLUS || op==PMT_MINUS) && !b)return a;
+    if(op==PMT_MINUS && a==b)return 0;
+    if(op==PMT_DIVIDE && b==1)return a;
+    if(op==PMT_AND){if(!a)return 0;if(a==1)return b;if(a==b)return a;}
+    if(op==PMT_OR){if(!a)return b;if(b==1)return 1;if(a==b)return a;}
+    if(op==PMT_DIFF){if(!a||a==b)return 0;if(!b)return a;}
+    if(node_field(a)==G->field_count && node_field(b)==G->field_count)return mt_scalar(op,a,b);
+    uint64_t cached;
+    uint32_t key=op<PMT_PLUS?op+1:0x20000+op;
+    return pndd_cache_get(key,a,b,&cached)?(uint32_t)cached:INVALID_ID;
+}
+#endif
 VOID_TASK_DECL_6(mt_batch_rec, Job *, size_t, uint32_t, uint32_t, uint32_t, uint32_t);
 VOID_TASK_IMPL_6(mt_batch_rec, Job *, jobs, size_t, count, uint32_t, op, uint32_t, depth, uint32_t, owner, uint32_t, unused) {
     (void)unused;
     if (__lace_worker->worker != owner) atomic_fetch_add(&G->stolen, 1);
     if (atomic_load(&G->failure)) return;
-    if (G->config.batch_parallel && count > G->config.chunk_size && depth < G->config.spawn_depth) {
+    size_t pending=count;
+#ifdef PNDD_MT_BATCH_PREFLIGHT
+    pending=0;for(size_t i=0;i<count;++i)pending += jobs[i].target==INVALID_ID;
+    if(!pending)return;
+#endif
+    if (G->config.batch_parallel && pending > G->config.chunk_size && depth < G->config.spawn_depth) {
         size_t half = count / 2; atomic_fetch_add(&G->tasks, 1);
         SPAWN(mt_batch_rec, jobs, half, op, depth + 1, __lace_worker->worker, 0);
         CALL(mt_batch_rec, jobs + half, count - half, op, depth + 1, __lace_worker->worker, 0);
         SYNC(mt_batch_rec);
     } else for (size_t i = 0; i < count && !atomic_load(&G->failure); ++i)
-        jobs[i].target = CALL(mt_apply_rec, op, jobs[i].a, jobs[i].b, INVALID_ID, 0);
+#ifdef PNDD_MT_BATCH_PREFLIGHT
+        if(jobs[i].target==INVALID_ID)
+#endif
+            jobs[i].target = CALL(mt_apply_rec, op, jobs[i].a, jobs[i].b, INVALID_ID, 0);
 }
 int pmt_apply_batch(pndd_engine *e, pmt_op op, const pndd_handle *a, const pndd_handle *b, size_t count, pndd_handle *out) {
     pthread_mutex_lock(&admission); PROFILE_START; int ok = 0;
@@ -494,7 +522,18 @@ int pmt_apply_batch(pndd_engine *e, pmt_op op, const pndd_handle *a, const pndd_
                         ((jobs[i].a >= 2 && !node(jobs[i].a)->boolean_graph) || (jobs[i].b >= 2 && !node(jobs[i].b)->boolean_graph))) fail(5);
             }
             for (size_t i = 0; i < count; ++i) out[i] = PNDD_INVALID;
-            if (!atomic_load(&G->failure)) { atomic_fetch_add(&G->runs, 1); RUN(mt_batch_rec, jobs, count, op, 0, 0, 0); }
+#ifdef PNDD_MT_BATCH_PREFLIGHT
+            size_t pending=0;
+            for(size_t i=0;i<count && !atomic_load(&G->failure);++i){
+                jobs[i].target=mt_batch_preflight(op,jobs[i].a,jobs[i].b);
+                pending += jobs[i].target==INVALID_ID;
+            }
+#endif
+            if (!atomic_load(&G->failure)
+#ifdef PNDD_MT_BATCH_PREFLIGHT
+                    && pending
+#endif
+                    ) { atomic_fetch_add(&G->runs, 1); RUN(mt_batch_rec, jobs, count, op, 0, 0, 0); }
             if (!atomic_load(&G->failure)) {
                 size_t i = 0; for (; i < count; ++i) { out[i] = own(jobs[i].target); if (out[i] == PNDD_INVALID) break; }
                 if (i == count) ok = 1;
