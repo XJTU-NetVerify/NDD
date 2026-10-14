@@ -139,13 +139,45 @@ VOID_TASK_DECL_6(mt_jobs, Job *, size_t, uint32_t, uint32_t, uint32_t, uint32_t)
 VOID_TASK_IMPL_6(mt_jobs, Job *, jobs, size_t, count, uint32_t, op, uint32_t, eliminate, uint32_t, depth, uint32_t, owner) {
     if (__lace_worker->worker != owner) atomic_fetch_add(&G->stolen, 1);
     if (atomic_load(&G->failure)) return;
+    size_t pending = count;
+#ifdef PNDD_COST_GRAIN
+    /* The generic PLUS recurrence produces x+0 jobs for disjoint regions.
+       Resolve identities and cache hits before deciding whether there is
+       enough real work to spawn. Never shortcut an uneliminated field. */
     if (G->config.ndd_parallel && count > G->config.chunk_size && count >= G->config.task_threshold && depth < G->config.spawn_depth && inner_parallel_available()) {
+        pending = 0;
+        for (size_t i = 0; i < count; ++i) {
+            if (jobs[i].target != INVALID_ID) continue;
+            uint32_t a = jobs[i].a, b = jobs[i].b, result = INVALID_ID;
+            uint64_t cached;
+            if ((op == PMT_PLUS || op == PMT_TIMES) && a > b) { uint32_t t=a; a=b; b=t; }
+            if (op == PMT_TIMES && (!a || !b)) result=0;
+            if (eliminate == INVALID_ID) {
+                if (op == PMT_TIMES && a == 1) result=b;
+                if (op == PMT_TIMES && b == 1) result=a;
+                if (op == PMT_PLUS && !a) result=b;
+                if ((op == PMT_PLUS || op == PMT_MINUS) && !b) result=a;
+                if (op == PMT_MINUS && a == b) result=0;
+                if (op == PMT_DIVIDE && b == 1) result=a;
+            }
+            uint32_t key=eliminate == INVALID_ID ? 0x20000+op : 0x21000+eliminate*16+op;
+            if (result == INVALID_ID && pndd_cache_get(key,a,b,&cached)) result=(uint32_t)cached;
+            jobs[i].target=result;pending += result == INVALID_ID;
+        }
+    } else {
+        pending=0;for(size_t i=0;i<count;++i)pending += jobs[i].target == INVALID_ID;
+    }
+    if (!pending) return;
+#endif
+    if (G->config.ndd_parallel && count > G->config.chunk_size && pending >= G->config.task_threshold && depth < G->config.spawn_depth && inner_parallel_available()) {
         size_t half = count / 2; atomic_fetch_add(&G->tasks, 1);
         SPAWN(mt_jobs, jobs, half, op, eliminate, depth + 1, __lace_worker->worker);
         CALL(mt_jobs, jobs + half, count - half, op, eliminate, depth + 1, __lace_worker->worker);
         SYNC(mt_jobs);
-    } else for (size_t i = 0; i < count && !atomic_load(&G->failure); ++i)
-        jobs[i].target = CALL(mt_apply_rec, op, jobs[i].a, jobs[i].b, eliminate, depth);
+    } else for (size_t i = 0; i < count && !atomic_load(&G->failure); ++i) {
+        if (jobs[i].target == INVALID_ID)
+            jobs[i].target = CALL(mt_apply_rec, op, jobs[i].a, jobs[i].b, eliminate, depth);
+    }
 }
 TASK_IMPL_5(uint32_t, mt_apply_rec, uint32_t, op, uint32_t, a, uint32_t, b, uint32_t, eliminate, uint32_t, depth) {
     YIELD_NEWFRAME();
@@ -193,8 +225,11 @@ TASK_IMPL_5(uint32_t, mt_apply_rec, uint32_t, op, uint32_t, a, uint32_t, b, uint
     if (ac > SIZE_MAX / (bc + 1) - 1) { fail(1); return INVALID_ID; }
     size_t cap = (ac + 1) * (bc + 1);
     if (cap > SIZE_MAX / sizeof(Job) || cap > SIZE_MAX / sizeof(Edge)) { fail(1); return INVALID_ID; }
-    Job *jobs = allocate(cap * sizeof(Job)); Edge *out = allocate(cap * sizeof(Edge));
-    if (!jobs || !out) { deallocate(jobs); deallocate(out); return INVALID_ID; }
+    Job small_jobs[8]; Edge small_out[8];
+    int heap = cap > 8;
+    Job *jobs = heap ? allocate(cap * sizeof(Job)) : small_jobs;
+    Edge *out = heap ? allocate(cap * sizeof(Edge)) : small_out;
+    if (!jobs || !out) { if (heap) { deallocate(jobs); deallocate(out); } return INVALID_ID; }
     RootFrame jr; root_push(&jr, field, jobs, sizeof(Job), 0);
     uint64_t residual[2] = {0, 0}; RootFrame rr; root_push(&rr, field, residual, sizeof(uint64_t), 2);
     if (op != PMT_TIMES) {
@@ -240,7 +275,7 @@ TASK_IMPL_5(uint32_t, mt_apply_rec, uint32_t, op, uint32_t, a, uint32_t, b, uint
             result = make_node(field, out, count);
         }
     }
-    root_pop(&jr); deallocate(jobs); deallocate(out);
+    root_pop(&jr); if (heap) { deallocate(jobs); deallocate(out); }
 #ifdef PNDD_PROFILE
     profile->numeric_merge_ns += now_ns() - merge_start;
 #endif

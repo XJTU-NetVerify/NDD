@@ -245,6 +245,31 @@ static void idle_admissions(unsigned workers) {
     }
     release(e,bit);nanosleep(&pause,NULL);pndd_close(e);
 }
+static void disjoint_numeric_jobs(unsigned workers) {
+    pndd_config c=pndd_default_config();c.workers=workers;c.gc_interval=0;
+    c.memory_bytes=16u<<20;c.cache_entries=64;c.chunk_size=1;c.task_threshold=2;
+    pndd_field field={2,PNDD_BDD};
+    pndd_engine *e=pmt_open(&c,&field,1,PMT_RATIONAL);assert(e);
+    pndd_handle hi=checked(e,pndd_literal(e,0,0,1)),lo=checked(e,pndd_literal(e,0,0,0));
+    pndd_handle half=checked(e,pmt_fraction(e,1,2)),third=checked(e,pmt_fraction(e,1,3));
+    pndd_handle a=apply(e,PMT_TIMES,hi,half),b=apply(e,PMT_TIMES,lo,third);
+    uint64_t tasks=pndd_get_stats(e).tasks;
+    pndd_handle sum=apply(e,PMT_PLUS,a,b);
+#ifdef PNDD_COST_GRAIN
+    assert(pndd_get_stats(e).tasks==tasks); /* only x+0/0+y jobs: no useful tasks */
+#else
+    (void)tasks;
+#endif
+    uint64_t values[]={0};pmt_number value;
+    assert(pmt_evaluate(e,sum,values,1,&value)&&value.numerator==1&&value.denominator==3);
+    values[0]=2;
+    assert(pmt_evaluate(e,sum,values,1,&value)&&value.numerator==1&&value.denominator==2);
+    assert(pndd_collect(e));
+    pndd_handle total=checked(e,pmt_sum_abstract(e,sum,0));
+    assert(pmt_terminal(e,total,&value)&&value.numerator==5&&value.denominator==3);
+    release(e,total);release(e,sum);release(e,a);release(e,b);release(e,hi);release(e,lo);release(e,half);release(e,third);
+    pndd_close(e);
+}
 int main(int argc, char **argv) {
     unsigned workers = argc > 1 ? atoi(argv[1]) : 1;
     if(argc>2) { idle_admissions(workers); return 0; }
@@ -252,6 +277,7 @@ int main(int argc, char **argv) {
         for (pmt_domain domain = PMT_RATIONAL; domain <= PMT_DOUBLE; ++domain) run(workers, backend, mixed, domain);
     application_api_checks(workers);
     idle_admissions(workers);
+    disjoint_numeric_jobs(workers);
     boundary_checks(workers);
     pressure(workers, PNDD_BCDD); pressure(workers, PNDD_ZDD);
     puts("MT multi-backend arithmetic, fused contraction, owned roots and GC passed");
