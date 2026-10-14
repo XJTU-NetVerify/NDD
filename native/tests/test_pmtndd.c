@@ -53,6 +53,13 @@ static void run(unsigned workers, int backend, int mixed, pmt_domain domain) {
     }
     assert(pmt_multiply_sum(e, f, g, UINT32_MAX) == PNDD_INVALID);
     assert(pmt_satcount(e, f) == 32);
+    pmt_number maximum;
+    assert(pmt_max_terminal(e,f,&maximum) && maximum.value==16);
+    pndd_handle seventeen=domain==PMT_RATIONAL?checked(e,pmt_fraction(e,17,1)):checked(e,pmt_double(e,17));
+    pndd_handle all_negative=apply(e,PMT_MINUS,f,seventeen);
+    assert(pmt_max_terminal(e,all_negative,&maximum) && maximum.value==-1);
+    release(e,seventeen);release(e,all_negative);
+
     for (pmt_op op = PMT_PLUS; op <= PMT_DIVIDE; ++op) {
         pndd_handle result = apply(e, op, f, g);
         assert(pndd_collect(e));
