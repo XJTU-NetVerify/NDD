@@ -18,4 +18,4 @@ Long-form documentation for NDD. For an overview, see the [main README](../READM
 
 **Internals**
 - [Design Notes](Design-Notes.md), [Optimization Summary](Optimization-Summary.md)
-- [Javadoc](javadoc/)
+- [Javadoc](../doc/javadoc/)

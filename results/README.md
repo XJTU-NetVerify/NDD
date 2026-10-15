@@ -1,13 +1,13 @@
 # Benchmark Results
 
 This directory holds the raw benchmark data. Explanations, highlights, and takeaways are in the
-documentation pages linked below; see [Benchmarks](../documentation/Benchmarks.md)
+documentation pages linked below; see [Benchmarks](../content/Benchmarks.md)
 page for methodology and caveats.
 
 ## N-Queens
 
 Cross-library comparison on N-Queens for N = 8 to 13. Documentation:
-[Results: NQueens](../documentation/Results-NQueens.md).
+[Results: NQueens](../content/Results-NQueens.md).
 
 | File | Content |
 | --- | --- |
@@ -47,7 +47,7 @@ The other libraries are benchmarked in the companion repository
 
 Network-verification workloads on BGP fattree networks (`bgp_fattree04` to `bgp_fattree20`), each
 with `MF` = 1 to 3, using a 14,400 s timeout per variant. Documentation:
-[Results: SRE](../documentation/Results-SRE.md).
+[Results: SRE](../content/Results-SRE.md).
 
 | File | Content |
 | --- | --- |
