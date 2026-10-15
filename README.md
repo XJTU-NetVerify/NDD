@@ -26,8 +26,8 @@ The reason is that, due to the **locality** of field-based matching semantics, N
 
 ## Features
 
-- **Far fewer nodes than BDD**: by branching on whole fields and sharing label decision diagrams across fields, NDD can use far fewer nodes than BDD for field-structured problems, such as network verification, due to field locality. For example, on N-Queens with N=13, NDD creates about 14.6× fewer nodes than BDD libraries (see [Benchmark](#benchmark)). This reduces both memory use and computation time (see the [NSDI paper](https://www.usenix.org/system/files/nsdi25-li-zechun.pdf) and the [network verification results](doc/Results-SRE.md)).
-- **Multiple label backends**: edge labels can be encoded as BDD, complemented-edge BDD (BCDD), ZDD, or BITSET (for fields of at most 7 bits). Backends can be mixed, with each field using its own backend (see [Design Notes](doc/Design-Notes.md)).
+- **Far fewer nodes than BDD**: by branching on whole fields and sharing label decision diagrams across fields, NDD can use far fewer nodes than BDD for field-structured problems, such as network verification, due to field locality. For example, on N-Queens with N=13, NDD creates about 14.6× fewer nodes than BDD libraries (see [Benchmark](#benchmark)). This reduces both memory use and computation time (see the [NSDI paper](https://www.usenix.org/system/files/nsdi25-li-zechun.pdf) and the [network verification results](documentation/Results-SRE.md)).
+- **Multiple label backends**: edge labels can be encoded as BDD, complemented-edge BDD (BCDD), ZDD, or BITSET (for fields of at most 7 bits). Backends can be mixed, with each field using its own backend (see [Design Notes](documentation/Design-Notes.md)).
 - **Multiple terminals**: Multi-Terminal NDD (MTNDD) allows terminals to hold numeric values (integer, rational, or floating point) instead of only `true`/`false`, with arithmetic operations (`plus`, `minus`, `times`, `divide`) and sum abstraction. Useful for weights, costs, link loads, probabilities, and integer matrices. Available on the [`mtndd`](https://github.com/XJTU-NetVerify/NDD/tree/mtndd) branch.
 - **Parallelism**: a C11 core with a JNI-based Java API runs NDD operations on multiple worker threads, reaching about 3.5× speedup with 6 workers on N-Queens. Available on the [`parallel`](https://github.com/XJTU-NetVerify/NDD/tree/parallel) branch (Boolean NDD) and the [`parallel-MTNDD`](https://github.com/XJTU-NetVerify/NDD/tree/parallel-MTNDD) branch (multi-terminal NDD); the native build is currently documented for Linux.
 
@@ -153,7 +153,7 @@ The following table shows the benchmark for **N-Queens** with N=12 and N=13 (bes
 NDD creates about 14.6× fewer nodes than the BDD libraries at N=13 (NDD nodes plus label BDD nodes).
 Raw data and plots are in [`results/`](results/).
 
-For more details, please refer to [N-Queens Benchmark](doc/Results-NQueens.md).
+For more details, please refer to [N-Queens Benchmark](documentation/Results-NQueens.md).
 
 ## APIs
 
@@ -167,7 +167,7 @@ All APIs are static methods of `org.ants.jndd.diagram.NDD`, and an NDD is referr
 - **Satisfying assignments**: `satCount(a)` counts them; `anySat(a)` returns one (one 0/1 entry per bit of each field), or `null` if `a` is false; `allSat(a, consumer)` enumerates all of them, and the consumer may return `false` to stop early.
 - **Memory management**: `ref()`/`deref()` protect and release nodes, and `gc()` reclaims unreferenced nodes.
 
-Refer to the [API guide](doc/Manipulation-APIs.md) for more details.
+Refer to the [API guide](documentation/Manipulation-APIs.md) for more details.
 
 ## Branches
 
@@ -184,7 +184,7 @@ The current NDD library is by far not the end. Multiple terminals and parallel c
 
 ## Resources
 
-- [Documentation](doc/)
+- [Documentation](documentation/)
 - [NSDI Paper](https://www.usenix.org/system/files/nsdi25-li-zechun.pdf)
 - [NSDI talk slides](https://xjtu-netverify.github.io/papers/NDD/NDD-A-Decision-Diagram-for-Network-Verification.pdf)
 - [NSDI talk video](https://www.youtube.com/watch?v=9Ni6Z7qKGV4)

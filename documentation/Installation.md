@@ -40,7 +40,7 @@ Those WAN and Batfish-adjacent paths are kept as research artifacts and integrat
 - `src/main/java/org/ants/javandd`: `BDDFactory`-style compatibility API
 - `src/main/java/application`: example programs and research drivers
 - `results/`: benchmark CSV, plots, and WAN/SRE result tables
-- `doc/`: documentation (this directory) and regenerated API documentation in `doc/javadoc/`
+- `documentation/`: documentation (this directory) and regenerated API documentation in `documentation/javadoc/`
 - `lib/`: bundled third-party artifacts used by the project
 
 ## Using The Built Jar In Another Project
