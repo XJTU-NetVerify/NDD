@@ -48,21 +48,14 @@ After all field widths are known, `generateFields()` right-aligns fields against
 
 ### NQueens
 
-From [`results/nqueens_metrics.csv`](../results/nqueens_metrics.csv):
-
-- size 10: `0.732s -> 0.214s`, `316372KB -> 124168KB`
-- size 11: `2.750s -> 0.762s`, `568980KB -> 216364KB`
-- size 12: `14.605s -> 4.101s`, `2226480KB -> 537192KB`
-
-The NQueens tables also show that `NDD-Reuse` already reduces BDD-node counts sharply. `NDD` then improves further by making the NDD-side representation cheaper.
+On N-Queens, `NDD` is 2.0x to 3.7x faster than `NDD-Origin` for sizes 8 to 13 and uses less memory;
+see the [highlight table](Results-NQueens.md#highlight-table).
 
 ### SRE
 
-From [`results/SRE-results.md`](../results/SRE-results.md):
-
-- `bgp_fattree08`, `MF=3`: `60.829s -> 25.602s`, BDD nodes `38199434 -> 3208829`
-- `bgp_fattree12`, `MF=3`: `636.086s -> 230.906s`
-- `bgp_fattree16`, `MF=2`: `1178.287s -> 472.056s`
+On the WAN/SRE workloads, `NDD` is 2.4x to 2.75x faster than `NDD-Origin` on the medium and large
+fattree cases and uses about 90% fewer BDD nodes; see the
+[selected highlights](Results-SRE.md#selected-highlights).
 
 These WAN/SRE results matter because they are much closer to the packet-header workloads NDD was originally designed for.
 
