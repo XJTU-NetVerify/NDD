@@ -2,7 +2,7 @@
 
 This page gives the implementation-level rationale behind the optimized branch.
 
-It is meant for readers who already understand what NDD is and want to know how this repository's array-backed implementation is organized internally.
+It is meant for readers who already understand what NDD is and want to know how this repository's array-based implementation is organized internally.
 
 ## Overview
 
@@ -14,7 +14,7 @@ The optimized branch keeps the same conceptual model:
 
 What changes is the storage and execution strategy used to implement that model efficiently in Java.
 
-## 1. Array-Backed Node Table
+## 1. Array-Based Node Table
 
 The original implementation represented each node as an object with nested edge structures. In this branch, [`NodeTable.java`](../src/main/java/org/ants/jndd/nodetable/NodeTable.java) stores node state in parallel arrays.
 
@@ -25,6 +25,8 @@ That means:
 - canonical nodes reference edge blocks by index rather than owning separate edge containers
 
 This is the main memory-layout change behind the current `NDD` implementation.
+
+The design follows [JDD](https://bitbucket.org/vahidi/jdd), a Java version of [BuDDy](https://buddy.sourceforge.net/) and the BDD engine NDD uses for edge labels. JDD's [`NodeTable`](../src/main/java/jdd/bdd/NodeTable.java) uses `int` node ids, flat `int`/`short` arrays for node data and reference counts, and unique-table chains linked through an array. NDD keeps that scheme. Because NDD nodes can have any number of outgoing edges, it adds shared edge arrays and per-node edge blocks.
 
 ## 2. Global Edge Collection
 
@@ -62,7 +64,7 @@ This is why the library expects users to commit to a field partition and its lab
 
 ## 4. Safe-Point Recycling
 
-The array-backed layout introduces a constraint that the implementation must respect: recursive operations may still hold raw edge-array positions while the recursion stack is active.
+The array-based layout introduces a constraint that the implementation must respect: recursive operations may still hold raw edge-array positions while the recursion stack is active.
 
 Because of that, edge compaction and retired-slot reuse happen only at safe points after recursion unwinds. Relevant methods include:
 
@@ -117,7 +119,7 @@ that mode is declared. The default remains the common sizes passed to `initNDD`;
 is an optional, workload-measurement-based optimization for mixed deployments.
 
 The complemented-BDD backend uses integer handles whose low bit is the complement attribute.
-Internal nodes are stored in primitive structure-of-arrays tables; the high child is normalized to
+Internal nodes are stored in `int` arrays indexed by node handle (`vars`, `lows`, `highs`, `refs`); the high child is normalized to
 a regular handle, so a function and its complement share the same regular node and `not` only flips
 one bit. Primitive unique/apply/count/minimum-path caches avoid boxed keys. External label
 references and permanently protected variable roots drive mark/sweep collection; GC rebuilds the
@@ -147,7 +149,7 @@ The current mixed-mode boundaries are deliberate:
 
 ### JNDD
 
-The low-level API uses integer node IDs. This matches the array-backed representation and avoids wrapper allocation on the hot path.
+The low-level API uses integer node IDs. This matches the array-based representation and avoids wrapper allocation on the hot path.
 
 ### JavaNDD
 
@@ -161,6 +163,6 @@ When reading the result pages:
 
 - `NDD-Origin` is the baseline implementation
 - `NDD-Reuse` isolates the effect of shared-BDD-variable reuse
-- `NDD` adds the array-backed node table and stack-based edge collection
+- `NDD` adds the array-based node table and stack-based edge collection
 
 That split is useful because it shows which gains come from better symbolic structure and which come from the new runtime representation.

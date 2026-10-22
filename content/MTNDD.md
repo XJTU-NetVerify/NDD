@@ -5,7 +5,7 @@ field-oriented decision structure is unchanged; the main semantic difference is 
 may contain an exact rational value rather than only `0` or `1`.
 
 This page describes only the MTNDD-specific algorithm and API. For the motivation for field-level
-nodes, shared label variables, and the array-backed NDD node table, see [Design Notes](Design-Notes.md)
+nodes, shared label variables, and the array-based NDD node table, see [Design Notes](Design-Notes.md)
 and the original NDD material.
 
 ## Function Model

@@ -38,9 +38,9 @@ The benchmark tables use the following names:
 | `bdd` / `JDD` / other library names | Plain BDD baselines or third-party DD libraries |
 | `NDD-Origin` | Original NDD baseline |
 | `NDD-Reuse` | NDD with shared-BDD-variable reuse enabled |
-| `NDD` | Current optimized array-backed implementation documented here |
+| `NDD` | Current optimized array-based implementation documented here |
 
-The most important comparison in this repository is usually `NDD-Origin` versus `NDD`, because that captures the combined benefit of reuse plus the structure-of-arrays execution model.
+The most important comparison in this repository is usually `NDD-Origin` versus `NDD`, because that captures the combined benefit of reuse plus the array-based node table.
 
 ## How To Read The Results
 

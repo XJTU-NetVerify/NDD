@@ -22,7 +22,7 @@ NQueens is the easiest benchmark in this repository to understand and rerun, so 
 
 - `NDD` preserves the same solution counts as the other exact DD implementations.
 - The biggest gains over the `NDD-Origin` baseline show up from size `10` onward.
-- The reduced BDD-node counts of `NDD` show the effect of the variable-reuse optimization together with the current array-backed execution.
+- The reduced BDD-node counts of `NDD` show the effect of the variable-reuse optimization together with the current array-based execution.
 - The archived backend comparison exercised an older finite-domain ZDD experiment. Its relative
   timings do not characterize the current `ZDD` backend.
 
