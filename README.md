@@ -52,20 +52,13 @@ The reason is that, due to the **locality** of field-based matching semantics, N
 
    ```java
    import jdd.bdd.BDD;
-   import jdd.util.Dot;
    import org.ants.jndd.diagram.NDD;
 
    public class QuickStart {
        public static void main(String[] args) {
            // Hadamard matrix H_{2^n}: entry (x, y) is -1 iff x0·y0 XOR x1·y1 XOR ... = 1.
-           // Arguments: [n] [--dot]. n defaults to 2, which gives H4 from the figure;
-           // --dot also writes both diagrams as Graphviz .dot files.
-           int n = 2;
-           boolean dot = false;
-           for (String arg : args) {
-               if (arg.equals("--dot")) dot = true;
-               else n = Integer.parseInt(arg);
-           }
+           // n is the first argument (default 2, which gives H4 from the figure).
+           int n = args.length > 0 ? Integer.parseInt(args[0]) : 2;
 
            // BDD: one variable per bit, ordered x0, y0, x1, y1, ... as in (b).
            BDD bdd = new BDD(10_000, 1_000);
@@ -92,15 +85,6 @@ The reason is that, due to the **locality** of field-based matching semantics, N
            System.out.println("BDD: " + bdd.nodeCount(h) + " BDD nodes");             // 4n - 2 (6 for n = 2)
            System.out.println("NDD: " + NDD.nodeCount(ndd) + " NDD nodes + "          // 2n - 1 (3 for n = 2)
                    + NDD.labelNodeCount(ndd) + " BDD nodes in edge labels");          // 4 for any n
-
-           if (dot) {
-               // Keep the .dot files: by default JDD runs Graphviz on them and then deletes them.
-               Dot.setExecuteDot(false);
-               Dot.setRemoveDotFile(false);
-               bdd.printDot("hadamard-bdd.dot", h);
-               NDD.printDot(ndd, "hadamard-ndd.dot");
-               System.out.println("Wrote hadamard-bdd.dot and hadamard-ndd.dot");
-           }
        }
    }
    ```
@@ -133,9 +117,27 @@ The reason is that, due to the **locality** of field-based matching semantics, N
    Both ways accept the matrix size `n` as an optional argument (default 2). For example, add `10` to the
    end of either `java` command to build H<sub>1024</sub>, which prints 38 BDD nodes for the BDD, and 19 NDD nodes plus 4 label BDD nodes for the NDD.
 
-   Add `--dot` to also write both diagrams as Graphviz files, `hadamard-bdd.dot` and `hadamard-ndd.dot`,
-   in the current directory. Render them with [Graphviz](https://graphviz.org/), for example
-   `dot -Tpng hadamard-ndd.dot -o hadamard-ndd.png`.
+### Visualizing the diagrams
+
+To draw both diagrams, add `import jdd.util.Dot;` and these lines at the end of `main`:
+
+```java
+// Keep the .dot files: by default JDD runs Graphviz on them and then deletes them.
+Dot.setExecuteDot(false);
+Dot.setRemoveDotFile(false);
+bdd.printDot("hadamard-bdd.dot", h);
+NDD.printDot(ndd, "hadamard-ndd.dot");
+```
+
+Then render the files with [Graphviz](https://graphviz.org/):
+
+```bash
+dot -Tpng hadamard-bdd.dot -o hadamard-bdd.png
+dot -Tpng hadamard-ndd.dot -o hadamard-ndd.png
+```
+
+The NDD drawing shows the NDD nodes, with each edge marked by its label id (such as `#6`), next to
+the label BDDs, which all fields share and which are drawn once.
 
 ## Benchmark
 
