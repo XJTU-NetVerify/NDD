@@ -16,8 +16,13 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.function.IntConsumer;
 
 import org.ants.jndd.nodetable.NodeTable;
@@ -987,6 +992,8 @@ public class NDD {
         if (isTrue(a) || isFalse(b) || a == b) return b;
 
         if (andCache.getEntry(a, b)) return andCache.result;
+        // Recursive calls overwrite andCache.hashValue, so keep this call's slot.
+        int cacheSlot = andCache.hashValue;
 
         int frameStart = stackTop;
 
@@ -1024,7 +1031,7 @@ public class NDD {
 
         int res = edgeFlush(frameStart, aField);
         temporarilyProtect.add(res);
-        andCache.setEntry(andCache.hashValue, a, b, res);
+        andCache.setEntry(cacheSlot, a, b, res);
         return res;
     }
 
@@ -1050,6 +1057,8 @@ public class NDD {
         if (isFalse(a) || isTrue(b) || a == b) return b;
 
         if (orCache.getEntry(a, b)) return orCache.result;
+        // Recursive calls overwrite orCache.hashValue, so keep this call's slot.
+        int cacheSlot = orCache.hashValue;
 
         int frameStart = stackTop;
 
@@ -1122,7 +1131,7 @@ public class NDD {
 
         int res = edgeFlush(frameStart, aField);
         temporarilyProtect.add(res);
-        orCache.setEntry(orCache.hashValue, a, b, res);
+        orCache.setEntry(cacheSlot, a, b, res);
         return res;
     }
 
@@ -1147,6 +1156,8 @@ public class NDD {
         if (isFalse(a)) return TRUE;
 
         if (notCache.getEntry(a)) return notCache.result;
+        // Recursive calls overwrite notCache.hashValue, so keep this call's slot.
+        int cacheSlot = notCache.hashValue;
 
         int frameStart = stackTop;
         int field = nodeTable.getField(a);
@@ -1166,7 +1177,7 @@ public class NDD {
 
         int result = edgeFlush(frameStart, field);
         temporarilyProtect.add(result);
-        notCache.setEntry(notCache.hashValue, a, result);
+        notCache.setEntry(cacheSlot, a, result);
         return result;
     }
 
@@ -1191,6 +1202,8 @@ public class NDD {
         if (isTrue(a)) return notRec(b);
 
         if (diffCache.getOrderedEntry(a, b)) return diffCache.result;
+        // Recursive calls overwrite diffCache.hashValue, so keep this call's slot.
+        int cacheSlot = diffCache.hashValue;
 
         int frameStart = stackTop;
         int aField = nodeTable.getField(a);
@@ -1244,7 +1257,7 @@ public class NDD {
 
         int result = edgeFlush(frameStart, Math.min(aField, bField));
         temporarilyProtect.add(result);
-        diffCache.setOrderedEntry(diffCache.hashValue, a, b, result);
+        diffCache.setOrderedEntry(cacheSlot, a, b, result);
         return result;
     }
 
@@ -1777,64 +1790,111 @@ public class NDD {
     }
 
     /**
-     * Export NDD as a Dot file for graph visualization.
+     * Export an NDD as a Graphviz Dot file.
+     *
+     * <p>The "NDD" box draws the NDD nodes, one row per field, and marks each edge with the id of
+     * its label, for example {@code #6}. Like the NDD itself, it has no edges to FALSE (values not
+     * covered by a node's labels lead to FALSE), so the only terminal drawn is {@code 1}; a FALSE
+     * root is drawn as a single {@code 0}. The other boxes draw every label used by the NDD once, as
+     * a decision diagram over the field's bits {@code b0, b1, ...} (bit 0 is the most significant
+     * bit): solid arrows are 1-edges and dashed arrows are 0-edges. Labels are grouped by label mode
+     * and field width, because fields of different widths share variables right-aligned and so
+     * name the same variable as different bits. BITSET labels are truth tables, not diagrams, and
+     * are drawn as one box each.
      *
      * @param root     Root node id.
      * @param filename Output file path.
      */
     public static void printDot(int root, String filename) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("digraph NDD_Graph {\n");
-        sb.append("  forcelabels=true;\n");
-        sb.append("  rankdir=TD;\n");
-        sb.append("  compound=true;\n");
-        sb.append("  overlap=false;\n");
-        sb.append("  splines=true;\n");
-        sb.append("  ranksep=0.5;\n");
-        sb.append("  nodesep=0.5;\n");
+        Set<Integer> nddNodes = new LinkedHashSet<>();
+        collectNddNodes(root, nddNodes);
 
-        IntHashSet visitedNDD = new IntHashSet(1024);
-        sb.append("  NDD_TRUE [shape=box, style=filled, label=\"NDD TRUE\"];\n");
-
-        // Collect BDD roots per field.
-        Map<Integer, Set<Integer>> fieldToBDDRoots = new HashMap<>();
-        collectFieldBDDs(root, fieldToBDDRoots, visitedNDD);
-        visitedNDD.clear();
-
-        // Draw BDD subgraphs.
-        for (Map.Entry<Integer, Set<Integer>> entry : fieldToBDDRoots.entrySet()) {
-            int field = entry.getKey();
-            Set<Integer> bddRoots = entry.getValue();
-
-            sb.append("  subgraph cluster_field_").append(field).append(" {\n");
-            sb.append("    label=\"\";\n");
-            sb.append("    style=dashed;\n");
-            sb.append("    color=blue;\n");
-            sb.append("    bgcolor=lightgrey;\n");
-            sb.append("    margin=0;\n");
-            sb.append("    pad=0;\n");
-
-            HashSet<Integer> visitedBDD = new HashSet<>();
-            for (int bddId : bddRoots) {
-                printBDDSubgraph(bddId, field, sb, visitedBDD, bddRoots);
+        // Group the labels by (label mode, field width); remember the fields in each group.
+        Map<String, Set<Integer>> groupLabels = new LinkedHashMap<>();
+        Map<String, Set<Integer>> groupFields = new LinkedHashMap<>();
+        Map<Integer, List<Integer>> nodesPerField = new TreeMap<>();
+        for (int node : nddNodes) {
+            int field = nodeTable.getField(node);
+            nodesPerField.computeIfAbsent(field, f -> new ArrayList<>()).add(node);
+            String group = fieldMode(field) + ":" + fieldWidth(field);
+            groupFields.computeIfAbsent(group, g -> new TreeSet<>()).add(field);
+            Set<Integer> labels = groupLabels.computeIfAbsent(group, g -> new TreeSet<>());
+            for (int i = 0; i < nodeTable.getEdgeCount(node); i++) {
+                labels.add(nodeTable.getEdgeLabel(node, i));
             }
-
-            sb.append("    TRUE_").append(field).append(" [shape=box, style=filled, label=\"TRUE\", fillcolor=lightgrey];\n");
-
-            sb.append("    title_").append(field)
-                    .append(" [shape=plaintext, label=\"Field ").append(field + 1)
-                    .append("\", fontcolor=black, fontsize=12, group=field").append(field).append("];\n");
-            sb.append("    { rank=sink; title_").append(field).append("; }\n");
-
-            sb.append("    TRUE_").append(field).append(" -> title_").append(field)
-                    .append(" [style=invis, minlen=1];\n");
-
-            sb.append("  }\n\n");
         }
 
-        visitedNDD.clear();
-        printNDDStructure(root, sb, visitedNDD);
+        StringBuilder sb = new StringBuilder();
+        sb.append("digraph NDD {\n");
+        sb.append("  node [fontname=\"Helvetica\"];\n");
+        sb.append("  edge [fontname=\"Helvetica\", fontsize=10];\n");
 
+        sb.append("  subgraph cluster_ndd {\n");
+        sb.append("    label=\"NDD\";\n");
+        if (isFalse(root)) {
+            sb.append("    n_false [shape=box, label=\"0\"];\n");
+        } else {
+            sb.append("    n_true [shape=box, label=\"1\"];\n");
+        }
+        for (int node : nddNodes) {
+            int field = nodeTable.getField(node);
+            sb.append("    n").append(node).append(" [shape=circle, label=\"f").append(field + 1).append("\"];\n");
+            for (int i = 0; i < nodeTable.getEdgeCount(node); i++) {
+                int target = nodeTable.getEdgeTarget(node, i);
+                sb.append("    n").append(node).append(" -> ").append(dotNddNode(target))
+                        .append(" [label=\"").append(dotLabelName(field, nodeTable.getEdgeLabel(node, i)))
+                        .append("\"];\n");
+            }
+        }
+        for (List<Integer> row : nodesPerField.values()) {
+            sb.append("    { rank=same;");
+            for (int node : row) sb.append(" n").append(node).append(';');
+            sb.append(" }\n");
+        }
+        sb.append("  }\n");
+
+        int groupIndex = 0;
+        for (Map.Entry<String, Set<Integer>> entry : groupLabels.entrySet()) {
+            Set<Integer> fields = groupFields.get(entry.getKey());
+            int field = fields.iterator().next();
+            LabelMode mode = fieldMode(field);
+            int width = fieldWidth(field);
+            String g = "g" + groupIndex++;
+
+            StringBuilder fieldNames = new StringBuilder();
+            for (int f : fields) {
+                if (fieldNames.length() > 0) fieldNames.append(", ");
+                fieldNames.append('f').append(f + 1);
+            }
+            sb.append("  subgraph cluster_").append(g).append(" {\n");
+            sb.append("    label=\"").append(mode).append(" labels, ").append(width).append("-bit fields (")
+                    .append(fieldNames).append(")\";\n");
+            sb.append("    style=dashed;\n");
+
+            if (mode == LabelMode.BITSET) {
+                for (int label : entry.getValue()) {
+                    sb.append("    ").append(g).append("_l").append(label).append(" [shape=box, label=\"")
+                            .append(dotLabelName(field, label)).append("\"];\n");
+                }
+                sb.append("  }\n");
+                continue;
+            }
+
+            Map<Integer, Integer> varToBit = new HashMap<>();
+            for (int bit = 0; bit < width; bit++) varToBit.put(getBackendVariableId(field, bit), bit);
+
+            Set<Integer> visited = new HashSet<>();
+            for (int label : entry.getValue()) {
+                String labelNode = g + "_l" + label;
+                sb.append("    ").append(labelNode).append(" [shape=plaintext, label=\"")
+                        .append(dotLabelName(field, label)).append("\"];\n");
+                sb.append("    ").append(labelNode).append(" -> ").append(g).append('_').append(label).append(";\n");
+                printDotLabelNodes(mode, g, label, varToBit, visited, sb);
+            }
+            sb.append("    ").append(g).append("_0 [shape=box, label=\"0\"];\n");
+            sb.append("    ").append(g).append("_1 [shape=box, label=\"1\"];\n");
+            sb.append("  }\n");
+        }
         sb.append("}\n");
 
         try (FileWriter writer = new FileWriter(filename)) {
@@ -1844,113 +1904,42 @@ public class NDD {
         }
     }
 
-    private static void collectFieldBDDs(int node, Map<Integer, Set<Integer>> fieldToBDDRoots, IntHashSet visited) {
-        if (isTerminal(node) || visited.contains(node)) return;
-        visited.add(node);
-        int field = nodeTable.getField(node);
-        int count = nodeTable.getEdgeCount(node);
-        for (int i = 0; i < count; i++) {
-            int next = nodeTable.getEdgeTarget(node, i);
-            int bddId = nodeTable.getEdgeLabel(node, i);
-            if (bddId > 1) {
-                fieldToBDDRoots.computeIfAbsent(field, k -> new HashSet<>()).add(bddId);
-            }
-            collectFieldBDDs(next, fieldToBDDRoots, visited);
-        }
+    private static String dotNddNode(int node) {
+        if (isTrue(node)) return "n_true";
+        if (isFalse(node)) return "n_false";
+        return "n" + node;
     }
 
-    private static void printBDDSubgraph(int currentBDD, int field, StringBuilder sb,
-                                         HashSet<Integer> visited, Set<Integer> rootSet) {
-        if (currentBDD <= 1 || visited.contains(currentBDD)) return;
-        visited.add(currentBDD);
+    /** Label ids are only unique within one backend, so name the backend in mixed diagrams. */
+    private static String dotLabelName(int field, int label) {
+        return mixedLabelModes ? fieldMode(field) + " #" + label : "#" + label;
+    }
 
-        if (fieldMode(field) != LabelMode.BDD) {
-            sb.append("    bdd_").append(currentBDD).append("_f").append(field)
-                    .append(" [shape=box, label=\"")
-                    .append(fieldMode(field)).append(" #").append(currentBDD).append("\"];\n");
-            return;
-        }
-
-        int var = bddEngine.getVar(currentBDD);
-        int high = bddEngine.getHigh(currentBDD);
-        int low = bddEngine.getLow(currentBDD);
-
-        int[] fieldVars = bddVarsPerField.get(field);
-        int startVar = fieldVars[0];
-        int localVar = var - startVar;
-        if (localVar < 0 || localVar >= fieldVars.length) {
-            localVar = var;
-        }
-
-        String nodeName = "bdd_" + currentBDD + "_f" + field;
-
-        if (rootSet.contains(currentBDD)) {
-            String blankNodeName = "blank_" + currentBDD + "_f" + field;
-            String clusterName = "cluster_root_" + currentBDD + "_f" + field;
-            String groupName = "field" + field;
-
-            sb.append("    subgraph ").append(clusterName).append(" {\n");
-            sb.append("        label=\"\";\n");
-            sb.append("        style=invis;\n");
-            sb.append("        rankdir=TB;\n");
-            sb.append("        ranksep=0.8;\n");
-
-            sb.append("        ").append(blankNodeName)
-                    .append(" [shape=point, width=0, height=0, style=invis, group=").append(groupName).append("];\n");
-
-            sb.append("        ").append(nodeName)
-                    .append(" [shape=circle, label=\"x").append(localVar).append("\", group=").append(groupName).append("];\n");
-
-            sb.append("        ").append(blankNodeName).append(" -> ").append(nodeName)
-                    .append(" [color=black, style=dashed, arrowhead=normal, arrowsize=1.5, label=\"#").append(currentBDD)
-                    .append("\", labelfontcolor=black, fontcolor=black, labeldistance=2.0, labelangle=0, minlen=1];\n");
-
-            sb.append("    }\n");
+    /** Append the nodes of one label diagram; handles 0 and 1 are the terminals. */
+    private static void printDotLabelNodes(LabelMode mode, String g, int handle, Map<Integer, Integer> varToBit,
+                                           Set<Integer> visited, StringBuilder sb) {
+        if (handle < 2 || !visited.add(handle)) return;
+        int var;
+        int low;
+        int high;
+        if (mode == LabelMode.COMPLEMENTED_BDD) {
+            var = bcddEngine.getVar(handle);
+            low = bcddEngine.getLow(handle);
+            high = bcddEngine.getHigh(handle);
         } else {
-            sb.append("    ").append(nodeName)
-                    .append(" [shape=circle, label=\"x").append(localVar).append("\"];\n");
+            jdd.bdd.NodeTable engine = mode == LabelMode.ZDD ? zddEngine : bddEngine;
+            var = engine.getVar(handle);
+            low = engine.getLow(handle);
+            high = engine.getHigh(handle);
         }
-
-        if (high == 1) {
-            sb.append("    ").append(nodeName).append(" -> TRUE_").append(field).append(";\n");
-        } else if (high > 1) {
-            sb.append("    ").append(nodeName).append(" -> bdd_").append(high).append("_f").append(field).append(";\n");
-            printBDDSubgraph(high, field, sb, visited, rootSet);
-        }
-
-        if (low == 1) {
-            sb.append("    ").append(nodeName).append(" -> TRUE_").append(field).append(" [style=dotted];\n");
-        } else if (low > 1) {
-            sb.append("    ").append(nodeName).append(" -> bdd_").append(low).append("_f").append(field).append(" [style=dotted];\n");
-            printBDDSubgraph(low, field, sb, visited, rootSet);
-        }
-    }
-
-    /** Recursively append current NDD node and edges to Dot output. */
-    private static void printNDDStructure(int current, StringBuilder sb, IntHashSet visited) {
-        if (isTerminal(current) || visited.contains(current)) return;
-        visited.add(current);
-
-        String nodeId = "NDD_" + current;
-        sb.append("  ").append(nodeId)
-                .append(" [shape=circle, label=\"f").append(nodeTable.getField(current) + 1).append("\"];\n");
-
-        int count = nodeTable.getEdgeCount(current);
-        for (int i = 0; i < count; i++) {
-            int next = nodeTable.getEdgeTarget(current, i);
-            int bddId = nodeTable.getEdgeLabel(current, i);
-
-            String nextId;
-            if (isTrue(next)) nextId = "NDD_TRUE";
-            else if (isFalse(next)) nextId = "NDD_FALSE";
-            else nextId = "NDD_" + next;
-
-            sb.append("  ").append(nodeId).append(" -> ").append(nextId)
-                    .append(" [label=\"#").append(bddId)
-                    .append("\", labelfontcolor=black, labeldistance=3, labelangle=15];\n");
-
-            printNDDStructure(next, sb, visited);
-        }
+        Integer bit = varToBit.get(var);
+        String node = g + "_" + handle;
+        sb.append("    ").append(node).append(" [shape=circle, label=\"")
+                .append(bit == null ? "v" + var : "b" + bit).append("\"];\n");
+        sb.append("    ").append(node).append(" -> ").append(g).append('_').append(high).append(";\n");
+        sb.append("    ").append(node).append(" -> ").append(g).append('_').append(low).append(" [style=dashed];\n");
+        printDotLabelNodes(mode, g, high, varToBit, visited, sb);
+        printDotLabelNodes(mode, g, low, varToBit, visited, sb);
     }
 
     /**
