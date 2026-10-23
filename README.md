@@ -141,19 +141,19 @@ the label BDDs, which all fields share and which are drawn once.
 
 ## Benchmark
 
-The following table shows the benchmark for **N-Queens** with N=12 and N=13 (best values in bold).
+The following table shows the benchmark for **N-Queens** with N=13 (best values in bold).
 
-| Implementation | Language | N=12 time (s) | N=13 time (s) | N=13 nodes created |
-| --- | --- | ---: | ---: | ---: |
-| BuDDy | C | 53.601 | >500 | – |
-| CUDD | C | 31.968 | 224.422 | 136,780,708 |
-| JDD | Java | 26.878 | 219.003 | 136,725,331 |
-| JSylvan* | Java | **3.750** | 28.725 | 136,728,750 |
-| JavaBDD-C | Java/C | 24.439 | 230.309 | 136,589,564 |
-| JavaBDD | Java | 27.867 | 293.619 | 136,711,984 |
-| [DecisionDiagrams](https://github.com/microsoft/DecisionDiagrams) (BDDNode) | C# | 15.511 | 105.936 | 101,810,366 |
-| [DecisionDiagrams](https://github.com/microsoft/DecisionDiagrams) (CBDDNode) | C# | 13.055 | 83.637 | 24,376,279 |
-| NDD | Java | 3.823 | **27.172** | **9,378,160** |
+| Implementation | Language | Time (s) | Nodes created |
+| --- | --- | ---: | ---: |
+| BuDDy | C | >500 | – |
+| CUDD | C | 224.422 | 136,780,708 |
+| JDD | Java | 219.003 | 136,725,331 |
+| JSylvan* | Java | 28.725 | 136,728,750 |
+| JavaBDD-C | Java/C | 230.309 | 136,589,564 |
+| JavaBDD | Java | 293.619 | 136,711,984 |
+| [DecisionDiagrams](https://github.com/microsoft/DecisionDiagrams) (BDDNode) | C# | 105.936 | 101,810,366 |
+| [DecisionDiagrams](https://github.com/microsoft/DecisionDiagrams) (CBDDNode) | C# | 83.637 | 24,376,279 |
+| NDD | Java | **27.172** | **9,378,160** |
 
 \* JSylvan is a parallel library and was run with 48 worker threads; all other implementations, including NDD, are single-threaded.
 
