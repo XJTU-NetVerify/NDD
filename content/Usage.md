@@ -105,6 +105,7 @@ one diagram instead of the whole engine, use `nodeCount(root)` for its NDD nodes
 ## JNDD Reference-Handling Notes
 
 - `and`, `or`, `not`, `diff`, and `imp` return node IDs that are not permanently protected
+- `ref(node)` protects a node you keep, `deref(node)` releases it, and `gc()` reclaims every node that is no longer referenced (and clears the operation caches)
 - `andTo` and `orTo` consume the first operand and are often the cheaper update-style form in tight loops
 - variable nodes created by `generateFields()` are pinned in the table and are not reclaimed by GC
 

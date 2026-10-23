@@ -26,7 +26,8 @@ The reason is that, due to the **locality** of field-based matching semantics, N
 
 ## Features
 
-- **Far fewer nodes than BDD**: by branching on whole fields and sharing label decision diagrams across fields, NDD can use far fewer nodes than BDD for field-structured problems, such as network verification, due to field locality. For example, on N-Queens with N=13, NDD creates about 14.6× fewer nodes than BDD libraries (see [Benchmark](#benchmark)). This reduces both memory use and computation time (see the [NSDI paper](https://www.usenix.org/system/files/nsdi25-li-zechun.pdf) and the [network verification results](content/Results-SRE.md)).
+- **Far fewer nodes than BDD**: by branching on whole fields and sharing label decision diagrams across fields, NDD can use far fewer nodes than BDD for field-structured problems, such as network verification, due to field locality. For example, on N-Queens with N=13, NDD creates about 14.6× fewer nodes than BDD libraries (see [Benchmark](#benchmark)). This reduces memory use (see the [NSDI paper](https://www.usenix.org/system/files/nsdi25-li-zechun.pdf) and the [network verification results](content/Results-SRE.md)).
+- **Faster than BDD**: with fewer nodes to build and visit, operations do less work. On N-Queens with N=13, single-threaded NDD takes 27.2 s, about 8× faster than CUDD (224.4 s) and JDD (219.0 s), 3.1× faster than the fastest single-threaded BDD library in the [Benchmark](#benchmark) (DecisionDiagrams with CBDDNode, 83.6 s), and on par with JSylvan running on 48 threads (28.7 s).
 - **Multiple label backends**: edge labels can be encoded as BDD, complemented-edge BDD (BCDD), ZDD, or BITSET (for fields of at most 7 bits). Backends can be mixed, with each field using its own backend (see [Design Notes](content/Design-Notes.md)).
 - **Multiple terminals**: Multi-Terminal NDD (MTNDD) allows terminals to hold numeric values (integer, rational, or floating point) instead of only `true`/`false`, with arithmetic operations (`plus`, `minus`, `times`, `divide`) and sum abstraction. Useful for weights, costs, link loads, probabilities, and integer matrices. Available on the [`mtndd`](https://github.com/XJTU-NetVerify/NDD/tree/mtndd) branch.
 - **Parallelism**: a C11 core with a JNI-based Java API runs NDD operations on multiple worker threads, reaching about 3.5× speedup with 6 workers on N-Queens. Available on the [`parallel`](https://github.com/XJTU-NetVerify/NDD/tree/parallel) branch (Boolean NDD) and the [`parallel-MTNDD`](https://github.com/XJTU-NetVerify/NDD/tree/parallel-MTNDD) branch (multi-terminal NDD); the native build is currently documented for Linux.
@@ -43,28 +44,28 @@ The reason is that, due to the **locality** of field-based matching semantics, N
    mvn -DskipTests package
    ```
 
-   To use NDD from your own Maven project instead, run `mvn -DskipTests install` and add this dependency:
-
-   ```xml
-   <dependency>
-       <groupId>org.ants</groupId>
-       <artifactId>ndd</artifactId>
-       <version>1.0.1</version>
-   </dependency>
-   ```
+   To add NDD as a dependency of your own Maven project, see
+   [Installation](content/Installation.md#using-ndd-in-another-project).
 
 2. Save the following as `QuickStart.java`. It builds the Hadamard matrix example from the figure above
    as both a BDD and an NDD, and compares their sizes:
 
    ```java
    import jdd.bdd.BDD;
+   import jdd.util.Dot;
    import org.ants.jndd.diagram.NDD;
 
    public class QuickStart {
        public static void main(String[] args) {
            // Hadamard matrix H_{2^n}: entry (x, y) is -1 iff x0·y0 XOR x1·y1 XOR ... = 1.
-           // n is the first argument (default 2, which gives H4 from the figure).
-           int n = args.length > 0 ? Integer.parseInt(args[0]) : 2;
+           // Arguments: [n] [--dot]. n defaults to 2, which gives H4 from the figure;
+           // --dot also writes both diagrams as Graphviz .dot files.
+           int n = 2;
+           boolean dot = false;
+           for (String arg : args) {
+               if (arg.equals("--dot")) dot = true;
+               else n = Integer.parseInt(arg);
+           }
 
            // BDD: one variable per bit, ordered x0, y0, x1, y1, ... as in (b).
            BDD bdd = new BDD(10_000, 1_000);
@@ -91,6 +92,15 @@ The reason is that, due to the **locality** of field-based matching semantics, N
            System.out.println("BDD: " + bdd.nodeCount(h) + " BDD nodes");             // 4n - 2 (6 for n = 2)
            System.out.println("NDD: " + NDD.nodeCount(ndd) + " NDD nodes + "          // 2n - 1 (3 for n = 2)
                    + NDD.labelNodeCount(ndd) + " BDD nodes in edge labels");          // 4 for any n
+
+           if (dot) {
+               // Keep the .dot files: by default JDD runs Graphviz on them and then deletes them.
+               Dot.setExecuteDot(false);
+               Dot.setRemoveDotFile(false);
+               bdd.printDot("hadamard-bdd.dot", h);
+               NDD.printDot(ndd, "hadamard-ndd.dot");
+               System.out.println("Wrote hadamard-bdd.dot and hadamard-ndd.dot");
+           }
        }
    }
    ```
@@ -100,7 +110,7 @@ The reason is that, due to the **locality** of field-based matching semantics, N
    variables and therefore the same label BDDs.
 
    NDD calls must follow this order: `initNDD(...)`, then `declareField(...)` for every field, then `generateFields()`, and only then logical operations.
-   For brevity, this example skips `ref()`/`deref()`; larger programs should protect the nodes they keep (see [APIs](#apis)).
+   For brevity, this example skips `ref()`/`deref()`; larger programs should protect the nodes they keep (see [Usage](content/Usage.md#jndd-reference-handling-notes)).
 
 3. Compile and run it against the jar:
 
@@ -123,14 +133,9 @@ The reason is that, due to the **locality** of field-based matching semantics, N
    Both ways accept the matrix size `n` as an optional argument (default 2). For example, add `10` to the
    end of either `java` command to build H<sub>1024</sub>, which prints 38 BDD nodes for the BDD, and 19 NDD nodes plus 4 label BDD nodes for the NDD.
 
-To try a larger workload, run the N-Queens benchmark ([`NDDSolution.java`](src/main/java/application/nqueen/NDDSolution.java)) for one or more board sizes:
-
-```bash
-java -cp target/ndd-1.0.1-jar-with-dependencies.jar application.nqueen.NDDSolution 8 9 10
-```
-
-It prints one `NQUEENS_METRICS` line per board size, with the number of solutions (e.g., 92 for N=8), node counts, and the running time.
-Add `--bcdd` or `--zdd` before the sizes to switch the label backend.
+   Add `--dot` to also write both diagrams as Graphviz files, `hadamard-bdd.dot` and `hadamard-ndd.dot`,
+   in the current directory. Render them with [Graphviz](https://graphviz.org/), for example
+   `dot -Tpng hadamard-ndd.dot -o hadamard-ndd.png`.
 
 ## Benchmark
 
@@ -144,8 +149,8 @@ The following table shows the benchmark for **N-Queens** with N=12 and N=13 (bes
 | JSylvan* | Java | **3.750** | 28.725 | 136,728,750 |
 | JavaBDD-C | Java/C | 24.439 | 230.309 | 136,589,564 |
 | JavaBDD | Java | 27.867 | 293.619 | 136,711,984 |
-| DD-BDD | C# | 15.511 | 105.936 | 101,810,366 |
-| DD-CBDD | C# | 13.055 | 83.637 | 24,376,279 |
+| [DecisionDiagrams](https://github.com/microsoft/DecisionDiagrams) (BDDNode) | C# | 15.511 | 105.936 | 101,810,366 |
+| [DecisionDiagrams](https://github.com/microsoft/DecisionDiagrams) (CBDDNode) | C# | 13.055 | 83.637 | 24,376,279 |
 | NDD | Java | 3.823 | **27.172** | **9,378,160** |
 
 \* JSylvan is a parallel library and was run with 48 worker threads; all other implementations, including NDD, are single-threaded.
@@ -153,22 +158,17 @@ The following table shows the benchmark for **N-Queens** with N=12 and N=13 (bes
 NDD creates about 14.6× fewer nodes than the BDD libraries at N=13 (NDD nodes plus label BDD nodes).
 Raw data and plots are in [`results/`](results/).
 
+To rerun the NDD side of this benchmark, build the jar as in the [Quick Start](#quick-start) and run
+[`NDDSolution.java`](src/main/java/application/nqueen/NDDSolution.java) for one or more board sizes:
+
+```bash
+java -cp target/ndd-1.0.1-jar-with-dependencies.jar application.nqueen.NDDSolution 8 9 10
+```
+
+It prints one `NQUEENS_METRICS` line per board size, with the number of solutions (e.g., 92 for N=8), node counts, and the running time.
+Add `--bcdd` or `--zdd` before the sizes to switch the label backend.
+
 For more details, please refer to [N-Queens Benchmark](content/Results-NQueens.md).
-
-## APIs
-
-All APIs are static methods of `org.ants.jndd.diagram.NDD`, and an NDD is referred to by its integer node id.
-
-- **Logical operations**: `and()`, `or()`, `not()`, `diff()`, `imp()`, or `apply(op, a, b)` with any `BinaryOperation` (`AND`, `OR`, `XOR`, `NAND`, `NOR`, `BIIMP`, `IMP`, `DIFF`).
-- `simplify(f, careSet)`: generalized cofactor; returns a smaller NDD that agrees with `f` wherever `careSet` holds.
-- `restrict(a, field, value)`: fix a field to a concrete value and obtain its cofactor, with the field removed.
-- `exist(a, fields...)`: existential quantification over one or more fields.
-- `substitute(a, source, target)`: rename field `source` to `target` (the two fields must have the same width).
-- **Satisfying assignments**: `satCount(a)` counts them; `anySat(a)` returns one (one 0/1 entry per bit of each field), or `null` if `a` is false; `allSat(a, consumer)` enumerates all of them, and the consumer may return `false` to stop early.
-- **Diagram size**: `nodeCount(a)` counts the NDD nodes of `a`, and `labelNodeCount(a)` counts the BDD nodes inside its edge labels, each shared node once.
-- **Memory management**: `ref()`/`deref()` protect and release nodes, and `gc()` reclaims unreferenced nodes.
-
-Refer to the [API guide](content/Manipulation-APIs.md) for more details.
 
 ## Branches
 
@@ -185,7 +185,7 @@ The current NDD library is by far not the end. Multiple terminals and parallel c
 
 ## Resources
 
-- [Documentation](content/)
+- [API guide](content/Manipulation-APIs.md)
 - [NSDI Paper](https://www.usenix.org/system/files/nsdi25-li-zechun.pdf)
 - [NSDI talk slides](https://xjtu-netverify.github.io/papers/NDD/NDD-A-Decision-Diagram-for-Network-Verification.pdf)
 - [NSDI talk video](https://www.youtube.com/watch?v=9Ni6Z7qKGV4)

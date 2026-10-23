@@ -28,7 +28,8 @@ CSV columns:
 
 Implementations: `NDD` is the current library on the `main` branch, and `NDD-Origin` is the original
 NDD prototype.
-The others are BDD libraries: BuDDy, CUDD, JDD, JavaBDD, JavaBDD-C, DD-BDD, DD-CBDD, and JSylvan.
+The others are BDD libraries: BuDDy, CUDD, JDD, JavaBDD, JavaBDD-C, [DecisionDiagrams](https://github.com/microsoft/DecisionDiagrams) (BDDNode) and
+DecisionDiagrams (CBDDNode) (named `DD-BDD` and `DD-CBDD` in the CSV and plots), and JSylvan.
 JSylvan is a parallel library and was run with 48 worker threads; all other implementations are
 single-threaded.
 

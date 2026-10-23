@@ -44,9 +44,27 @@ Those WAN and Batfish-adjacent paths are kept as research artifacts and integrat
 - `doc/javadoc/`: regenerated API documentation
 - `lib/`: bundled third-party artifacts used by the project
 
-## Using The Built Jar In Another Project
+## Using NDD In Another Project
 
-If you want to consume the shaded jar directly as a local file dependency, you can follow the repository's existing Maven pattern:
+The simplest way is to install NDD into your local Maven repository (`~/.m2`). From the
+repository root:
+
+```bash
+mvn -DskipTests install
+```
+
+Then add the normal dependency to your project's `pom.xml`:
+
+```xml
+<dependency>
+    <groupId>org.ants</groupId>
+    <artifactId>ndd</artifactId>
+    <version>1.0.1</version>
+</dependency>
+```
+
+Alternatively, without installing, copy `target/ndd-1.0.1-jar-with-dependencies.jar` into your
+project's `lib/` directory and depend on it as a local file:
 
 ```xml
 <dependency>
@@ -57,8 +75,6 @@ If you want to consume the shaded jar directly as a local file dependency, you c
     <systemPath>${project.basedir}/lib/ndd-1.0.1-jar-with-dependencies.jar</systemPath>
 </dependency>
 ```
-
-If you install or publish the jar to a Maven repository, use normal Maven coordinates instead of `scope=system`.
 
 ## First Things To Read After Building
 
