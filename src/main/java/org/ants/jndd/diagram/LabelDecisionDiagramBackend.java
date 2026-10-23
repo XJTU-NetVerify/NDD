@@ -1,5 +1,7 @@
 package org.ants.jndd.diagram;
 
+import java.util.Set;
+
 interface LabelDecisionDiagramBackend {
     NDD.LabelMode mode();
 
@@ -42,6 +44,12 @@ interface LabelDecisionDiagramBackend {
     double satCount(int label, int fieldBits, int maxBits);
 
     long nodeCount();
+
+    /**
+     * Add the ids of the non-terminal nodes used by {@code label} to {@code visited}. Nodes already
+     * in {@code visited} are skipped, so shared nodes are counted once across several labels.
+     */
+    void collectNodes(int label, Set<Integer> visited);
 
     long totalCreated();
 

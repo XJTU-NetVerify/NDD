@@ -21,6 +21,7 @@ Unless noted otherwise, every operation returns an NDD node ID that is not perma
 | Care-set simplification | `simplify(function, careSet)` | Preserves `function` on the care set and returns FALSE outside it. |
 | Cofactor | `restrict(root, field, value)` | Fixes one field and removes it from the returned NDD. |
 | Counting and witnesses | `satCount`, `anySat`, `allSat` | Counts or enumerates complete assignments over declared fields. |
+| Diagram size | `nodeCount(root)`, `labelNodeCount(root)` | Counts the NDD nodes reachable from `root`, and separately the label-diagram nodes used by its edge labels. |
 | Quantification | `exist(root, fields...)` | Projects out one or more complete fields. |
 | Replacement | `substitute(root, sourceField, targetField)` | Replaces the source field with the target field. |
 

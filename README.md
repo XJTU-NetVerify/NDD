@@ -57,17 +57,14 @@ The reason is that, due to the **locality** of field-based matching semantics, N
    as both a BDD and an NDD, and compares their sizes:
 
    ```java
-   import java.util.HashSet;
-   import java.util.Set;
-
    import jdd.bdd.BDD;
    import org.ants.jndd.diagram.NDD;
 
    public class QuickStart {
        public static void main(String[] args) {
            // Hadamard matrix H_{2^n}: entry (x, y) is -1 iff x0·y0 XOR x1·y1 XOR ... = 1.
-           // n = 2 gives H4 from the figure.
-           int n = 2;
+           // n is the first argument (default 2, which gives H4 from the figure).
+           int n = args.length > 0 ? Integer.parseInt(args[0]) : 2;
 
            // BDD: one variable per bit, ordered x0, y0, x1, y1, ... as in (b).
            BDD bdd = new BDD(10_000, 1_000);
@@ -90,23 +87,15 @@ The reason is that, due to the **locality** of field-based matching semantics, N
                ndd = NDD.apply(NDD.BinaryOperation.XOR, ndd, xiAndYi);
            }
 
-           System.out.println("BDD nodes: " + bdd.nodeCount(h));                 // 6 (= 4n - 2)
-           System.out.println("NDD nodes: " + nodeCount(ndd, new HashSet<>()));  // 3 (= 2n - 1)
-       }
-
-       // Count the distinct non-terminal nodes reachable from an NDD root.
-       static int nodeCount(int node, Set<Integer> seen) {
-           if (NDD.isTerminal(node) || !seen.add(node)) return 0;
-           int count = 1;
-           for (int i = 0; i < NDD.getEdgeCount(node); i++) {
-               count += nodeCount(NDD.getEdgeTarget(node, i), seen);
-           }
-           return count;
+           // An NDD has two kinds of nodes: NDD nodes, and the BDD nodes inside its edge labels.
+           System.out.println("BDD: " + bdd.nodeCount(h) + " BDD nodes");             // 4n - 2 (6 for n = 2)
+           System.out.println("NDD: " + NDD.nodeCount(ndd) + " NDD nodes + "          // 2n - 1 (3 for n = 2)
+                   + NDD.labelNodeCount(ndd) + " BDD nodes in edge labels");          // 4 for any n
        }
    }
    ```
 
-   The NDD needs half as many nodes as the BDD, and the gap grows with `n`. Its edge labels add only
+   The NDD needs half as many NDD nodes as the BDD needs BDD nodes, and the gap grows with `n`. Its edge labels add only
    two small BDDs, `xi ∧ yi` and `¬(xi ∧ yi)` as in (d), because all fields share the same label
    variables and therefore the same label BDDs.
 
@@ -122,6 +111,17 @@ The reason is that, due to the **locality** of field-based matching semantics, N
 
    On Windows, the classpath separator is `;`. In cmd or PowerShell, use `-cp target/ndd-1.0.1-jar-with-dependencies.jar;.`;
    in Git Bash, quote it: `-cp "target/ndd-1.0.1-jar-with-dependencies.jar;."`.
+
+   The same example is included in the repository as
+   [`QuickStart.java`](src/main/java/application/examples/QuickStart.java) and is built into the jar,
+   so you can also run it without saving the file:
+
+   ```bash
+   java -cp target/ndd-1.0.1-jar-with-dependencies.jar application.examples.QuickStart
+   ```
+
+   Both ways accept the matrix size `n` as an optional argument (default 2). For example, add `10` to the
+   end of either `java` command to build H<sub>1024</sub>, which prints 38 BDD nodes for the BDD, and 19 NDD nodes plus 4 label BDD nodes for the NDD.
 
 To try a larger workload, run the N-Queens benchmark ([`NDDSolution.java`](src/main/java/application/nqueen/NDDSolution.java)) for one or more board sizes:
 
@@ -165,6 +165,7 @@ All APIs are static methods of `org.ants.jndd.diagram.NDD`, and an NDD is referr
 - `exist(a, fields...)`: existential quantification over one or more fields.
 - `substitute(a, source, target)`: rename field `source` to `target` (the two fields must have the same width).
 - **Satisfying assignments**: `satCount(a)` counts them; `anySat(a)` returns one (one 0/1 entry per bit of each field), or `null` if `a` is false; `allSat(a, consumer)` enumerates all of them, and the consumer may return `false` to stop early.
+- **Diagram size**: `nodeCount(a)` counts the NDD nodes of `a`, and `labelNodeCount(a)` counts the BDD nodes inside its edge labels, each shared node once.
 - **Memory management**: `ref()`/`deref()` protect and release nodes, and `gc()` reclaims unreferenced nodes.
 
 Refer to the [API guide](content/Manipulation-APIs.md) for more details.

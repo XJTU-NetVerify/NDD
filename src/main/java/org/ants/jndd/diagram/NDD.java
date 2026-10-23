@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
@@ -1498,6 +1499,54 @@ public class NDD {
             return 0;
         }
         return nodeTable.getCurrentSize();
+    }
+
+    /**
+     * Count the NDD nodes of one diagram: the distinct non-terminal nodes reachable from
+     * {@code ndd}. Unlike {@link #getNodeCount()}, this ignores every other node in the table.
+     * The BDD nodes inside edge labels are not included; see {@link #labelNodeCount(int)}.
+     * @param ndd The root of the diagram.
+     * @return The number of NDD nodes in the diagram; 0 for a terminal.
+     */
+    public static int nodeCount(int ndd) {
+        Set<Integer> visited = new HashSet<>();
+        collectNddNodes(ndd, visited);
+        return visited.size();
+    }
+
+    /**
+     * Count the label nodes of one diagram: the distinct non-terminal nodes of the decision
+     * diagrams (BDD, complemented BDD or ZDD) used as edge labels in {@code ndd}. A node shared
+     * by several labels is counted once. For a BITSET field, each distinct non-terminal label
+     * counts as one node, because a bitset label is a single truth table.
+     * @param ndd The root of the diagram.
+     * @return The number of label nodes in the diagram; 0 for a terminal.
+     */
+    public static int labelNodeCount(int ndd) {
+        Set<Integer> nddNodes = new HashSet<>();
+        collectNddNodes(ndd, nddNodes);
+        // Node ids are only unique within one backend, so keep one visited set per backend.
+        Map<LabelDecisionDiagramBackend, Set<Integer>> labelNodes = new IdentityHashMap<>();
+        for (int node : nddNodes) {
+            int field = nodeTable.getField(node);
+            LabelDecisionDiagramBackend backend = backendForField(field);
+            Set<Integer> visited = labelNodes.computeIfAbsent(backend, b -> new HashSet<>());
+            for (int i = 0; i < nodeTable.getEdgeCount(node); i++) {
+                backend.collectNodes(nodeTable.getEdgeLabel(node, i), visited);
+            }
+        }
+        int count = 0;
+        for (Set<Integer> visited : labelNodes.values()) {
+            count += visited.size();
+        }
+        return count;
+    }
+
+    private static void collectNddNodes(int node, Set<Integer> visited) {
+        if (isTerminal(node) || !visited.add(node)) return;
+        for (int i = 0; i < nodeTable.getEdgeCount(node); i++) {
+            collectNddNodes(nodeTable.getEdgeTarget(node, i), visited);
+        }
     }
 
     /**

@@ -98,7 +98,9 @@ In mixed mode, use `getFieldLabelMode(field)` to inspect a field and the field-a
 `refLabel(field, label)` / `derefLabel(field, label)` overloads for raw edge-label handles. The
 legacy overloads without a field remain available for homogeneous diagrams and reject ambiguous
 mixed-mode use. Aggregate label statistics are available through `getLabelNodeCount()` and
-`getLabelTotalCreated()`; overloads accepting a `LabelMode` return per-engine values.
+`getLabelTotalCreated()`; overloads accepting a `LabelMode` return per-engine values. To measure
+one diagram instead of the whole engine, use `nodeCount(root)` for its NDD nodes and
+`labelNodeCount(root)` for the label nodes used by its edges.
 
 ## JNDD Reference-Handling Notes
 

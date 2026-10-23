@@ -1,6 +1,7 @@
 package org.ants.jndd.diagram;
 
 import java.lang.reflect.Field;
+import java.util.Set;
 
 import org.ants.jndd.bdd.ComplementedBDD;
 
@@ -35,6 +36,13 @@ final class LabelDecisionDiagramBackends {
         } catch (ReflectiveOperationException e) {
             throw new RuntimeException("Failed to read active label-node count", e);
         }
+    }
+
+    /** Walk a JDD BDD or ZDD label; handles 0 and 1 are the terminals. */
+    private static void collectJddNodes(jdd.bdd.NodeTable engine, int label, Set<Integer> visited) {
+        if (label < 2 || !visited.add(label)) return;
+        collectJddNodes(engine, engine.getLow(label), visited);
+        collectJddNodes(engine, engine.getHigh(label), visited);
     }
 
     private static long readLongField(Object target, String fieldName) throws ReflectiveOperationException {
@@ -154,6 +162,11 @@ final class LabelDecisionDiagramBackends {
         }
 
         @Override
+        public void collectNodes(int label, Set<Integer> visited) {
+            collectJddNodes(engine, label, visited);
+        }
+
+        @Override
         public long totalCreated() {
             return engine.getTotalCreated();
         }
@@ -264,6 +277,14 @@ final class LabelDecisionDiagramBackends {
         @Override
         public long nodeCount() {
             return engine.getNodeCount();
+        }
+
+        @Override
+        public void collectNodes(int label, Set<Integer> visited) {
+            int node = engine.getNodeId(label);
+            if (node == 0 || !visited.add(node)) return;
+            collectNodes(engine.getLow(label), visited);
+            collectNodes(engine.getHigh(label), visited);
         }
 
         @Override
@@ -393,6 +414,11 @@ final class LabelDecisionDiagramBackends {
         @Override
         public long nodeCount() {
             return reflectActiveNodeCount(engine);
+        }
+
+        @Override
+        public void collectNodes(int label, Set<Integer> visited) {
+            collectJddNodes(engine, label, visited);
         }
 
         @Override
@@ -623,6 +649,12 @@ final class LabelDecisionDiagramBackends {
         @Override
         public long nodeCount() {
             return count;
+        }
+
+        @Override
+        public void collectNodes(int label, Set<Integer> visited) {
+            // A bitset label is a single interned truth table; ids 0 and 1 are FALSE and TRUE.
+            if (label > 1) visited.add(label);
         }
 
         @Override
