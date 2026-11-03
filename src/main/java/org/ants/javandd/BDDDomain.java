@@ -358,10 +358,12 @@ public abstract class BDDDomain {
       return binsize;
     }
 
-    if (true) {
-      throw new BDDException(
-          "Can't add bits to domains, requested domain " + name + " upper limit " + range);
-    }
+    throw new BDDException(
+        "Can't add bits to domains, requested domain " + name + " upper limit " + range);
+
+    /*
+     * Domain expansion is disabled. Keep this implementation for reference.
+     *
     int[] new_ivar = new int[binsize];
     System.arraycopy(ivar, 0, new_ivar, 0, ivar.length);
     BDDFactory factory = getFactory();
@@ -382,6 +384,7 @@ public abstract class BDDDomain {
     var = nvar;
     // System.out.println("Domain "+this+" new var = "+var);
     return binsize;
+    */
   }
 
   @Override

@@ -2,7 +2,7 @@
  * Node table of NDD (Node Decision Diagram).
  * Manages node storage, unique table lookup, and reference counting.
  *
- * @author Zechun Li & Yichi Zhang - XJTU ANTS NetVerify Lab
+ * @author XJTU ANTS NetVerify Lab
  * @version 1.0
  */
 package org.ants.jndd.nodetable;

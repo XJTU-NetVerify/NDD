@@ -1,7 +1,7 @@
-/**
+/*
  * NDD implementation in JavaBDD version (compatible and extendable).
- * Based on JavaBDD package in {@see <a href="https://github.com/batfish/batfish">Batfish</a>}.
- * @author Zechun Li & Yichi Zhang - XJTU ANTS NetVerify Lab
+ * Based on the JavaBDD package in Batfish (https://github.com/batfish/batfish).
+ * @author XJTU ANTS NetVerify Lab
  * @version 1.0
  */
 package org.ants.javandd;
@@ -38,7 +38,7 @@ public class NDDFactory extends BDDFactory {
 
     // node table
     private jdd.bdd.BDD bddEngine;
-    private NodeTable nodeTable;
+    private NodeTable<NDD> nodeTable;
     private int fieldNum;
 
     // per field
@@ -63,9 +63,9 @@ public class NDDFactory extends BDDFactory {
 
     /**
      * default init for NDDFactory
-     * NDD cache size will be computed based on {@link CACHE_RATIO}
-     * BDD cache size will be setted as {@link bddCacheSize}
-     * @param nddTableSize the size of NDD table. {@link CACHE_SIZE} will be computed based on it
+     * NDD cache size will be computed based on {@link #CACHE_RATIO}.
+     * BDD cache size will be set to {@code bddCacheSize}.
+     * @param nddTableSize the size of NDD table. {@link #CACHE_SIZE} will be computed based on it
      * @param bddTableSize
      * @param bddCacheSize
      */
@@ -117,7 +117,7 @@ public class NDDFactory extends BDDFactory {
 
     /**
      * init for batfish cuz should not modify the parameters pass to factory
-     * will use {@link setVarNum} lazily to initialize nodetable and declare fields
+     * will use {@link #setVarNum(int[], int)} lazily to initialize nodetable and declare fields
      * @param bddTableSize
      * @param bddCacheSize
      * @return default factory with only constrain setted
@@ -128,7 +128,7 @@ public class NDDFactory extends BDDFactory {
 
     /**
      * default init for NDDFactory
-     * @param fields ArrayList<Integer>
+     * @param fields the bit widths of the fields
      * @param nddTableSize
      * @param bddTableSize
      * @param bddCacheSize
@@ -234,7 +234,7 @@ public class NDDFactory extends BDDFactory {
 
     /**
      * user should call this method to ref(protect) NDD nodes
-     * call {@link nodeTable#ref()} in Factory source file
+     * Calls {@link NodeTable#ref(NDD)} in the factory.
      * @param ndd
      * @return for call chain
      */
@@ -245,8 +245,9 @@ public class NDDFactory extends BDDFactory {
 
     /**
      * user should call this method to deref NDD nodes
-     * call {@link nodeTable#deref()} in Factory source file
+     * Calls {@link NodeTable#deref(NDD)} in the factory.
      * @param ndd
+     * @return the supplied BDD
      */
     public BDD deref(BDD ndd) {
         ((NDDFactory.bdd) ndd).deref();
@@ -282,7 +283,8 @@ public class NDDFactory extends BDDFactory {
 
     /**
      * lazy declare fields in NDD
-     * @param {fields} can be int[] or ArrayList<Integer>
+     * @param fields the bit widths of the fields
+     * @param nddTableSize the size of the NDD node table
      */
     public void setVarNum(int[] fields, int nddTableSize) {
         NDD_TABLE_SIZE = nddTableSize;
@@ -315,11 +317,12 @@ public class NDDFactory extends BDDFactory {
     }
 
     /**
-     * Same with {@link #getVar(int field, int index)}
-     * {@bddVarsPerField} stores {field[i]} number of BDD variables for each field
-     * {@nddVarsPerField} stores {field[i]} number of NDD variables for each field
-     * 
-     * @return the {@param var}th ndd variable with its bdd pointed to BDDTrue on edge
+     * Same as {@link #getVar(int, int)}, using a global variable index.
+     * {@link #bddVarsPerField} stores the BDD variables for each field.
+     * {@link #nddVarsPerField} stores the NDD variables for each field.
+     *
+     * @param var the global variable index
+     * @return the NDD variable with its BDD edge pointing to true
      */
     @Override
     public BDD ithVar(int var) {
@@ -371,6 +374,8 @@ public class NDDFactory extends BDDFactory {
      * wrap NDD node as BDD for factory
      */
     public class bdd extends BDD {
+        private static final long serialVersionUID = 1L;
+
         public NDD _index;
 
         public bdd() {
@@ -422,9 +427,7 @@ public class NDDFactory extends BDDFactory {
                 return false;
             }
             int flag = 0;
-            Iterator iter = this._index.edges.entrySet().iterator();
-            while (iter.hasNext()) {
-                Map.Entry<NDD, Integer> edge = (Map.Entry<NDD, Integer>) iter.next();
+            for (Map.Entry<NDD, Integer> edge : this._index.edges.entrySet()) {
                 BDD child = new bdd(edge.getKey());
                 if (child.isZero()) {
                     continue;
@@ -479,7 +482,6 @@ public class NDDFactory extends BDDFactory {
                 }
             }
             int start = bit.nextSetBit(0);
-            int offset = maxVariablePerField.get(this._index.field) - maxVariablePerField.get(this._index.field - 1);
             if (this._index.field == 0) {
                 return start;
             } else {
@@ -494,9 +496,7 @@ public class NDDFactory extends BDDFactory {
         @Override
         public BDD high() {
             BDD ret = null;
-            Iterator iter = this._index.edges.entrySet().iterator();
-            while (iter.hasNext()) {
-                Map.Entry<NDD, Integer> edge = (Map.Entry<NDD, Integer>) iter.next();
+            for (Map.Entry<NDD, Integer> edge : this._index.edges.entrySet()) {
                 BDD child = new bdd(edge.getKey());
                 if (child.isOne()) {
                     return child;
@@ -512,9 +512,7 @@ public class NDDFactory extends BDDFactory {
         @Override
         public BDD low() {
             BDD ret = null;
-            Iterator iter = this._index.edges.entrySet().iterator();
-            while (iter.hasNext()) {
-                Map.Entry<NDD, Integer> edge = (Map.Entry<NDD, Integer>) iter.next();
+            for (Map.Entry<NDD, Integer> edge : this._index.edges.entrySet()) {
                 BDD child = new bdd(edge.getKey());
                 if (child.isZero()) {
                     return child;
@@ -650,7 +648,7 @@ public class NDDFactory extends BDDFactory {
         public BDD support() { throw new BDDException(); }
 
         /**
-         * Returns the result of applying the binary operator <tt>opr</tt> to the two BDDs.
+         * Returns the result of applying the binary operator {@code opr} to the two BDDs.
          *
          * @param that    the BDD to apply the operator on
          * @param opr     the operator to apply
@@ -1427,7 +1425,7 @@ public class NDDFactory extends BDDFactory {
         int cacheSize;
         // The length of each entry. 3 for binary operations and 2 for unary operations.
         int entrySize;
-        Object[] cache;
+        private Object[] cache;
         // Store the result of getEntry() temporarily
         public T result;
         public int hashValue;
@@ -1469,6 +1467,7 @@ public class NDDFactory extends BDDFactory {
          * @param index The index of the entry.
          * @return The cached result.
          */
+        @SuppressWarnings("unchecked") // Only values of T or null are stored in the private cache.
         private T getResult(int index) {
             return (T) cache[index * entrySize];
         }
@@ -1489,7 +1488,8 @@ public class NDDFactory extends BDDFactory {
          * @param operandIndex The index of the operand in the entry.
          * @return The cached operand.
          */
-        private  T getOperand(int index, int operandIndex) {
+        @SuppressWarnings("unchecked") // Only values of T or null are stored in the private cache.
+        private T getOperand(int index, int operandIndex) {
             return (T) cache[index * entrySize + operandIndex];
         }
 
@@ -1998,7 +1998,6 @@ public class NDDFactory extends BDDFactory {
         NDD_TABLE_SIZE = n;
         nodeTable.setMaxSize(NDD_TABLE_SIZE);
         // cache grow up
-        int oldCacheSize = CACHE_SIZE;
         CACHE_SIZE = NDD_TABLE_SIZE / CACHE_RATIO;
         andCache.growUpSize(CACHE_SIZE);
         notCache.growUpSize(CACHE_SIZE);
@@ -2050,7 +2049,7 @@ public class NDDFactory extends BDDFactory {
     public int duplicateVar(int var) { return 0; }
 
     @Override
-    public int nodeCount(Collection r) { return 0; }
+    public int nodeCount(Collection<BDD> r) { return 0; }
 
     @Override
     public int getNodeNum() { return 0; }
@@ -2074,7 +2073,7 @@ public class NDDFactory extends BDDFactory {
     public void showStatus() {
         System.out.println("=================================");
         System.out.println("NDD node count: " + mkCount);
-        System.out.println("BDD node count: " + bddEngine.mkCount);
+        System.out.println("BDD node count: " + jdd.bdd.NodeTable.mkCount);
         System.out.println("BDD show status: ");
         bddEngine.showStats();
         System.out.println("=================================");

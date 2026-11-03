@@ -1,7 +1,6 @@
 package application;
 
 import java.io.BufferedReader;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.HashMap;
@@ -46,28 +45,30 @@ public class CompareResults {
     }
 
     public static void compareByKeyValue() throws IOException {
-        BufferedReader bddReader = new BufferedReader(new FileReader(basePath + "\\" + bddResultFile));
-        BufferedReader nddReader = new BufferedReader(new FileReader(basePath + "\\" + nddResultFile));
-        HashMap<String, String> bddMap = new HashMap<>();
-        HashMap<String, String> nddMap = new HashMap<>();
-        storeIntoMap(bddReader, bddMap);
-        storeIntoMap(nddReader, nddMap);
-        compareContentInMap(bddMap, nddMap);
+        try (BufferedReader bddReader = new BufferedReader(new FileReader(basePath + "\\" + bddResultFile));
+             BufferedReader nddReader = new BufferedReader(new FileReader(basePath + "\\" + nddResultFile))) {
+            HashMap<String, String> bddMap = new HashMap<>();
+            HashMap<String, String> nddMap = new HashMap<>();
+            storeIntoMap(bddReader, bddMap);
+            storeIntoMap(nddReader, nddMap);
+            compareContentInMap(bddMap, nddMap);
+        }
     }
 
     public static void compareByLine() throws IOException {
-        BufferedReader bddReader = new BufferedReader(new FileReader(basePath + "\\" + bddResultFile));
-        BufferedReader nddReader = new BufferedReader(new FileReader(basePath + "\\" + nddResultFile));
-        int lineNumber = 0;
-        String bddLine;
-        while ((bddLine = bddReader.readLine()) != null) {
-            lineNumber++;
-            String nddLine = nddReader.readLine();
-            if (!bddLine.equals(nddLine)) {
-                System.out.println(lineNumber);
-                System.out.println(bddLine);
-                System.out.println(nddLine);
-                break;
+        try (BufferedReader bddReader = new BufferedReader(new FileReader(basePath + "\\" + bddResultFile));
+             BufferedReader nddReader = new BufferedReader(new FileReader(basePath + "\\" + nddResultFile))) {
+            int lineNumber = 0;
+            String bddLine;
+            while ((bddLine = bddReader.readLine()) != null) {
+                lineNumber++;
+                String nddLine = nddReader.readLine();
+                if (!bddLine.equals(nddLine)) {
+                    System.out.println(lineNumber);
+                    System.out.println(bddLine);
+                    System.out.println(nddLine);
+                    break;
+                }
             }
         }
     }

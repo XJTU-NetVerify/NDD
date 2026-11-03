@@ -1,6 +1,6 @@
 /**
  * Operation cache of NDD.
- * @author Zechun Li & Yichi Zhang - XJTU ANTS NetVerify Lab
+ * @author XJTU ANTS NetVerify Lab
  * @version 1.0
  */
 package org.ants.jndd.cache;
@@ -21,7 +21,7 @@ public class OperationCache<T> {
     /**
      * The cache.
      */
-    Object[] cache;
+    private Object[] cache;
 
     /**
      * Store the result of getEntry() temporarily, if the entry is found.
@@ -59,6 +59,7 @@ public class OperationCache<T> {
      * @param index The index of the entry.
      * @return The cached result.
      */
+    @SuppressWarnings("unchecked") // Only values of T or null are stored in the private cache.
     private T getResult(int index) {
         return (T) cache[index * entrySize];
     }
@@ -79,7 +80,8 @@ public class OperationCache<T> {
      * @param operandIndex The index of the operand in the entry.
      * @return The cached operand.
      */
-    private  T getOperand(int index, int operandIndex) {
+    @SuppressWarnings("unchecked") // Only values of T or null are stored in the private cache.
+    private T getOperand(int index, int operandIndex) {
         return (T) cache[index * entrySize + operandIndex];
     }
 

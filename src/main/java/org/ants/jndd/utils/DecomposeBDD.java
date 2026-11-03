@@ -1,6 +1,6 @@
 /**
  * Utility for decomposing NDD.
- * @author Zechun Li & Yichi Zhang - XJTU ANTS NetVerify Lab
+ * @author XJTU ANTS NetVerify Lab
  * @version 1.0
  */
 package org.ants.jndd.utils;
