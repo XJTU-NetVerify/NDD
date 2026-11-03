@@ -63,6 +63,8 @@ import org.apache.logging.log4j.Logger;
  * the Batfish Authors.
  */
 public final class TracingFactory extends JFactory {
+  private static final long serialVersionUID = 1L;
+
   private static final Logger LOGGER = LogManager.getLogger(TracingFactory.class);
 
   /** The actual trace. */
@@ -231,7 +233,18 @@ public final class TracingFactory extends JFactory {
     try (FileInputStream fis = new FileInputStream(path.toFile())) {
       try (GZIPInputStream gis = new GZIPInputStream(fis)) {
         try (ObjectInputStream ois = new ObjectInputStream(gis)) {
-          trace = (List<TracedOperation>) ois.readObject();
+          Object savedTrace = ois.readObject();
+          if (!(savedTrace instanceof List<?>)) {
+            throw new IOException("Invalid trace: expected a list of operations");
+          }
+          List<?> savedOperations = (List<?>) savedTrace;
+          trace = new ArrayList<>(savedOperations.size());
+          for (Object operation : savedOperations) {
+            if (!(operation instanceof TracedOperation)) {
+              throw new IOException("Invalid trace: expected a TracedOperation entry");
+            }
+            trace.add((TracedOperation) operation);
+          }
         }
       }
     }
@@ -481,6 +494,8 @@ public final class TracingFactory extends JFactory {
 
   /** Wrapper for the BDD index number used internally in the representation. */
   private class TracedBDDImpl extends BDD {
+    private static final long serialVersionUID = 1L;
+
     BDDImpl _bdd;
 
     TracedBDDImpl(BDDImpl bdd) {
