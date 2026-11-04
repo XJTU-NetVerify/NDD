@@ -1,4 +1,4 @@
-package application.nqueen;
+package application.nqueens;
 
 import org.ants.jndd.diagram.NDD;
 
@@ -166,15 +166,16 @@ public class NDDSolution {
         );
     }
 
-    private static Result solve(int n) {
-        return solve(n, NDD.LabelMode.BDD);
-    }
-
     /**
      * Legacy helper kept for compatibility with existing experiments.
      */
     public static String Solution(int n) {
-        Result result = solve(n);
+        return Solution(n, NDD.LabelMode.BDD);
+    }
+
+    /** Returns timing, solution count, and live nodes for the selected label mode. */
+    public static String Solution(int n, NDD.LabelMode mode) {
+        Result result = solve(n, mode);
         return "\t" + String.format("%.3f", result.seconds) + "\t" + result.solutions + "\t" + result.nodesAlive;
     }
 
@@ -202,25 +203,27 @@ public class NDDSolution {
         for (int i = startArg; i < args.length; i++) {
             String arg = args[i];
             int n = Integer.parseInt(arg);
-            Result result = solve(n, mode);
-            System.out.printf(
-                "NQUEENS_METRICS n=%d solutions=%.0f nodes_created=%d nodes_alive=%d "
-                    + "ndd_nodes_created=%d ndd_nodes_alive=%d "
-                    + "bdd_nodes_created=%d bdd_nodes_alive=%d "
-                    + "seconds=%.6f mode=%s implementation=%s%n",
-                n,
-                result.solutions,
-                result.nodesCreated,
-                result.nodesAlive,
-                result.nddNodesCreated,
-                result.nddNodesAlive,
-                result.bddNodesCreated,
-                result.bddNodesAlive,
-                result.seconds,
-                result.mode,
-                result.mode
-            );
-            //System.out.printf(Solution(n));
+            printMetrics(n, solve(n, mode));
         }
+    }
+
+    private static void printMetrics(int n, Result result) {
+        System.out.printf(
+            "NQUEENS_METRICS n=%d solutions=%.0f nodes_created=%d nodes_alive=%d "
+                + "ndd_nodes_created=%d ndd_nodes_alive=%d "
+                + "bdd_nodes_created=%d bdd_nodes_alive=%d "
+                + "seconds=%.6f mode=%s implementation=%s%n",
+            n,
+            result.solutions,
+            result.nodesCreated,
+            result.nodesAlive,
+            result.nddNodesCreated,
+            result.nddNodesAlive,
+            result.bddNodesCreated,
+            result.bddNodesAlive,
+            result.seconds,
+            result.mode,
+            result.mode
+        );
     }
 }

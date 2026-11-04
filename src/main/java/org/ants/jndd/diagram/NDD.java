@@ -1,10 +1,9 @@
-/**
+/*
  * NDD (Node Decision Diagram) main API.
  * Provides initialization, field declaration, Boolean operations (and, or, not, diff, imp),
  * encoding (prefix, ACL), and conversion between NDD and BDD.
  *
- * @author XJTU ANTS NetVerify Lab
- * @version 1.0
+ * Copyright (c) XJTU ANTS NetVerify Lab.
  */
 package org.ants.jndd.diagram;
 
@@ -25,7 +24,6 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.function.IntConsumer;
 
-import org.ants.jndd.nodetable.NodeTable;
 import org.ants.jndd.utils.DecomposeBDD;
 import org.ants.jndd.bdd.ComplementedBDD;
 
@@ -83,7 +81,7 @@ public class NDD {
      * Homogeneous fast-path backend. In a mixed diagram this is the first field's backend and
      * fieldBackend(field) performs the per-field dispatch.
      */
-    private static LabelDecisionDiagramBackend labelBackend;
+    private static LabelBackend labelBackend;
 
     /** One shared decision-diagram engine and variable layout per label mode. */
     private static BackendContext[] backendContexts;
@@ -92,10 +90,10 @@ public class NDD {
     private static ArrayList<LabelMode> pendingFieldModes;
 
     /** Direct per-field backend lookup, populated while fields are declared. */
-    private static ArrayList<LabelDecisionDiagramBackend> fieldBackends;
+    private static ArrayList<LabelBackend> fieldBackends;
 
     /** Array fast paths materialized at generateFields() for mixed-backend hot loops. */
-    private static LabelDecisionDiagramBackend[] fieldBackendArray;
+    private static LabelBackend[] fieldBackendArray;
     private static LabelMode[] fieldModeArray;
 
     /** Whether declared fields use more than one backend. */
@@ -209,11 +207,11 @@ public class NDD {
     /** Shared state for all fields that use one label representation. */
     private static final class BackendContext {
         final LabelMode mode;
-        final LabelDecisionDiagramBackend backend;
+        final LabelBackend backend;
         int maxWidth;
         int[] sharedVars;
 
-        BackendContext(LabelMode mode, LabelDecisionDiagramBackend backend) {
+        BackendContext(LabelMode mode, LabelBackend backend) {
             this.mode = mode;
             this.backend = backend;
         }
@@ -368,7 +366,7 @@ public class NDD {
         BackendContext context = backendContexts[index];
         if (context != null) return context;
 
-        LabelDecisionDiagramBackend backend = LabelDecisionDiagramBackends.create(mode,
+        LabelBackend backend = LabelBackendFactory.create(mode,
                 backendTableSizes[index], backendCacheSizes[index]);
         context = new BackendContext(mode, backend);
         backendContexts[index] = context;
@@ -392,7 +390,7 @@ public class NDD {
             throw new IllegalStateException("No fields declared before generateFields()");
         }
         fieldsGenerated = true;
-        fieldBackendArray = fieldBackends.toArray(new LabelDecisionDiagramBackend[0]);
+        fieldBackendArray = fieldBackends.toArray(new LabelBackend[0]);
         fieldModeArray = pendingFieldModes.toArray(new LabelMode[0]);
 
         for (int f = 0; f < pendingFieldBitNums.size(); f++) {
@@ -420,7 +418,7 @@ public class NDD {
             int bitNum = pendingFieldBitNums.get(f);
             LabelMode mode = pendingFieldModes.get(f);
             BackendContext context = backendContexts[mode.ordinal()];
-            LabelDecisionDiagramBackend backend = context.backend;
+            LabelBackend backend = context.backend;
             int offset = context.maxWidth - bitNum;
 
             nodeTable.declareField();
@@ -637,7 +635,7 @@ public class NDD {
      * Homogeneous diagrams keep the original single-backend fast path. The branch is stable for
      * the engine lifetime and therefore readily predicted/inlined by the JIT.
      */
-    private static LabelDecisionDiagramBackend backendForField(int field) {
+    private static LabelBackend backendForField(int field) {
         return mixedLabelModes ? fieldBackendArray[field] : labelBackend;
     }
 
@@ -674,7 +672,7 @@ public class NDD {
 
     private static double labelSatCount(int field, int label) {
         int fieldBits = pendingFieldBitNums.get(field);
-        LabelDecisionDiagramBackend backend = backendForField(field);
+        LabelBackend backend = backendForField(field);
         int maxBits = backendContexts[fieldMode(field).ordinal()].maxWidth;
         return backend.satCount(label, fieldBits, maxBits);
     }
@@ -1539,10 +1537,10 @@ public class NDD {
         Set<Integer> nddNodes = new HashSet<>();
         collectNddNodes(ndd, nddNodes);
         // Node ids are only unique within one backend, so keep one visited set per backend.
-        Map<LabelDecisionDiagramBackend, Set<Integer>> labelNodes = new IdentityHashMap<>();
+        Map<LabelBackend, Set<Integer>> labelNodes = new IdentityHashMap<>();
         for (int node : nddNodes) {
             int field = nodeTable.getField(node);
-            LabelDecisionDiagramBackend backend = backendForField(field);
+            LabelBackend backend = backendForField(field);
             Set<Integer> visited = labelNodes.computeIfAbsent(backend, b -> new HashSet<>());
             for (int i = 0; i < nodeTable.getEdgeCount(node); i++) {
                 backend.collectNodes(nodeTable.getEdgeLabel(node, i), visited);

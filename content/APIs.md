@@ -1,4 +1,4 @@
-# Manipulation APIs
+# APIs
 
 This page documents the field-aware operations in the low-level `org.ants.jndd.diagram.NDD` API. NDD node IDs are integers; initialize the engine, declare every field, and call `generateFields()` before using any operation.
 

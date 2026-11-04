@@ -109,9 +109,9 @@ one diagram instead of the whole engine, use `nodeCount(root)` for its NDD nodes
 - `andTo` and `orTo` consume the first operand and are often the cheaper update-style form in tight loops
 - variable nodes created by `generateFields()` are pinned in the table and are not reclaimed by GC
 
-The NQueens example in [`application/nqueen/NDDSolution.java`](../src/main/java/application/nqueen/NDDSolution.java) shows the intended style for building constraints while explicitly balancing `ref` / `deref`.
+The NQueens example in [`application/nqueens/NDDSolution.java`](../src/main/java/application/nqueens/NDDSolution.java) shows the intended style for building constraints while explicitly balancing `ref` / `deref`.
 
-For field-level cofactors, satisfying-assignment enumeration, quantification, substitution, and the generic Boolean-operation API, see [Manipulation APIs](Manipulation-APIs.md).
+For field-level cofactors, satisfying-assignment enumeration, quantification, substitution, and the generic Boolean-operation API, see [APIs](APIs.md).
 
 ## JavaNDD Quick Start
 
@@ -149,19 +149,19 @@ mvn -DskipTests package
 Then run the maintained low-level NDD driver:
 
 ```bash
-java -cp target/ndd-1.0.1-jar-with-dependencies.jar application.nqueen.NDDSolution 8 9 10 11 12
+java -cp target/ndd-1.0.1-jar-with-dependencies.jar application.nqueens.NDDSolution 8 9 10 11 12
 ```
 
 To exercise the complemented-BDD label mode:
 
 ```bash
-java -cp target/ndd-1.0.1-jar-with-dependencies.jar application.nqueen.NDDSolution --bcdd 10 11 12
+java -cp target/ndd-1.0.1-jar-with-dependencies.jar application.nqueens.NDDSolution --bcdd 10 11 12
 ```
 
 To exercise the set-family ZDD label mode:
 
 ```bash
-java -cp target/ndd-1.0.1-jar-with-dependencies.jar application.nqueen.NDDSolution --zdd 10 11 12
+java -cp target/ndd-1.0.1-jar-with-dependencies.jar application.nqueens.NDDSolution --zdd 10 11 12
 ```
 
 The program emits one `NQUEENS_METRICS ...` line per board size, including runtime, created/alive node counts, and solution counts.
@@ -180,11 +180,11 @@ The expected counts are 8 valid configurations and 3 valid blue configurations f
 
 ### Legacy NQueens Harness
 
-[`application/nqueen/NQueensExp.java`](../src/main/java/application/nqueen/NQueensExp.java) is an older harness that writes a text file under `results`. It is still useful for quick comparisons, but `NDDSolution` is the better starting point if you want machine-readable metrics.
+[`application/nqueens/NQuenensBenchmark.java`](../src/main/java/application/nqueens/NQuenensBenchmark.java) is a benchmark harness that writes BDD and NDD results for N=8 through N=12 under `results`. It compares all three NDD label modes; use `NDDSolution` for machine-readable metrics.
 
 ### JavaNDD Example
 
-[`application/nqueen/JavaNDDSolution.java`](../src/main/java/application/nqueen/JavaNDDSolution.java) shows the factory-style API. It is especially useful if your target codebase already expects `BDD`, `BDDFactory`, and `ithVar(...)`.
+[`application/nqueens/JavaNDDSolution.java`](../src/main/java/application/nqueens/JavaNDDSolution.java) uses the factory-style `javandd` API: `NDDFactory`, `BDD`, and `ithVar(...)`. It accepts board sizes as arguments and defaults to N=12. This implementation uses BDD labels; the label-mode flags in `NDDSolution` do not apply here.
 
 ## Network-Verification-Oriented Usage
 
@@ -202,5 +202,5 @@ That field boundary is what allows NDD to reuse BDD structure across compatible 
 ## Next Reading
 
 - [Parameters](Parameters.md) for sizing and field-layout guidance
-- [Manipulation APIs](Manipulation-APIs.md) for field-level construction and queries
+- [APIs](APIs.md) for field-level construction and queries
 - [Benchmarks](Benchmarks.md) for how the result pages were generated

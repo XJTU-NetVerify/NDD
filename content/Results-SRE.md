@@ -1,6 +1,6 @@
 # Results: SRE
 
-This page preserves the WAN/SRE benchmark summary tracked in [`results/SRE-results.md`](../results/SRE-results.md). Timeout per variant: `14400s`.
+This page preserves the WAN/SRE benchmark summary tracked in [`SRE_results`](SRE_results). Timeout per variant: `14400s`.
 
 These results come from the network-verification research workflow, not from the default Maven build path. Keep that in mind when comparing them with the easy-to-rerun NQueens results.
 
@@ -35,6 +35,6 @@ These results come from the network-verification research workflow, not from the
 
 ## Full Table
 
-The full per-dataset tables are in [`results/SRE-results.md`](../results/SRE-results.md). That file
+The full per-dataset tables are in [`SRE_results`](SRE_results). That file
 names the variants differently: `ndd` is `NDD-Origin`, `ndd-reuse` is `NDD-Reuse`, and `ndd-array`
 is `NDD` (see [`results/README.md`](../results/README.md)).

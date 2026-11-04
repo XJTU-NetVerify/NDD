@@ -18,7 +18,7 @@ In this sense, NDD can be seen as wrapping a lower-level decision diagram with a
 
 **An example of NDD** In the figure below, we represent Hadamard matrix _H_<sub>4</sub>'s values on each coordinate (_x_<sub>0</sub>_x_<sub>1</sub>, _y_<sub>0</sub>_y_<sub>1</sub>) as a BDD (in (b)) and an NDD (in (c)). Each NDD node represents a 2-bit field (_f_<sub>1</sub> and _f_<sub>2</sub>), and the branching condition is encoded with 2 BDDs (in (d)).
 
-<img src="ndd_diagram.svg" width="100%">
+<img src="figures/ndd_diagram.svg" width="100%">
 
 NDD was originally proposed for network verification, where each NDD node represents a packet header field (e.g., destination IP address).
 We observed that NDD was more efficient than BDD in terms of memory and computation.
@@ -158,13 +158,13 @@ The following table shows the benchmark for **N-Queens** with N=13 (best values 
 \* JSylvan is a parallel library and was run with 48 worker threads; all other implementations, including NDD, are single-threaded.
 
 NDD creates about 14.6× fewer nodes than the BDD libraries at N=13 (NDD nodes plus label BDD nodes).
-Raw data and plots are in [`results/`](results/).
+N-Queens benchmark data are in [`content/nqueens_metrics.csv`](content/nqueens_metrics.csv), and plots are in [`figures/`](figures/).
 
 To rerun the NDD side of this benchmark, build the jar as in the [Quick Start](#quick-start) and run
-[`NDDSolution.java`](src/main/java/application/nqueen/NDDSolution.java) for one or more board sizes:
+[`NDDSolution.java`](src/main/java/application/nqueens/NDDSolution.java) for one or more board sizes:
 
 ```bash
-java -cp target/ndd-1.0.1-jar-with-dependencies.jar application.nqueen.NDDSolution 8 9 10
+java -cp target/ndd-1.0.1-jar-with-dependencies.jar application.nqueens.NDDSolution 8 9 10
 ```
 
 It prints one `NQUEENS_METRICS` line per board size, with the number of solutions (e.g., 92 for N=8), node counts, and the running time.
@@ -187,7 +187,7 @@ The current NDD library is by far not the end. Multiple terminals and parallel c
 
 ## Resources
 
-- [API guide](content/Manipulation-APIs.md)
+- [API guide](content/APIs.md)
 - [NSDI Paper](https://www.usenix.org/system/files/nsdi25-li-zechun.pdf)
 - [NSDI talk slides](https://xjtu-netverify.github.io/papers/NDD/NDD-A-Decision-Diagram-for-Network-Verification.pdf)
 - [NSDI talk video](https://www.youtube.com/watch?v=9Ni6Z7qKGV4)

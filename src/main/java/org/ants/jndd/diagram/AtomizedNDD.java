@@ -1,13 +1,12 @@
-/**
+/*
  * Implement logical operations of Atomized NDD.
- * @author XJTU ANTS NetVerify Lab
- * @version 1.0
+ *
+ * Copyright (c) XJTU ANTS NetVerify Lab.
  */
 package org.ants.jndd.diagram;
 
 import javafx.util.Pair;
 import org.ants.jndd.cache.OperationCache;
-import org.ants.jndd.nodetable.AtomizedNodeTable;
 
 import java.util.*;
 

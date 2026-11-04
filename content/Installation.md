@@ -28,7 +28,7 @@ The default Maven build intentionally compiles only the maintained library and e
 Excluded from the default compile:
 
 - `org.ants.jndd.diagram.AtomizedNDD`
-- `org.ants.jndd.nodetable.AtomizedNodeTable`
+- `org.ants.jndd.diagram.AtomizedNodeTable`
 - `application.wan.bdd.*`
 - `application.wan.ndd.*`
 
@@ -39,7 +39,10 @@ Those WAN and Batfish-adjacent paths are kept as research artifacts and integrat
 - `src/main/java/org/ants/jndd`: low-level `JNDD` API
 - `src/main/java/org/ants/javandd`: `BDDFactory`-style compatibility API
 - `src/main/java/application`: example programs and research drivers
-- `results/`: benchmark CSV, plots, and WAN/SRE result tables
+- `results/`: local benchmark output
+- `content/SRE_results`: saved WAN/SRE benchmark tables
+- `content/nqueens_metrics.csv`: saved cross-library N-Queens benchmark data
+- `figures/`: diagrams and benchmark plots
 - `content/`: documentation (this directory)
 - `doc/javadoc/`: regenerated API documentation
 - `lib/`: bundled third-party artifacts used by the project

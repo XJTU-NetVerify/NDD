@@ -1,8 +1,13 @@
+/*
+ * Common interface for NDD label backends.
+ *
+ * Copyright (c) XJTU ANTS NetVerify Lab.
+ */
 package org.ants.jndd.diagram;
 
 import java.util.Set;
 
-interface LabelDecisionDiagramBackend {
+interface LabelBackend {
     NDD.LabelMode mode();
 
     boolean hasExplicitUniverse();

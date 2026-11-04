@@ -1,6 +1,8 @@
-package application.nqueen;
+package application.nqueens;
 
-import org.ants.javandd.*;
+import org.ants.javandd.BDD;
+import org.ants.javandd.BDDFactory;
+import org.ants.javandd.NDDFactory;
 
 public class JavaNDDSolution {
     public static final int NDD_TABLE_SIZE = 100000000;
@@ -98,18 +100,17 @@ public class JavaNDDSolution {
         }
         double endTime = System.currentTimeMillis();
         // todo: add a cache for satCount
-        return "\t" + String.format("" + (endTime - startTime) / 1000, ".3f") + "\t" + queen.satCount();
+        return "\t" + String.format("%.3f", (endTime - startTime) / 1000) + "\t" + queen.satCount();
     }
 
     public static void main(String[] args) {
-        // System.out.println(Solution(1));
-        // System.out.println(Solution(2));
-        // System.out.println(Solution(3));
-        // System.out.println(Solution(4));
-        // System.out.println(Solution(5));
-        // System.out.println(Solution(6));
-        // System.out.println(Solution(7));
-        // System.out.println(Solution(8));
-        System.out.println(Solution(12));
+        if (args.length == 0) {
+            args = new String[] {"12"};
+        }
+        System.out.println("N\tTime (s)\tSatCount");
+        for (String arg : args) {
+            int n = Integer.parseInt(arg);
+            System.out.println(n + Solution(n));
+        }
     }
 }

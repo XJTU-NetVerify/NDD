@@ -1,13 +1,13 @@
-package application.nqueen;
+package application.nqueens;
 
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.ants.jndd.bdd.ComplementedBDD;
+import jdd.bdd.BDD;
 
-public class BCDDSolution {
+public class BDDSolution {
     private static final class Result {
         final double solutions;
         final long nodesCreated;
@@ -22,7 +22,7 @@ public class BCDDSolution {
         }
     }
 
-    private static ComplementedBDD bddEngine;
+    private static BDD bddEngine;
     private static final int BDD_FALSE = 0;
     private static final int BDD_TRUE = 1;
     private static int[][] vars;
@@ -41,12 +41,13 @@ public class BCDDSolution {
     }
 
     private static void build(int i, int j, int n, int[][] impBatch) {
-        int a = BDD_TRUE;
-        int b = BDD_TRUE;
-        int c = BDD_TRUE;
-        int d = BDD_TRUE;
+        int a, b, c, d;
+        a = b = c = d = BDD_TRUE;
 
-        for (int l = 0; l < n; l++) {
+        int k, l;
+
+        /* No one in the same column */
+        for (l = 0; l < n; l++) {
             if (l != j) {
                 int mp = bddEngine.ref(bddEngine.imp(vars[i][j], notVars[i][l]));
                 a = bddEngine.andTo(a, mp);
@@ -54,7 +55,8 @@ public class BCDDSolution {
             }
         }
 
-        for (int k = 0; k < n; k++) {
+        /* No one in the same row */
+        for (k = 0; k < n; k++) {
             if (k != i) {
                 int mp = bddEngine.ref(bddEngine.imp(vars[i][j], notVars[k][j]));
                 b = bddEngine.andTo(b, mp);
@@ -62,21 +64,27 @@ public class BCDDSolution {
             }
         }
 
-        for (int k = 0; k < n; k++) {
+        /* No one in the same up-right diagonal */
+        for (k = 0; k < n; k++) {
             int ll = k - i + j;
-            if (ll >= 0 && ll < n && k != i) {
-                int mp = bddEngine.ref(bddEngine.imp(vars[i][j], notVars[k][ll]));
-                c = bddEngine.andTo(c, mp);
-                bddEngine.deref(mp);
+            if (ll >= 0 && ll < n) {
+                if (k != i) {
+                    int mp = bddEngine.ref(bddEngine.imp(vars[i][j], notVars[k][ll]));
+                    c = bddEngine.andTo(c, mp);
+                    bddEngine.deref(mp);
+                }
             }
         }
 
-        for (int k = 0; k < n; k++) {
+        /* No one in the same down-right diagonal */
+        for (k = 0; k < n; k++) {
             int ll = i + j - k;
-            if (ll >= 0 && ll < n && k != i) {
-                int mp = bddEngine.ref(bddEngine.imp(vars[i][j], notVars[k][ll]));
-                d = bddEngine.andTo(d, mp);
-                bddEngine.deref(mp);
+            if (ll >= 0 && ll < n) {
+                if (k != i) {
+                    int mp = bddEngine.ref(bddEngine.imp(vars[i][j], notVars[k][ll]));
+                    d = bddEngine.andTo(d, mp);
+                    bddEngine.deref(mp);
+                }
             }
         }
 
@@ -88,7 +96,9 @@ public class BCDDSolution {
     }
 
     private static Result solve(int n, String dotFile) {
-        bddEngine = new ComplementedBDD(1 + Math.max(1000, (int) (Math.pow(4.4, n - 6)) * 1000), 10000);
+        jdd.bdd.NodeTable.mkCount = 0;
+        bddEngine = new BDD(1 + Math.max(1000, (int) (Math.pow(4.4, n - 6)) * 1000), 10000);
+
         long startTimeNanos = System.nanoTime();
 
         declareVariables(n);
@@ -111,10 +121,12 @@ public class BCDDSolution {
         }
 
         int queen = BDD_TRUE;
+
         for (int i = 0; i < n; i++) {
             queen = bddEngine.andTo(queen, orBatch[i]);
             bddEngine.deref(orBatch[i]);
         }
+
         for (int i = 0; i < n; i++) {
             for (int j = 0; j < n; j++) {
                 queen = bddEngine.andTo(queen, impBatch[i][j]);
@@ -123,94 +135,60 @@ public class BCDDSolution {
         }
 
         double solutions = bddEngine.satCount(queen);
-        long nodesCreated = bddEngine.getTotalCreated();
+        long nodesCreated = jdd.bdd.NodeTable.mkCount;
         long nodesAlive = bddEngine.nodeCount(queen);
         if (dotFile != null) {
             writeDot(dotFile, queen, n);
         }
-        bddEngine.deref(queen);
-        bddEngine.gc();
         double seconds = (System.nanoTime() - startTimeNanos) / 1_000_000_000.0;
         return new Result(solutions, nodesCreated, nodesAlive, seconds);
     }
 
     private static void writeDot(String dotFile, int root, int n) {
         StringBuilder sb = new StringBuilder();
-        sb.append("digraph BCDD_Graph {\n");
+        sb.append("digraph BDD_Graph {\n");
         sb.append("  rankdir=TD;\n");
         sb.append("  overlap=false;\n");
         sb.append("  splines=true;\n");
         sb.append("  init__ [label=\"\", style=invis, height=0, width=0];\n");
-        sb.append("  BCDD_TRUE [shape=box, style=\"filled,rounded\", label=\"TRUE\", fillcolor=\"#d4edda\"];\n");
-        sb.append("  init__ -> ").append(nodeName(root)).append(" [style=dashed");
-        if (bddEngine.isComplemented(root)) {
-            sb.append(", color=crimson, fontcolor=crimson, label=\"!\"");
-        } else {
-            sb.append(", label=\"root\"");
-        }
-        sb.append("];\n");
+        sb.append("  BDD_TRUE [shape=box, style=\"filled,rounded\", label=\"TRUE\", fillcolor=\"#d4edda\"];\n");
+        sb.append("  init__ -> ").append(nodeName(root)).append(" [style=dashed, label=\"root\"];\n");
         appendDot(root, n, sb, new HashSet<Integer>());
         sb.append("}\n");
         writeFile(dotFile, sb.toString());
     }
 
     private static void appendDot(int handle, int n, StringBuilder sb, Set<Integer> visited) {
-        if (handle <= 1 || !visited.add(bddEngine.getNodeId(handle))) {
+        if (handle <= 1 || !visited.add(handle)) {
             return;
         }
 
-        int regularHandle = regularHandle(handle);
-        int low = bddEngine.getLow(regularHandle);
-        int high = bddEngine.getHigh(regularHandle);
-        sb.append("  ").append(nodeName(regularHandle))
-                .append(" [shape=circle, label=\"").append(coordinateLabel(bddEngine.getVar(regularHandle), n)).append("\"];\n");
+        int low = bddEngine.getLow(handle);
+        int high = bddEngine.getHigh(handle);
+        sb.append("  ").append(nodeName(handle))
+                .append(" [shape=circle, label=\"").append(coordinateLabel(bddEngine.getVar(handle), n)).append("\"];\n");
 
         if (high == 1) {
-            sb.append("  ").append(nodeName(regularHandle)).append(" -> BCDD_TRUE [");
-            if (bddEngine.isComplemented(high)) {
-                sb.append("style=dashed, color=crimson, fontcolor=crimson, label=\"1!\"");
-            } else {
-                sb.append("label=\"1\"");
-            }
-            sb.append("];\n");
+            sb.append("  ").append(nodeName(handle)).append(" -> BDD_TRUE [label=\"1\"];\n");
         } else if (high > 1) {
-            appendEdge(nodeName(regularHandle), high, false, sb);
+            sb.append("  ").append(nodeName(handle)).append(" -> ").append(nodeName(high)).append(" [label=\"1\"];\n");
         }
 
-        if (low > 1) {
-            appendEdge(nodeName(regularHandle), low, true, sb);
+        if (low == 1) {
+            sb.append("  ").append(nodeName(handle)).append(" -> BDD_TRUE [style=dotted, label=\"0\"];\n");
+        } else if (low > 1) {
+            sb.append("  ").append(nodeName(handle)).append(" -> ").append(nodeName(low)).append(" [style=dotted, label=\"0\"];\n");
         }
 
         appendDot(high, n, sb, visited);
         appendDot(low, n, sb, visited);
     }
 
-    private static void appendEdge(String from, int to, boolean low, StringBuilder sb) {
-        sb.append("  ").append(from).append(" -> ").append(nodeName(to)).append(" [");
-        if (low) {
-            sb.append(bddEngine.isComplemented(to) ? "style=\"dotted,dashed\"" : "style=dotted");
-        } else if (bddEngine.isComplemented(to)) {
-            sb.append("style=dashed, penwidth=2");
-        } else {
-            sb.append("penwidth=2");
-        }
-        if (bddEngine.isComplemented(to)) {
-            sb.append(", color=crimson, fontcolor=crimson, label=\"").append(low ? "0!" : "1!").append("\"");
-        } else {
-            sb.append(", label=\"").append(low ? "0" : "1").append("\"");
-        }
-        sb.append("];\n");
-    }
-
     private static String nodeName(int handle) {
         if (handle == 1) {
-            return "BCDD_TRUE";
+            return "BDD_TRUE";
         }
-        return "bcdd_" + bddEngine.getNodeId(handle);
-    }
-
-    private static int regularHandle(int handle) {
-        return bddEngine.isComplemented(handle) ? bddEngine.not(handle) : handle;
+        return "bdd_" + handle;
     }
 
     private static String coordinateLabel(int var, int n) {
@@ -223,7 +201,7 @@ public class BCDDSolution {
         try (FileWriter writer = new FileWriter(path)) {
             writer.write(content);
         } catch (IOException e) {
-            throw new RuntimeException("Failed to write BCDD dot file: " + path, e);
+            throw new RuntimeException("Failed to write BDD dot file: " + path, e);
         }
     }
 
@@ -231,9 +209,14 @@ public class BCDDSolution {
         return solve(n, null);
     }
 
+    public static String Solution(int n) {
+        Result result = solve(n);
+        return "\t" + String.format("%.3f", result.seconds) + "\t" + result.solutions + "\t" + result.nodesAlive;
+    }
+
     private static void printMetrics(int n, Result result) {
         System.out.printf(
-            "NQUEENS_METRICS n=%d solutions=%.0f nodes_created=%d nodes_alive=%d seconds=%.6f implementation=BCDD%n",
+            "NQUEENS_METRICS n=%d solutions=%.0f nodes_created=%d nodes_alive=%d seconds=%.6f implementation=BDD%n",
             n,
             result.solutions,
             result.nodesCreated,
@@ -244,7 +227,7 @@ public class BCDDSolution {
 
     public static void main(String[] args) {
         if (args.length == 0) {
-            System.err.println("Usage: BCDDSolution [--dot <file>] <N> [<N> ...]");
+            System.err.println("Usage: BDDSolution [--dot <file>] <N> [<N> ...]");
             System.exit(1);
         }
 
@@ -261,7 +244,7 @@ public class BCDDSolution {
         }
 
         if (startArg >= args.length) {
-            System.err.println("Usage: BCDDSolution [--dot <file>] <N> [<N> ...]");
+            System.err.println("Usage: BDDSolution [--dot <file>] <N> [<N> ...]");
             System.exit(1);
         }
 

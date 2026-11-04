@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
-class LabelDecisionDiagramBackendFactoryTest {
+class LabelBackendFactoryTest {
     @Test
     void factoryCreatesBackendsWithCommonOperations() {
         NDD.LabelMode[] modes = {
@@ -16,8 +16,8 @@ class LabelDecisionDiagramBackendFactoryTest {
         };
 
         for (NDD.LabelMode mode : modes) {
-            LabelDecisionDiagramBackend backend =
-                    LabelDecisionDiagramBackends.create(mode, 1_000, 100);
+            LabelBackend backend =
+                    LabelBackendFactory.create(mode, 1_000, 100);
 
             int first = backend.ref(backend.createVariableLabel());
             int second = backend.ref(backend.createVariableLabel());

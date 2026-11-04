@@ -4,10 +4,10 @@ This page explains what the benchmark artifacts in the repository measure and ho
 
 ## Artifact Locations
 
-- NQueens metrics CSV: [`results/nqueens_metrics.csv`](../results/nqueens_metrics.csv)
-- NQueens plots: [`results/`](../results)
+- NQueens metrics CSV: [`nqueens_metrics.csv`](nqueens_metrics.csv)
+- NQueens plots: [`figures/`](../figures/)
 - Cross-library NQueens benchmark repository: <https://github.com/XJTU-NetVerify/nqueensBenchmarkDDs>
-- WAN/SRE full markdown table: [`results/SRE-results.md`](../results/SRE-results.md)
+- WAN/SRE full markdown table: [`SRE_results`](SRE_results)
 - NQueens result page: [Results: NQueens](Results-NQueens.md)
 - WAN/SRE result page: [Results: SRE](Results-SRE.md)
 
@@ -21,7 +21,7 @@ NQueens is the maintained, easy-to-run example workload in this repository. It i
 - it provides a standard DD-style comparison point
 - it can be rerun directly from the built project
 
-The maintained Java-side entry points are under [`src/main/java/application/nqueen/`](../src/main/java/application/nqueen).
+The maintained Java-side entry points are under [`src/main/java/application/nqueens/`](../src/main/java/application/nqueens).
 
 For the broader cross-library NQueens benchmarking workflow and companion implementations, see the dedicated repository: <https://github.com/XJTU-NetVerify/nqueensBenchmarkDDs>.
 

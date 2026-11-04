@@ -82,7 +82,7 @@ The implementation creates the concrete BDD, BCDD, ZDD, or BITSET engine through
 
 The example programs are a useful guide for scale, but not a universal tuning rule:
 
-- `application.nqueen.NDDSolution` uses `NDD_TABLE_SIZE = 100000000`
+- `application.nqueens.NDDSolution` uses `NDD_TABLE_SIZE = 100000000`
 - the same example chooses the NDD cache size with a simple workload-dependent heuristic based on `n`
 - `application.wan.ndd.verifier.apkeep.utils.Parameters` currently sets `BDD_TABLE_SIZE = 10000000` for the WAN/SRE research path
 

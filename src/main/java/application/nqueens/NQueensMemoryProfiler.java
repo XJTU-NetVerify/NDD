@@ -1,8 +1,8 @@
-package application.nqueen;
+package application.nqueens;
 
 import org.ants.jndd.diagram.NDD;
 
-public class NDDGCBenchmark{
+public class NQueensMemoryProfiler {
 
     private static final int N = 11;
     private static final int SMALL_TABLE_SIZE = 100000000; 
@@ -31,6 +31,7 @@ public class NDDGCBenchmark{
 
     private static void runStepByStepWithMonitoring(int n) {
         declareFields(n);
+        NDD.generateFields();
         
         int[] orBatch = new int[n];
         

@@ -16,7 +16,7 @@ What changes is the storage and execution strategy used to implement that model 
 
 ## 1. Array-Based Node Table
 
-The original implementation represented each node as an object with nested edge structures. In this branch, [`NodeTable.java`](../src/main/java/org/ants/jndd/nodetable/NodeTable.java) stores node state in parallel arrays.
+The original implementation represented each node as an object with nested edge structures. In this branch, [`NodeTable.java`](../src/main/java/org/ants/jndd/diagram/NodeTable.java) stores node state in parallel arrays.
 
 That means:
 

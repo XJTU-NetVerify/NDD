@@ -5,7 +5,7 @@
 > whose width-`w` domain contains `2^w` Boolean bit vectors. New backend comparisons must rerun the
 > benchmark; the legacy rows below are retained only as experiment history.
 
-This page preserves the detailed NQueens benchmark table from [`results/nqueens_metrics.csv`](../results/nqueens_metrics.csv).
+This page preserves the detailed NQueens benchmark table from [`nqueens_metrics.csv`](nqueens_metrics.csv).
 
 For the dedicated NQueens benchmarking repository, including the broader cross-library harness and related implementations, see <https://github.com/XJTU-NetVerify/nqueensBenchmarkDDs>.
 
@@ -119,7 +119,7 @@ Targets:
 ## Full Results Table
 
 The full results for every implementation and board size are in
-[`results/nqueens_metrics.csv`](../results/nqueens_metrics.csv); its columns are described in
+[`nqueens_metrics.csv`](nqueens_metrics.csv); its columns are described in
 [`results/README.md`](../results/README.md).
 
 > Note: `JSylvan` is a parallel BDD library and was run with 48 worker threads. All other
@@ -129,14 +129,14 @@ The full results for every implementation and board size are in
 
 ### Time
 
-![NQueens time](../results/nqueens_time_sec.png)
+![NQueens time](../figures/nqueens_time_sec.png)
 
 ### Memory
 
-![NQueens max RSS](../results/nqueens_max_rss_kb.png)
+![NQueens max RSS](../figures/nqueens_max_rss_kb.png)
 
 ### Node Counts
 
-![NQueens nodes created](../results/nqueens_nodes_created.png)
+![NQueens nodes created](../figures/nqueens_nodes_created.png)
 
-![NQueens nodes alive](../results/nqueens_nodes_alive.png)
+![NQueens nodes alive](../figures/nqueens_nodes_alive.png)

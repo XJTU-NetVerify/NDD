@@ -59,7 +59,7 @@ targets and is intended for Boolean-set semantics.
 
 ## Label Backends and Mixed Diagrams
 
-Edge labels are hidden behind `LabelDecisionDiagramBackend`. The current modes are:
+Edge labels are hidden behind `LabelBackend`. The current modes are:
 
 | `NDD.LabelMode` | Representation | Universe behavior |
 | --- | --- | --- |
@@ -158,9 +158,9 @@ engine. Normal table growth may also trigger collection.
 | Path | Responsibility |
 | --- | --- |
 | `org/ants/jndd/diagram/NDD.java` | public API, recursive operations, field/backend ownership, safe points |
-| `org/ants/jndd/diagram/LabelDecisionDiagramBackend.java` | backend-neutral label contract |
-| `org/ants/jndd/diagram/LabelDecisionDiagramBackends.java` | BDD, BCDD, set-family ZDD, and BITSET adapters |
-| `org/ants/jndd/nodetable/NodeTable.java` | canonical MTNDD nodes, terminals, edge blocks, tracing GC |
+| `org/ants/jndd/diagram/LabelBackend.java` | backend-neutral label contract |
+| `org/ants/jndd/diagram/LabelBackendFactory.java` | BDD, BCDD, set-family ZDD, and BITSET adapters |
+| `org/ants/jndd/diagram/NodeTable.java` | canonical MTNDD nodes, terminals, edge blocks, tracing GC |
 | `org/ants/jndd/bdd/ComplementedBDD.java` | primitive complemented-edge BDD label manager |
 | `org/ants/jndd/utils/Rational.java` | exact multi-terminal values |
 

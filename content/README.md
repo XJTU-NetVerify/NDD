@@ -5,7 +5,7 @@ Long-form documentation for NDD. For an overview, see the [main README](../READM
 **Getting started**
 - [Installation](Installation.md): build and dependency setup
 - [Usage](Usage.md): the JNDD and JavaNDD APIs, examples
-- [Manipulation APIs](Manipulation-APIs.md): restrict, quantify, substitute, enumerate
+- [APIs](APIs.md): restrict, quantify, substitute, enumerate
 - [Parameters](Parameters.md): table sizes and field layout
 
 **Applications and extensions**

@@ -156,10 +156,14 @@ implements Queens {
     }
 
     public static void main(String[] args) {
+        if (args.length == 0) {
+            args = new String[] {"8", "9", "10", "11", "12", "13"};
+        }
+        JDDConsole.out.printf("%4s %12s %12s %12s%n", "N", "Solutions", "Memory", "Time (ms)");
         for (String str : args) {
             int n = Integer.parseInt(str);
             BDDQueens q = new BDDQueens(n);
-            JDDConsole.out.printf("BDD-Queen\tSolutions=%.0f\tN=%d\tmem=%s\ttime=%d\n", q.numberOfSolutions(), n, Digits.prettify1024((long)q.getMemory()), q.getTime());
+            JDDConsole.out.printf("%4d %12.0f %12s %12d%n", n, q.numberOfSolutions(), Digits.prettify1024((long)q.getMemory()), q.getTime());
         }
     }
 }

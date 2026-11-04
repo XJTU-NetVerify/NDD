@@ -1,12 +1,11 @@
-/**
+/*
  * Node table of Atomized NDD.
- * @author XJTU ANTS NetVerify Lab
- * @version 1.0
+ *
+ * Copyright (c) XJTU ANTS NetVerify Lab.
  */
-package org.ants.jndd.nodetable;
+package org.ants.jndd.diagram;
 
 import jdd.bdd.BDD;
-import org.ants.jndd.diagram.AtomizedNDD;
 
 import java.util.*;
 

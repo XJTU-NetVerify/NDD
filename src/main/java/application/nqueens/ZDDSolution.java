@@ -1,4 +1,4 @@
-package application.nqueen;
+package application.nqueens;
 
 import java.io.FileWriter;
 import java.io.IOException;

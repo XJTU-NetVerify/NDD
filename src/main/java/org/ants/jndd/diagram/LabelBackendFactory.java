@@ -1,3 +1,8 @@
+/*
+ * Factory and implementations for BDD, complemented BDD, ZDD, and BITSET label backends.
+ *
+ * Copyright (c) XJTU ANTS NetVerify Lab.
+ */
 package org.ants.jndd.diagram;
 
 import java.lang.reflect.Field;
@@ -8,10 +13,10 @@ import org.ants.jndd.bdd.ComplementedBDD;
 import jdd.bdd.BDD;
 import jdd.zdd.ZDD;
 
-final class LabelDecisionDiagramBackends {
-    private LabelDecisionDiagramBackends() {}
+final class LabelBackendFactory {
+    private LabelBackendFactory() {}
 
-    static LabelDecisionDiagramBackend create(NDD.LabelMode mode, int nodeTableSize, int cacheSize) {
+    static LabelBackend create(NDD.LabelMode mode, int nodeTableSize, int cacheSize) {
         if (mode == NDD.LabelMode.BITSET) {
             return new BitsetBackend();
         }
@@ -24,7 +29,7 @@ final class LabelDecisionDiagramBackends {
         return forBooleanBdd(new BDD(nodeTableSize, cacheSize));
     }
 
-    static LabelDecisionDiagramBackend forBooleanBdd(BDD engine) {
+    static LabelBackend forBooleanBdd(BDD engine) {
         return new BooleanBddBackend(engine);
     }
 
@@ -59,7 +64,7 @@ final class LabelDecisionDiagramBackends {
         throw new NoSuchFieldException(fieldName);
     }
 
-    private static final class BooleanBddBackend implements LabelDecisionDiagramBackend {
+    private static final class BooleanBddBackend implements LabelBackend {
         private final BDD engine;
 
         private BooleanBddBackend(BDD engine) {
@@ -177,7 +182,7 @@ final class LabelDecisionDiagramBackends {
         }
     }
 
-    private static final class ComplementedBddBackend implements LabelDecisionDiagramBackend {
+    private static final class ComplementedBddBackend implements LabelBackend {
         private final ComplementedBDD engine;
 
         private ComplementedBddBackend(ComplementedBDD engine) {
@@ -298,7 +303,7 @@ final class LabelDecisionDiagramBackends {
         }
     }
 
-    private static final class SetFamilyZddBackend implements LabelDecisionDiagramBackend {
+    private static final class SetFamilyZddBackend implements LabelBackend {
         private final ZDD engine;
 
         private SetFamilyZddBackend(ZDD engine) {
@@ -433,7 +438,7 @@ final class LabelDecisionDiagramBackends {
     }
 
     /** Canonical two-word truth tables for fields of at most seven bits (128 values). */
-    private static final class BitsetBackend implements LabelDecisionDiagramBackend {
+    private static final class BitsetBackend implements LabelBackend {
         private static final int MAX_WIDTH = 7;
 
         private int variables;

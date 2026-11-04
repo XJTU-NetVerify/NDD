@@ -47,7 +47,7 @@ Together this means heavy pointer chasing, poor cache locality, and constant pre
 
 This design comes from [JDD](https://bitbucket.org/vahidi/jdd), the Java BDD library that NDD already uses for its edge labels and that is itself a Java version of the C library [BuDDy](https://buddy.sourceforge.net/). JDD's own node table ([`jdd/bdd/NodeTable.java`](../src/main/java/jdd/bdd/NodeTable.java)) never creates BDD node objects. A BDD node is an `int` index into flat arrays: `t_nodes` holds each node's `(var, low, high)` triple, `t_ref` holds reference counts, and `t_list` links the unique-table hash chains. NDD applies the same idea to its own nodes. NDD nodes differ from BDD nodes in one way: a node can have any number of outgoing edges, not exactly two children. So NDD adds shared edge arrays and edge blocks on top of the JDD scheme.
 
-The current [`NodeTable.java`](../src/main/java/org/ants/jndd/nodetable/NodeTable.java) drops node objects completely. A node is just an `int` id (0 = FALSE, 1 = TRUE, 2+ = internal nodes), and each property of a node lives in its own primitive array at that index:
+The current [`NodeTable.java`](../src/main/java/org/ants/jndd/diagram/NodeTable.java) drops node objects completely. A node is just an `int` id (0 = FALSE, 1 = TRUE, 2+ = internal nodes), and each property of a node lives in its own primitive array at that index:
 
 | Array | Indexed by | Meaning |
 | --- | --- | --- |
@@ -218,8 +218,8 @@ These WAN/SRE results matter because they are much closer to the packet-header w
 ## Files To Review First
 
 - Core JNDD logic: [`src/main/java/org/ants/jndd/diagram/NDD.java`](../src/main/java/org/ants/jndd/diagram/NDD.java)
-- Array-based node table and GC: [`src/main/java/org/ants/jndd/nodetable/NodeTable.java`](../src/main/java/org/ants/jndd/nodetable/NodeTable.java)
-- Low-level example usage: [`src/main/java/application/nqueen/NDDSolution.java`](../src/main/java/application/nqueen/NDDSolution.java)
+- Array-based node table and GC: [`src/main/java/org/ants/jndd/diagram/NodeTable.java`](../src/main/java/org/ants/jndd/diagram/NodeTable.java)
+- Low-level example usage: [`src/main/java/application/nqueens/NDDSolution.java`](../src/main/java/application/nqueens/NDDSolution.java)
 - JavaNDD facade: [`src/main/java/org/ants/javandd/NDDFactory.java`](../src/main/java/org/ants/javandd/NDDFactory.java)
 
 ## Important Build Caveat
