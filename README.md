@@ -133,6 +133,21 @@ matter as well as worker count.
 
 ### Symbolic model checking: single-worker reachability
 
+**NDD’s field-oriented representation naturally matches the state-vector
+structure used in symbolic model checking.** A model state is a tuple of
+variables, and NDD retains those variable boundaries as fields in its outer
+diagram. An edge represents a symbolic set of values of one field, allowing
+multiple values with the same remaining state structure to share a successor
+subdiagram. This gives NDD a natural structural fit for representing sets of
+state vectors.
+
+That fit also extends to transition relations. Read/write projections identify
+which state variables a transition group depends on or updates; COPY semantics
+preserve the remaining variables. The MC extension expresses these dependencies
+at field boundaries and computes successor sets while retaining cross-field
+correlations. Field-local constraints remain compact BCDD labels, combining
+symbolic value grouping with the sharing of the outer NDD structure.
+
 A finite-state model consists of state variables, an initial state and transition
 relations. The reachability problem asks which states can be reached by applying
 those transitions. Symbolic exploration represents whole sets of states rather
@@ -149,8 +164,12 @@ here is forward reachability, not numeric-terminal evaluation or multicore scali
 
 The following machine and backend settings apply specifically to model checking;
 the host and averaging protocol introduced above describe the N-Queens/SRE results.
-The suite contains 60 DVE models, sharing the same compiled model plugin across
-all four backends.
+The suite contains **60 DVE models from 56 named families**, sharing the same
+compiled model plugin across all four backends. It covers concurrency and
+mutual-exclusion models (such as phils and bakery), communication protocols
+(firewire_tree and brp), control systems (production_cell), and puzzles
+(hanoi, sokoban and peg_solitaire). These workloads extend the evaluation of
+NDD beyond network verification and combinatorial examples such as N-Queens.
 
 | Item | Model-checking configuration |
 |---|---|
@@ -193,12 +212,23 @@ jointly completed models in this symbolic reachability benchmark**. Among
 successful pairs with positive reported exploration times, C-NDD is faster on
 42/51 models against BuDDy and 47/54 against Sylvan BDD. The geometric mean
 reference-to-C-NDD time ratios are **2.30×** and **2.75×**, respectively.
+The advantage spans different model families rather than a single illustrative
+instance, demonstrating the practical usefulness of field-oriented NDDs for
+symbolic state-space exploration.
+
+The structural motivation and the measured results point in the same direction:
+model checking is another effective application for NDD's field-based design.
+State-vector components map directly to NDD fields, symbolic edge labels group
+values that share the same continuation, and projected transition relations
+preserve variable dependencies and unchanged state components. This integration
+makes those capabilities available through an existing model-checking frontend,
+without replacing LTSmin's exploration algorithm.
 
 Sylvan LDD is a separate, integer-valued decision-diagram baseline rather than
 a BDD backend. It is faster than C-NDD on 42/57 comparable models, while
-C-NDD wins the remaining 15. Thus, C-NDD demonstrates a broad performance
-advantage over the tested BDD-based implementations for this workload, while
-LDD remains a strong reference for state-vector reachability.
+C-NDD wins the remaining 15. The benchmark therefore identifies C-NDD as a
+competitive alternative to the tested BDD-based implementations, with LDD
+remaining a strong reference for state-vector reachability.
 
 See [all 240 observations, exact settings and limitations](results/model_checking_20261105/README.md)
 and [MC API, relation encoding and LTSmin integration](doc/model-checking.md).

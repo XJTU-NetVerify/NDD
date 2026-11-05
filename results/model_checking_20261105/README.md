@@ -2,6 +2,10 @@
 
 ## Task and implementation
 
+NDD’s field-oriented representation naturally matches the state-vector structure used in symbolic model checking. A model state is a tuple of variables; an NDD field corresponds to a whole state variable, and its edge labels represent symbolic sets of possible values. Values that share a continuation can therefore be grouped in a label while sharing the remainder of the state diagram. Read/write projections and identity on unchanged variables similarly connect the structure of grouped transitions to field-level relation operations.
+
+This benchmark explores that fit through **symbolic reachability**, adding a model-checking workload alongside network verification and combinatorial examples such as N-Queens. The original60 suite contains **60 DVE models from 56 named families**, including concurrency, mutual exclusion, communication protocols, control systems and puzzles. The categories describe the included model families rather than official dataset labels.
+
 A model is represented by an initial state vector and grouped transition relations. The task is to compute the set of all states reachable from the initial state. LTSmin supplies the model frontend, dependency matrices, static regrouping and breadth-first exploration. The native C-NDD extension supplies symbolic state sets and relational image through LTSmin's vector-set interface.
 
 At each step, the checker computes successors of the current frontier, removes already visited states and adds the remaining states to the visited set. It repeats until no new states remain. This evaluates forward symbolic reachability; it is not a benchmark of arbitrary temporal-logic properties or numeric-terminal operations.
