@@ -25,6 +25,11 @@ jobs:
           nproc
           lscpu
           ctest --test-dir native/build --output-on-failure
+      - name: Cached MC image with forced label GC
+        run: |
+          cmake -S native -B native/build-mc-gc -DCMAKE_BUILD_TYPE=Debug -DPNDD_BUILD_JNI=OFF -DPNDD_MC_IMAGE_PAIR_CACHE=ON -DPNDD_MC_TEST_GC=ON
+          cmake --build native/build-mc-gc --target pndd_mc_relnext_test -j2
+          ctest --test-dir native/build-mc-gc -R '^pndd_mc_relnext_' --output-on-failure
       - name: Oversubscribed workers and GC
         run: |
           cpus=$(python3 -c 'import os; print(",".join(map(str, sorted(os.sched_getaffinity(0))[:2])))')
