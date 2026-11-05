@@ -1,0 +1,39 @@
+{
+  "phase": "supplementary warmup, not formal measurement",
+  "original_data_preserved": true,
+  "unchanged_points": 236,
+  "retests": [
+    {
+      "key": "0001-phils.1-cndd-r0",
+      "old_status": "WARMUP_METRICS_PASS_AFFINITY_UNOBSERVED",
+      "new_status": "PASS",
+      "wall_s": 0.05,
+      "reachability_s": 0.01,
+      "new_receipt_sha256": "3e6d649f71b615daea3a46b6fb81b2d67c6e652c7b9a900f399a08571b94397c"
+    },
+    {
+      "key": "0174-bakery.6-cndd-r0",
+      "old_status": "INTERRUPTED_CONTROLLER",
+      "new_status": "PASS",
+      "wall_s": 79.89,
+      "reachability_s": 79.54,
+      "new_receipt_sha256": "9f180b4daa109eac58607771a6c2bed5cc6a4a106939a7c60691ba46f73919a3"
+    },
+    {
+      "key": "0205-frogs.3-lddmc-r0",
+      "old_status": "RESOURCE_STOP",
+      "new_status": "PASS",
+      "wall_s": 15.65,
+      "reachability_s": 15.47,
+      "new_receipt_sha256": "679c70528e6810a51a403de3a0a8ed0a2615ae62500e59211bd72faf84c0bc15"
+    },
+    {
+      "key": "0213-hanoi.2-fdd-r0",
+      "old_status": "INTERRUPTED_CONTROLLER",
+      "new_status": "TIMEOUT",
+      "wall_s": 599.54,
+      "reachability_s": null,
+      "new_receipt_sha256": "f703fb654776b4efa958aee817e74f92455b49667a3361618b918e2d3d2bb8e2"
+    }
+  ]
+}

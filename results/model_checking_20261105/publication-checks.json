@@ -1,0 +1,21 @@
+{
+  "scope": "Local publication-port checks; these are not new Linux benchmark measurements",
+  "platform": "Darwin arm64",
+  "base_parallel_commit": "6aa3277ceec59b1d862e1a4e2c799eb63fbe1607",
+  "checks": {
+    "native_release_image_cache_on": "PASS 20/20 CTest (15 MC + 5 generic core)",
+    "forced_label_gc_image_cache_off": "PASS 3/3 RelNext workers1/2/4",
+    "forced_label_gc_image_cache_on": "PASS 3/3 RelNext workers1/2/4",
+    "pinned_ltsmin_prepare": "PASS diagnostic and performance; registration checked, trace only diagnostic",
+    "plot": "PASS 240 points/statuses, 60 ranks, BuDDy ordering, zero/timeout non-imputation",
+    "statistics": "PASS positive-pair counts, wins and geometric ratios recomputed from CSV",
+    "shell_and_python": "PASS shell syntax and Python AST",
+    "markdown_links": "PASS README/native docs/MC docs/bridge/result links"
+  },
+  "not_rerun": [
+    "full Linux frontend build/link and four-backend performance suite",
+    "JNI/Java build in this publication checkout"
+  ],
+  "raw_measurement_identity": "configuration.json and historical archives; current new builds do not claim identical measured binary bytes",
+  "publication": "Local commits only; no push or PR"
+}

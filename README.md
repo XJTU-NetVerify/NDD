@@ -20,8 +20,8 @@ loads do not amortize worker startup and synchronization.
 
 ## Current performance
 
-Measurements use an i7-14700KF Linux/WSL host, six physical cores selected by
-CPU affinity `0,2,4,6,8,10`, GCC 13.3 Release and Java 17. The tables below show
+The N-Queens and SRE measurements below use an i7-14700KF Linux/WSL host, six physical cores selected by
+CPU affinity `0,2,4,6,8,10`, GCC 13.3 Release and Java 17. Their tables show
 arithmetic means of **two independent processes per configuration**. Native
 self-scaling is `T_native(1) / T_native(6)`; the Java comparison includes the C
 implementation, caches, allocation, existing batch integration and thread gains.
@@ -130,6 +130,44 @@ with the current cohort. The initial scalar integration had no parallel gains;
 [profiling analysis](results/sre_parallel_analysis_20261012/README.md) preserve
 that result. Task organization, core storage/cache changes and resource policy
 matter as well as worker count.
+
+### Symbolic model checking: single-worker reachability
+
+The native C11 core is extended with Boolean state-set and transition-relation
+operations and an LTSmin vector-set backend. LTSmin supplies model loading,
+dependency regrouping and BFS; C-NDD supplies set operations and forward image.
+This experiment evaluates reachable-state exploration, not numeric terminals
+or multicore scaling.
+
+2026-11-05 snapshot: 60 DVE models, four backends, one worker, checker CPU0,
+LTSmin master `07f9bf8`, 600-second process timeout and 80 GiB address-space cap.
+Unlike the N-Queens/SRE experiments above, these are **single warmup observations**,
+with four separately authorized retests replacing invalid/interrupted observations;
+there are no repeated formal measurements. The Linux container has a 16-CPU
+quota and 120 GiB memory. Configurations retain different internal memory budgets.
+
+![Model-checking reachability benchmark](results/model_checking_20261105/reachability-buddy-order.png)
+
+| Backend | Completed / 60 | Timeout / 60 | Internal capacity failure / 60 |
+|---|---:|---:|---:|
+| C-NDD | 57 | 2 | 1 |
+| BuDDy | 54 | 6 | 0 |
+| Sylvan BDD | 56 | 4 | 0 |
+| Sylvan LDD | 59 | 1 | 0 |
+
+The figure uses reported exploration time, not process wall. Models share
+BuDDy's ascending successful-time order; its incomplete models appear last.
+Zero readings and non-success statuses are shown separately without invented
+times. The fixed gray halo is visual emphasis, not a confidence interval.
+
+On jointly successful models with positive reported exploration times, C-NDD
+is faster on 42/51 pairs against BuDDy and 47/54 against Sylvan BDD; Sylvan LDD
+is faster on 42/57 pairs. These single observations do not establish stable
+speedups or a universal advantage. The C-NDD capacity failure on cambridge.7
+and its exit-cleanup error are retained in the report.
+
+See [all 240 observations, exact settings and limitations](results/model_checking_20261105/README.md)
+and [MC API, relation encoding and LTSmin integration](doc/model-checking.md).
 
 ### Published data and reproduction
 
