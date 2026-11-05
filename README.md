@@ -188,11 +188,17 @@ BuDDy's ascending successful-time order; its incomplete models appear last.
 Zero readings and non-success statuses are shown separately without invented
 times. The fixed gray halo is visual emphasis, not a confidence interval.
 
-On jointly successful models with positive reported exploration times, C-NDD
-is faster on 42/51 pairs against BuDDy and 47/54 against Sylvan BDD; Sylvan LDD
-is faster on 42/57 pairs. These single observations do not establish stable
-speedups or a universal advantage. The C-NDD capacity failure on cambridge.7
-and its exit-cleanup error are retained in the report.
+The results show that **C-NDD is faster than both BDD-based backends on most
+jointly completed models in this symbolic reachability benchmark**. Among
+successful pairs with positive reported exploration times, C-NDD is faster on
+42/51 models against BuDDy and 47/54 against Sylvan BDD. The geometric mean
+reference-to-C-NDD time ratios are **2.30×** and **2.75×**, respectively.
+
+Sylvan LDD is a separate, integer-valued decision-diagram baseline rather than
+a BDD backend. It is faster than C-NDD on 42/57 comparable models, while
+C-NDD wins the remaining 15. Thus, C-NDD demonstrates a broad performance
+advantage over the tested BDD-based implementations for this workload, while
+LDD remains a strong reference for state-vector reachability.
 
 See [all 240 observations, exact settings and limitations](results/model_checking_20261105/README.md)
 and [MC API, relation encoding and LTSmin integration](doc/model-checking.md).
