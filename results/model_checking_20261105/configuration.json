@@ -662,5 +662,14 @@
     "four_retests_sha256": "2fe2bca1b0b5a1ea3a4dcbfb1a4ccc2d4086ddc088b68e141c09b3ae343b4517",
     "availability": "Retained development evidence; raw archives and compiled plugins are not distributed in this checkout."
   },
-  "reproduction_boundary": "Plot and statistics can be reproduced from checked-in CSV. New Linux model runs require model sources/plugins and exact reference-library/adapter source locks. Current code is a publication port; new builds are not claimed to match measured binary bytes."
+  "reproduction_boundary": "Plot and statistics can be reproduced from checked-in CSV. New Linux model runs require model sources/plugins and exact reference-library/adapter source locks. Current code is a publication port; new builds are not claimed to match measured binary bytes.",
+  "recorded_machine": {
+    "os_family": "Linux",
+    "architecture": "x86_64",
+    "host_cpu_model": "Intel(R) Xeon(R) Gold 6430",
+    "container_quota_cpus": 16,
+    "container_memory_gib": 120,
+    "evidence_scope": "Recorded configuration-acceptance environment; per-process measurement resource baselines are retained separately.",
+    "environment_record_sha256": "3cd69590ebc0f37fac6979dc60a47e6a7ddff8edde39961a1defcbbc53087fe5"
+  }
 }

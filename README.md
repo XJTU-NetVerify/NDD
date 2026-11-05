@@ -20,8 +20,8 @@ loads do not amortize worker startup and synchronization.
 
 ## Current performance
 
-The N-Queens and SRE measurements below use an i7-14700KF Linux/WSL host, six physical cores selected by
-CPU affinity `0,2,4,6,8,10`, GCC 13.3 Release and Java 17. Their tables show
+Measurements use an i7-14700KF Linux/WSL host, six physical cores selected by
+CPU affinity `0,2,4,6,8,10`, GCC 13.3 Release and Java 17. The tables below show
 arithmetic means of **two independent processes per configuration**. Native
 self-scaling is `T_native(1) / T_native(6)`; the Java comparison includes the C
 implementation, caches, allocation, existing batch integration and thread gains.
@@ -133,18 +133,46 @@ matter as well as worker count.
 
 ### Symbolic model checking: single-worker reachability
 
+A finite-state model consists of state variables, an initial state and transition
+relations. The reachability problem asks which states can be reached by applying
+those transitions. Symbolic exploration represents whole sets of states rather
+than listing them individually: BFS repeatedly computes the frontier's successors,
+removes visited states and continues until no new states remain. This workload
+exercises state-set operations and relational image while preserving correlations
+between state variables.
+
 The native C11 core is extended with Boolean state-set and transition-relation
 operations and an LTSmin vector-set backend. LTSmin supplies model loading,
 dependency regrouping and BFS; C-NDD supplies set operations and forward image.
-This experiment evaluates reachable-state exploration, not numeric terminals
-or multicore scaling.
+Each state-vector slot maps to one NDD field, with BCDD field labels. The task
+here is forward reachability, not numeric-terminal evaluation or multicore scaling.
 
-2026-11-05 snapshot: 60 DVE models, four backends, one worker, checker CPU0,
-LTSmin master `07f9bf8`, 600-second process timeout and 80 GiB address-space cap.
-Unlike the N-Queens/SRE experiments above, these are **single warmup observations**,
-with four separately authorized retests replacing invalid/interrupted observations;
-there are no repeated formal measurements. The Linux container has a 16-CPU
-quota and 120 GiB memory. Configurations retain different internal memory budgets.
+The following machine and backend settings apply specifically to model checking;
+the host and averaging protocol introduced above describe the N-Queens/SRE results.
+The suite contains 60 DVE models, sharing the same compiled model plugin across
+all four backends.
+
+| Item | Model-checking configuration |
+|---|---|
+| Machine | Linux x86_64 server; recorded host CPU: Intel Xeon Gold 6430 |
+| Container resources | 16-CPU quota, 120 GiB memory, swap disabled |
+| Execution | One checker process at a time, CPU0; one worker for C-NDD and the Sylvan backends; BuDDy is sequential |
+| Frontend | LTSmin master snapshot `07f9bf8` (3.1.0-dev) |
+| Exploration | `--order=bfs-prev -rgs --when` |
+| Process limits | 600-second timeout, five-second kill grace, 80 GiB address-space cap |
+
+| Backend | Parameters |
+|---|---|
+| C-NDD | `--vset=cndd --cndd-workers=1 --cndd-memory-mib=1024 --cndd-cache-log2=20 --cndd-gc-interval=0`; compiled with `PNDD_MC_IMAGE_PAIR_CACHE=ON` |
+| BuDDy 2.4 | `--vset=fdd --lace-workers=1 --fdd-reorder=none --fdd-bits=16 --cache-ratio=64 --max-increase=1000000 --min-free-nodes=20` |
+| Sylvan BDD 1.1.2 | `--vset=sylvan --lace-workers=1 --sylvan-sizes=24,30,23,30 --sylvan-bits=16 --sylvan-granularity=1` |
+| Sylvan LDD 1.1.2 | `--vset=lddmc --lace-workers=1 --sylvan-sizes=24,30,23,30` |
+
+C-NDD uses unsigned 16-bit state values and BCDD field labels; BuDDy and Sylvan
+BDD use 16-bit encodings, while LDD stores integer values. GC interval 0 disables
+periodic MC collection, not capacity-driven or Sylvan GC. Each backend retains
+its own table/cache policy; the common process limit does not equalize internal
+memory budgets.
 
 ![Model-checking reachability benchmark](results/model_checking_20261105/reachability-buddy-order.png)
 
