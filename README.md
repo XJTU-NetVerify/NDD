@@ -230,6 +230,17 @@ C-NDD wins the remaining 15. The benchmark therefore identifies C-NDD as a
 competitive alternative to the tested BDD-based implementations, with LDD
 remaining a strong reference for state-vector reachability.
 
+Peak process memory shows a complementary trade-off. On jointly completed
+models, **C-NDD has lower peak RSS than Sylvan BDD on all 54 models and than
+Sylvan LDD on 56 of 57 models**. The geometric mean reference-to-C-NDD peak-RSS
+ratios are **7.11×** and **3.19×**, respectively. BuDDy uses less peak RSS on
+47 of 52 jointly completed models; C-NDD uses less on the other five. Thus,
+C-NDD combines its observed runtime advantage over Sylvan BDD with a smaller
+process-memory footprint, and generally uses less memory than LDD, while
+BuDDy remains the more memory-efficient backend on most comparable models.
+These figures use GNU time's whole-process peak RSS, including frontend and
+runtime allocations, under the backend configurations listed above.
+
 See [all 240 observations, exact settings and limitations](results/model_checking_20261105/README.md)
 and [MC API, relation encoding and LTSmin integration](doc/model-checking.md).
 

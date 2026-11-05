@@ -54,6 +54,32 @@ All backends share BuDDy's model order: successful exploration times ascending, 
 
 BuDDy has 52 jointly successful pairs, but its zero reading for phils.1 is excluded from both ratio statistics and positive-pair win counts. Ratios use different pairwise populations, not a common-set ranking. Values greater than one favor C-NDD.
 
+## Peak process memory
+
+Peak process memory shows a complementary trade-off. On jointly completed
+models, **C-NDD has lower peak RSS than Sylvan BDD on all 54 models and than
+Sylvan LDD on 56 of 57 models**. The geometric mean reference-to-C-NDD peak-RSS
+ratios are **7.11×** and **3.19×**, respectively. BuDDy uses less peak RSS on
+47 of 52 jointly completed models; C-NDD uses less on the other five. Thus,
+C-NDD combines its observed runtime advantage over Sylvan BDD with a smaller
+process-memory footprint, and generally uses less memory than LDD, while
+BuDDy remains the more memory-efficient backend on most comparable models.
+These figures use GNU time's whole-process peak RSS, including frontend and
+runtime allocations, under the backend configurations listed above.
+
+| Reference | Jointly completed models | C-NDD lower peak RSS | C-NDD higher peak RSS | Geometric mean reference/C-NDD peak RSS |
+| --- | ---: | ---: | ---: | ---: |
+| BuDDy | 52 | 5 | 47 | 0.45× |
+| Sylvan BDD | 54 | 54 | 0 | 7.11× |
+| Sylvan LDD | 57 | 56 | 1 | 3.19× |
+
+Statistics use `peak_rss_kib` from the checked-in observations and include only
+pairs where both backends passed. There are no equal-RSS pairs. Unlike runtime
+ratios, the RSS comparison includes phils.1/BuDDy because its zero exploration
+time does not invalidate its positive peak-RSS measurement. Failed and timed-out
+runs are excluded from these pairwise ratios. Each row has its own model population;
+whole-process RSS is not a measurement of NDD nodes alone or equal internal budgets.
+
 ## Validation and limits
 
 Successful results agree with available historical state counts, final levels, group-check counts and next-state-call counts, and with other successful backends on the same model. plc.2 has no historical oracle; its three successful reference backends agree, while C-NDD times out. This is not an independent enumeration proof for every large model. Separate development checks cover tuple/layer equality, callbacks, GC stress and Linux sanitizers.
