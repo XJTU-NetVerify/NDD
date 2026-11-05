@@ -6,7 +6,6 @@
 package org.ants.jndd.diagram;
 
 import javafx.util.Pair;
-import org.ants.jndd.cache.OperationCache;
 
 import java.util.*;
 
@@ -17,14 +16,14 @@ public class AtomizedNDD extends NDD {
     private static ArrayList<HashSet<Integer>> atomsPerField;
     private static boolean cacheEnable = false;
     private final static int CACHE_SIZE = 100000;
-    private static OperationCache<AtomizedNDD> andCache;
+    private static Map<Pair<AtomizedNDD, AtomizedNDD>, AtomizedNDD> andCache;
 
     public static void initAtomizedNDD(int atomizedNDDTableSize, int nddTableSize, int bddTableSize, int bddCacheSize) {
         initNDD(nddTableSize, bddTableSize, bddCacheSize);
         atomizedNodeTable = new AtomizedNodeTable(atomizedNDDTableSize, bddEngine);
         atomizedTemporarilyProtect = new HashSet<>();
         atomsPerField = new ArrayList<>();
-        andCache = new OperationCache<>(CACHE_SIZE, 3);
+        andCache = new HashMap<>();
     }
 
     public static int declareField(int bitNum) {
@@ -45,7 +44,7 @@ public class AtomizedNDD extends NDD {
     }
 
     public static void clearCaches() {
-        andCache.clearCache();
+        andCache.clear();
     }
 
     public static AtomizedNDD ref(AtomizedNDD ndd) {
@@ -112,8 +111,9 @@ public class AtomizedNDD extends NDD {
             return b;
         }
 
-        if (cacheEnable && andCache.getEntry(a, b)) {
-            return andCache.result;
+        if (cacheEnable) {
+            AtomizedNDD cached = andCache.get(new Pair<>(a, b));
+            if (cached != null) return cached;
         }
 
         AtomizedNDD result = null;
@@ -159,7 +159,8 @@ public class AtomizedNDD extends NDD {
         // protect the node during the operation
         atomizedTemporarilyProtect.add(result);
         if (cacheEnable) {
-            andCache.setEntry(andCache.hashValue, a, b, result);
+            if (andCache.size() >= CACHE_SIZE) andCache.clear();
+            andCache.put(new Pair<>(a, b), result);
         }
         return result;
     }

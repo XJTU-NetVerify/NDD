@@ -1262,6 +1262,7 @@ public class NDDFactory extends BDDFactory {
     public class NodeTable <E> {
         // node table
         long currentSize;
+        long totalCreated;
         long maxSize;
         // each element is a node table for a field
         ArrayList<HashMap<HashMap<NDD, Integer>, NDD>> nodeTable;
@@ -1305,6 +1306,7 @@ public class NDDFactory extends BDDFactory {
             if (node == null) {
                 // update mkCount to show status
                 mkCount++;
+                totalCreated++;
 
                 // create a new node
                 // 1. add ref count of all descendants
@@ -1781,12 +1783,32 @@ public class NDDFactory extends BDDFactory {
         return (int) nodeTable.getCurrentSize();
     }
 
+    /** Per-factory count of NDD nodes created. */
+    public long getTotalCreated() {
+        return nodeTable.totalCreated;
+    }
+
+    /** Number of label nodes currently allocated, including terminals. */
+    public long getLabelNodeCount() {
+        return bddEngine.debug_table_size() - bddEngine.debug_free_nodes_count();
+    }
+
+    /** Per-engine count of label nodes created. */
+    public long getLabelTotalCreated() {
+        return bddEngine.getTotalCreated();
+    }
+
     /**
      * Run garbage collection. Returns the number of freed nodes.
      */
     @Override
     public long runGC() {
-        return 0;
+        long before = nodeTable.getCurrentSize();
+        temporarilyProtect.clear();
+        clearCaches();
+        nodeTable.gc();
+        bddEngine.gc();
+        return before - nodeTable.getCurrentSize();
     }
 
     @Override
