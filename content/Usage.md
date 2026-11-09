@@ -182,9 +182,27 @@ The expected counts are 8 valid configurations and 3 valid blue configurations f
 
 [`application/nqueens/NQuenensBenchmark.java`](../src/main/java/application/nqueens/NQuenensBenchmark.java) is a benchmark harness that writes BDD and NDD results for N=8 through N=12 under `results`. It compares all three NDD label modes; use `NDDSolution` for machine-readable metrics.
 
-### JavaNDD Example
+### Selecting an NDD Implementation
 
-[`application/nqueens/JavaNDDSolution.java`](../src/main/java/application/nqueens/JavaNDDSolution.java) uses the factory-style `javandd` API: `NDDFactory`, `BDD`, and `ithVar(...)`. It accepts board sizes as arguments and defaults to N=12. This implementation uses BDD labels; the label-mode flags in `NDDSolution` do not apply here.
+`NDDSolution` shares the same N-Queens constraints between the integer-handle `jndd`
+implementation (default) and the factory-style `javandd` implementation:
+
+```bash
+java -cp target/ndd-1.0.1-jar-with-dependencies.jar application.nqueens.NDDSolution --implementation jndd --label bcdd 8
+java -cp target/ndd-1.0.1-jar-with-dependencies.jar application.nqueens.NDDSolution --implementation javandd 8
+```
+
+`--label bdd|bcdd|zdd` selects the label backend; the existing `--bcdd` and `--zdd`
+flags remain supported. `javandd` currently supports only BDD labels and rejects other
+label modes. The former `JavaNDDSolution` entry point has been removed; use
+`NDDSolution --implementation javandd <N> [<N> ...]` instead.
+
+Both implementations emit `NQUEENS_METRICS` with separate `implementation` and `mode`
+fields. Runtime includes initialization, constraint construction, solution counting and
+releasing the result; final garbage collection is excluded. Created-node counts are per
+run. Alive-node counts are allocated nodes after releasing the result and collecting,
+including retained variable nodes and label terminals; they do not measure the final
+solution diagram.
 
 ## Network-Verification-Oriented Usage
 
