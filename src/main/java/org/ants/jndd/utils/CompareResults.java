@@ -1,3 +1,10 @@
+/**
+ * Utility for comparing BDD and NDD result files by key-value pairs or line by line.
+ * @author XJTU ANTS NetVerify Lab
+ * @version 1.0
+ */
+package org.ants.jndd.utils;
+
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
