@@ -1,0 +1,28 @@
+{
+  "repository": "https://github.com/utwente-fmt/ltsmin",
+  "branch": "master",
+  "commit": "07f9bf8aa8957cab4f8a47c1a943bf7fef968288",
+  "commit_date": "2024-10-31T20:51:07Z",
+  "checked_date": "2026-10-23",
+  "configure_version": "3.1.0",
+  "latest_release": "v3.0.2",
+  "archives": [
+    {
+      "repository": "utwente-fmt/ltsmin",
+      "commit": "07f9bf8aa8957cab4f8a47c1a943bf7fef968288",
+      "directory": ".",
+      "sha256": "7ca382af15239d769258d57a995f0e5ffd6f51ebb4ff85df43dc13000db11f1f"
+    },
+    {
+      "repository": "utwente-fmt/ltl2ba",
+      "commit": "ea33bb2091a34f6af8dba8e26978fecb969aa93b",
+      "directory": "ltl2ba",
+      "sha256": "d143e470d926b9ba33bbfd1f07bf25e0e26cf2edb754eafdba6c3d1a6d9fda08"
+    }
+  ],
+  "source_tree_sha256": "08bcd336f1a53921d866143f626d5f8aaad0f7bcce7e7e848623461ecb8698c4",
+  "unused_submodules": {
+    "scoop": "de867afce7c2aa658ac9da63895c46385236d8d0",
+    "spins": "bfca30be3ce81fd77b31b9d47043145ae66ddc96"
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "phase": "single warmup observation per cell, with four separately authorized replacement retests",
+  "models": 60,
+  "observations": 240,
+  "independent_retests": 4,
+  "formal_measurements": 0,
+  "pairs": {
+    "fdd": {
+      "joint_success": 52,
+      "positive_pairs": 51,
+      "cndd_faster": 42,
+      "equal": 3,
+      "cndd_slower": 6,
+      "geomean_reference_over_cndd": 2.304641093841835
+    },
+    "sylvan": {
+      "joint_success": 54,
+      "positive_pairs": 54,
+      "cndd_faster": 47,
+      "equal": 0,
+      "cndd_slower": 7,
+      "geomean_reference_over_cndd": 2.7466774418349353
+    },
+    "lddmc": {
+      "joint_success": 57,
+      "positive_pairs": 57,
+      "cndd_faster": 15,
+      "equal": 0,
+      "cndd_slower": 42,
+      "geomean_reference_over_cndd": 0.4362445675214467
+    }
+  },
+  "counts": {
+    "cndd": {
+      "PASS": 57,
+      "TIMEOUT": 2,
+      "FAILED": 1
+    },
+    "fdd": {
+      "PASS": 54,
+      "TIMEOUT": 6,
+      "FAILED": 0
+    },
+    "sylvan": {
+      "PASS": 56,
+      "TIMEOUT": 4,
+      "FAILED": 0
+    },
+    "lddmc": {
+      "PASS": 59,
+      "TIMEOUT": 1,
+      "FAILED": 0
+    }
+  },
+  "retest_map": {
+    "phils.1/cndd": "missing live-affinity evidence -> PASS",
+    "bakery.6/cndd": "controller interruption -> PASS",
+    "frogs.3/lddmc": "monitor false positive -> PASS",
+    "hanoi.2/fdd": "server shutdown -> TIMEOUT"
+  },
+  "scope": "No historical MTPNDD timings included."
+}

@@ -52,6 +52,55 @@ ASAN_OPTIONS=detect_leaks=1 native/build-asan/pndd_test 1
 ASAN_OPTIONS=detect_leaks=1 native/build-asan/pndd_test 6
 ```
 
+## Model-checking sets, relations and forward image
+
+`include/pndd_mc.h` provides an opaque domain/set layer for full, projected and
+zero-dimensional state sets, projection, natural join, enumeration, logical
+counting and update callbacks. It uses BCDD labels with 16 logical bits per slot
+by default and reserves separate current/next/scope variables. The generic
+`pndd.h` API and its backend choices remain available.
+
+MC callbacks run outside admission and can mutate sets or collect while an
+enumeration snapshot remains alive. MC counts use the logical projection;
+generic physical-domain `pndd_satcount` is not a substitute. The MC API uses
+opaque owned objects; destroy sets before closing their domain.
+
+Relations support separate read/write projections, copy vectors, exact pair
+counting and update callbacks. Explicit fields retain a scope marker so an
+all-pairs relation cannot collapse into an omitted identity field. Relation
+insertion takes projected vectors; diagnostic membership takes full-domain
+vectors. Destroy relations as well as sets before closing their domain.
+
+`pndd_mc_set_next(dst, src, relation)` computes the forward image with one
+external Lace RUN, including scheduled boundary GC. Source and destination
+must have equal projections containing the relation's union projection;
+`dst == src` is supported. Omitted relation fields preserve source values.
+The initial outer traversal is serial and merges overlapping images through
+existing canonical OR/reduce. The pinned LTSmin integration lives in
+`integration/ltsmin-cndd`.
+
+MC defaults to capacity-driven collection (`engine.gc_interval=0`); explicit
+intervals remain available. This does not disable budget-triggered or Sylvan
+collection, and does not change the generic `pndd_default_config` interval.
+The full-input-pair image cache is opt-in: configure CMake with
+`-DPNDD_MC_IMAGE_PAIR_CACHE=ON` (default OFF).
+It shares the configured label-cache budget, includes the field in its key,
+and is invalidated by label GC. `PNDD_MC_IMAGE_DIAGNOSTIC=1` adds process-exit
+call/hit counters for separate diagnostic runs, never performance acceptance.
+
+Build `pndd_mc_sets_test`, `pndd_mc_relation_test` and `pndd_mc_relnext_test`,
+then run `ctest -R pndd_mc_` for worker 1/2/4 explicit tuple/pair/Post regressions.
+`PNDD_MC_TEST_GC=ON` is a test-only build option (default OFF) that injects label
+GC at temporary image-root boundaries; use a separate build for this mode.
+See [the MC implementation guide](../doc/model-checking.md) and
+[the LTSmin bridge](../integration/ltsmin-cndd/README.md).
+
+Additional tests include `pndd_mc_stress_test` (4096-state BFS, two repeats at 4/16 MiB) and
+`pndd_mc_fault_test` (allocation failure, budget exhaustion and reference
+lifecycle checks), each with workers 1/2/4. The fault executable includes the
+core with test-local allocation wrappers and the production feature defines;
+it does not add fault hooks to `libpndd`.
+
 ## Java API
 
 Load with `-Djava.library.path=...` or the absolute

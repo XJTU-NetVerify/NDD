@@ -35,6 +35,10 @@ typedef struct {
 #define MAX_FIELDS 256
 #define LABEL_BITS UINT32_MAX
 #define LOCAL_CACHE_ENTRIES 16384
+/* MC image entries contain BDD handles; MC next entries contain only NDD IDs.
+ * Both tags fit the shared cache's 19-bit key. */
+#define CACHE_MC_IMAGE 0x50000u
+#define CACHE_MC_NEXT  0x50001u
 
 typedef struct { uint64_t label; uint32_t target; } Edge;
 typedef struct Node {
@@ -401,7 +405,7 @@ static void parallel_profile_dump(void) {
 static uint64_t cache_hash(uint32_t key, uint64_t a, uint64_t b) { return mix(a ^ mix(b) ^ ((uint64_t)key << 32)); }
 static int cache_is_ndd(uint32_t key) {
     return (key >= 1 && key <= PNDD_NOR + 1) ||
-           (key >= 0x10000 && key < 0x10000 + MAX_FIELDS) || key == 0x40000;
+           (key >= 0x10000 && key < 0x10000 + MAX_FIELDS) || key == 0x40000 || key == CACHE_MC_NEXT;
 }
 static void clear_operation_caches(void) {
     /* Both GC callers have stopped all workers before recycling handles. */
@@ -416,7 +420,8 @@ static void clear_label_caches(void) {
     clear_operation_caches();
 #else
     /* Label GC never recycles NDD IDs and marks every allocated NDD's labels.
-       NDD apply/exist/fingerprint entries therefore remain valid. */
+       NDD apply/exist/fingerprint/MC-next entries therefore remain valid.
+       MC image entries contain labels and must be cleared. */
 #ifdef PNDD_SPLIT_CACHE
     if (G->config.cache_entries > 1)
         memset(G->cache + G->config.cache_entries / 2, 0, G->config.cache_entries / 2 * sizeof(SharedCache));
@@ -2111,3 +2116,5 @@ double pndd_nqueens(pndd_engine *e, uint32_t n, int compact, int tree) {
     }
     pthread_mutex_unlock(&admission); return result;
 }
+
+#include "pndd_mc_impl.inc"

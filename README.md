@@ -131,6 +131,119 @@ with the current cohort. The initial scalar integration had no parallel gains;
 that result. Task organization, core storage/cache changes and resource policy
 matter as well as worker count.
 
+### Symbolic model checking: single-worker reachability
+
+**NDD’s field-oriented representation naturally matches the state-vector
+structure used in symbolic model checking.** A model state is a tuple of
+variables, and NDD retains those variable boundaries as fields in its outer
+diagram. An edge represents a symbolic set of values of one field, allowing
+multiple values with the same remaining state structure to share a successor
+subdiagram. This gives NDD a natural structural fit for representing sets of
+state vectors.
+
+That fit also extends to transition relations. Read/write projections identify
+which state variables a transition group depends on or updates; COPY semantics
+preserve the remaining variables. The MC extension expresses these dependencies
+at field boundaries and computes successor sets while retaining cross-field
+correlations. Field-local constraints remain compact BCDD labels, combining
+symbolic value grouping with the sharing of the outer NDD structure.
+
+A finite-state model consists of state variables, an initial state and transition
+relations. The reachability problem asks which states can be reached by applying
+those transitions. Symbolic exploration represents whole sets of states rather
+than listing them individually: BFS repeatedly computes the frontier's successors,
+removes visited states and continues until no new states remain. This workload
+exercises state-set operations and relational image while preserving correlations
+between state variables.
+
+The native C11 core is extended with Boolean state-set and transition-relation
+operations and an LTSmin vector-set backend. LTSmin supplies model loading,
+dependency regrouping and BFS; C-NDD supplies set operations and forward image.
+Each state-vector slot maps to one NDD field, with BCDD field labels. The task
+here is forward reachability, not numeric-terminal evaluation or multicore scaling.
+
+The following machine and backend settings apply specifically to model checking;
+the host and averaging protocol introduced above describe the N-Queens/SRE results.
+The suite contains **60 DVE models from 56 named families**, sharing the same
+compiled model plugin across all four backends. It covers concurrency and
+mutual-exclusion models (such as phils and bakery), communication protocols
+(firewire_tree and brp), control systems (production_cell), and puzzles
+(hanoi, sokoban and peg_solitaire). These workloads extend the evaluation of
+NDD beyond network verification and combinatorial examples such as N-Queens.
+
+| Item | Model-checking configuration |
+|---|---|
+| Machine | Linux x86_64 server; recorded host CPU: Intel Xeon Gold 6430 |
+| Container resources | 16-CPU quota, 120 GiB memory, swap disabled |
+| Execution | One checker process at a time, CPU0; one worker for C-NDD and the Sylvan backends; BuDDy is sequential |
+| Frontend | LTSmin master snapshot `07f9bf8` (3.1.0-dev) |
+| Exploration | `--order=bfs-prev -rgs --when` |
+| Process limits | 600-second timeout, five-second kill grace, 80 GiB address-space cap |
+
+| Backend | Parameters |
+|---|---|
+| C-NDD | `--vset=cndd --cndd-workers=1 --cndd-memory-mib=1024 --cndd-cache-log2=20 --cndd-gc-interval=0`; compiled with `PNDD_MC_IMAGE_PAIR_CACHE=ON` |
+| BuDDy 2.4 | `--vset=fdd --lace-workers=1 --fdd-reorder=none --fdd-bits=16 --cache-ratio=64 --max-increase=1000000 --min-free-nodes=20` |
+| Sylvan BDD 1.1.2 | `--vset=sylvan --lace-workers=1 --sylvan-sizes=24,30,23,30 --sylvan-bits=16 --sylvan-granularity=1` |
+| Sylvan LDD 1.1.2 | `--vset=lddmc --lace-workers=1 --sylvan-sizes=24,30,23,30` |
+
+C-NDD uses unsigned 16-bit state values and BCDD field labels; BuDDy and Sylvan
+BDD use 16-bit encodings, while LDD stores integer values. GC interval 0 disables
+periodic MC collection, not capacity-driven or Sylvan GC. Each backend retains
+its own table/cache policy; the common process limit does not equalize internal
+memory budgets.
+
+![Model-checking reachability benchmark](results/model_checking_20261105/reachability-buddy-order.png)
+
+| Backend | Completed / 60 | Timeout / 60 | Internal capacity failure / 60 |
+|---|---:|---:|---:|
+| C-NDD | 57 | 2 | 1 |
+| BuDDy | 54 | 6 | 0 |
+| Sylvan BDD | 56 | 4 | 0 |
+| Sylvan LDD | 59 | 1 | 0 |
+
+The figure uses reported exploration time, not process wall. Models share
+BuDDy's ascending successful-time order; its incomplete models appear last.
+Zero readings and non-success statuses are shown separately without invented
+times. The fixed gray halo is visual emphasis, not a confidence interval.
+
+The results show that **C-NDD is faster than both BDD-based backends on most
+jointly completed models in this symbolic reachability benchmark**. Among
+successful pairs with positive reported exploration times, C-NDD is faster on
+42/51 models against BuDDy and 47/54 against Sylvan BDD. The geometric mean
+reference-to-C-NDD time ratios are **2.30×** and **2.75×**, respectively.
+The advantage spans different model families rather than a single illustrative
+instance, demonstrating the practical usefulness of field-oriented NDDs for
+symbolic state-space exploration.
+
+The structural motivation and the measured results point in the same direction:
+model checking is another effective application for NDD's field-based design.
+State-vector components map directly to NDD fields, symbolic edge labels group
+values that share the same continuation, and projected transition relations
+preserve variable dependencies and unchanged state components. This integration
+makes those capabilities available through an existing model-checking frontend,
+without replacing LTSmin's exploration algorithm.
+
+Sylvan LDD is a separate, integer-valued decision-diagram baseline rather than
+a BDD backend. It is faster than C-NDD on 42/57 comparable models, while
+C-NDD wins the remaining 15. The benchmark therefore identifies C-NDD as a
+competitive alternative to the tested BDD-based implementations, with LDD
+remaining a strong reference for state-vector reachability.
+
+Peak process memory shows a complementary trade-off. On jointly completed
+models, **C-NDD has lower peak RSS than Sylvan BDD on all 54 models and than
+Sylvan LDD on 56 of 57 models**. The geometric mean reference-to-C-NDD peak-RSS
+ratios are **7.11×** and **3.19×**, respectively. BuDDy uses less peak RSS on
+47 of 52 jointly completed models; C-NDD uses less on the other five. Thus,
+C-NDD combines its observed runtime advantage over Sylvan BDD with a smaller
+process-memory footprint, and generally uses less memory than LDD, while
+BuDDy remains the more memory-efficient backend on most comparable models.
+These figures use GNU time's whole-process peak RSS, including frontend and
+runtime allocations, under the backend configurations listed above.
+
+See [all 240 observations, exact settings and limitations](results/model_checking_20261105/README.md)
+and [MC API, relation encoding and LTSmin integration](doc/model-checking.md).
+
 ### Published data and reproduction
 
 Reports include raw timing/metric records, logs, checks, build settings and source
